@@ -8,6 +8,8 @@ import { builtinModules } from "node:module";
 import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
+import cliOutputThroughWrite from "./scripts/eslint-rules/cli-output-through-write.ts";
+
 // Every name Node's built-in modules answer to, with and without the node: prefix, taken from Node
 // itself instead of typed out. A few, such as node:test, exist only with the prefix.
 const BARE = builtinModules.filter((name) => !name.startsWith("node:"));
@@ -20,6 +22,9 @@ export default defineConfig([
   {
     files: ["**/*.ts"],
     languageOptions: { parser: tseslint.parser },
+    // The lab's own rules (chapter 17), as a plugin defined right here rather than published.
+    plugins: { local: { rules: { "cli-output-through-write": cliOutputThroughWrite } } },
+    rules: { "local/cli-output-through-write": "error" },
   },
   {
     // Every file in src/ except the command-line tool, including files written later.

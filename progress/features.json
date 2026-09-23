@@ -56,6 +56,18 @@
       "proof": "ts/test/boundaries.test.ts::reads every TypeScript file in the package"
     },
     {
+      "id": "model-text-rule",
+      "description": "Code reads a model's text through final_text, enforced by the lab's own lint rule, whose exceptions must each give a reason.",
+      "status": "done",
+      "proof": "python/tests/test_helpdesk_lint.py::test_reading_the_text_after_complete_is_caught_and_the_message_says_what_to_do"
+    },
+    {
+      "id": "cli-output-rule",
+      "description": "The command-line tool's output goes through write, enforced by a custom ESLint rule that fixes what is safe to fix.",
+      "status": "done",
+      "proof": "ts/test/lint-rules.test.ts::fixes a console.log planted in the CLI's run() back to write()"
+    },
+    {
       "id": "draft-reply",
       "description": "The assistant can draft a reply to a ticket, which a person reads before anything is sent.",
       "status": "todo",

@@ -2,6 +2,15 @@
 
 What each working session did, newest first. Add an entry at the end of every session: what changed, how you checked it, and what the next session should do first. Name the command behind each claim, so the next session can run it again instead of trusting the sentence.
 
+## 2026-09-23: chapter 17, custom lint rules
+
+- Python: `python -m helpdesk_lint` enforces AGENTS.md rule 5 (a model's text through `final_text`). Its first run flagged `assistant/agent.py`'s transcript line, which is correct, so it carries a `# HDK101:` exception with its reason. 10 tests.
+- TypeScript: a custom ESLint rule sends output through `write` in functions that take it, with a fix for `console.log` and a suggestion for the rest. 8 tests.
+- Broke each guard in turn (18 changes); a test failed each time.
+- Work list: `model-text-rule` and `cli-output-rule` added as done, with their proofs.
+- Checked with: `node check.mjs` (all 16 checks passed) and `node tools/progress.mjs .` (no problems).
+- Next: `draft-reply`, still the first item to do.
+
 ## 2026-09-23: chapter 16, boundary rules
 
 - Python: a fourth import contract keeps the `anthropic` SDK inside `helpdesk.model` (an allow-list, so new modules are covered), and each contract's fix is now in `broken_contract_guidance`. 2 new guardrail tests.

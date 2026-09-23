@@ -16,6 +16,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `python/src/helpdesk/assistant/` | The triage assistant: an agent loop (`agent.py`) and the tools it may use (`tools.py`). Sits beside the API routes; calls services, never the data layer. |
 | `python/src/helpdesk/model/` | The model interface, a deterministic mock, the Anthropic client (`anthropic_client.py`), stop-reason handling (`stops.py`) and cost arithmetic (`cost.py`). Imports nothing else from the helpdesk. |
 | `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. Teaching code, not part of the helpdesk. |
+| `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
 | `python/src/helpdesk/main.py` | Composition root for the web service. |
 | `python/src/helpdesk/triage.py` | Composition root for the triage assistant's command line. |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to; `tests/fitness/` checks properties of the code as a whole (chapter 15). |
@@ -40,7 +41,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
-- Check: `node check.mjs` (all <!-- claim: checks -->15 checks; CI runs the same command)
+- Check: `node check.mjs` (all <!-- claim: checks -->16 checks; CI runs the same command)
 - After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`. If it fails, change `LONGEST_INSTALLED_FILE` in `setup.mjs` to the number it prints.
 - After changing a request or response model: `node tools/regenerate.mjs` (the API contract, then the TypeScript types), then `node check.mjs`, and fix what the type-check reports.
 
@@ -49,7 +50,7 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Set up: `python -m venv .venv`, then `pip install -r requirements-lock.txt` and `pip install -e . --no-deps`
 - Test: `pytest`
 - Lint: `ruff check .` and `ruff format --check .`
-- Guardrails: `lint-imports`
+- Guardrails: `lint-imports`, and `python -m helpdesk_lint` for the lab's own rule
 - Run: `uvicorn --factory helpdesk.main:create_default_app` (`HELPDESK_DB` sets the database file)
 - Chapter 2 demos: `python -m toymodel tokens "reset my password"`, `python -m toymodel next "reset emails can take up to"`, `python -m helpdesk.model.cost`
 - The triage assistant: `python -m helpdesk.triage` (mock model, scripted); `python -m helpdesk.triage --real "..."` calls Anthropic's API and needs a credential such as `ANTHROPIC_API_KEY`
@@ -58,7 +59,7 @@ TypeScript, from `ts/`:
 
 - Set up: `npm ci`
 - Type-check: `npm run typecheck`
-- Import rules: `npm run lint` (ESLint, one file at a time) and `npm run deps` (dependency-cruiser, between files)
+- Import rules: `npm run lint` (ESLint, one file at a time, with the lab's own rule in `scripts/eslint-rules/`) and `npm run deps` (dependency-cruiser, between files)
 - Test: `npm test`
 - Try the CLI: `npm run cli -- tickets open` (`--url` or `HELPDESK_URL` sets the server)
 
@@ -77,7 +78,7 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 2. `helpdesk.model` imports nothing from the helpdesk, and nothing else imports the `anthropic` SDK. Pass the model what it needs as arguments, and pass code that needs a model a `ModelClient`.
 3. Only the composition roots, `helpdesk/main.py` and `helpdesk/triage.py`, wire the layers together.
 4. Tests use the mock model and never call a real model or the network.
-5. Code that wants a model's text calls `helpdesk.model.stops.final_text`, never `response.text` directly, so a refusal or a cut-off answer can't pass as a finished one.
+5. Code that wants a model's text calls `helpdesk.model.stops.final_text`, never `response.text` directly, so a refusal or a cut-off answer can't pass as a finished one. `python -m helpdesk_lint` enforces this; a line with a real reason to read the text says so in a `# HDK101: <why>` comment.
 6. Warnings fail the Python test run. Fix the cause instead of silencing it; the one exception, raised inside Starlette, is listed in `pyproject.toml`.
 7. A change is done when `node check.mjs` passes. Record it in `CHANGELOG.md` in the same commit.
 8. No secrets in the repository.

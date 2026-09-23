@@ -34,6 +34,7 @@ def run_agent(model: ModelClient, tools: Toolbox, *, system: str, task: str, max
     messages: list[Message] = [Message("user", task)]
     for turn in range(1, max_turns + 1):
         response = model.complete(system=system, messages=messages, tools=tools.specs)
+        # HDK101: the turn goes into the transcript as it came; the answer goes through final_text below.
         messages.append(Message("assistant", response.text, tool_calls=response.tool_calls, raw=response.raw))
         if response.stop_reason != "tool_use":
             # A finished answer, or an exception that says why it isn't one.

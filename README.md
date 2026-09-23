@@ -17,30 +17,22 @@ Coming chapter by chapter: tools that change things, behind human approval; hook
 
 ## Quick start
 
-Tested with Python 3.14 and Node 24.
+You need Python and Node. The lab is tested with Python 3.14 and Node 24. The Python package declares 3.12 as its minimum, which hasn't been tested.
 
-On Windows, clone into a short folder such as `C:\src`. One of the Python packages installs files with long paths, and Windows limits a whole path to 260 characters unless long paths are enabled; keep the path to your clone under about 90 characters.
+On Windows, clone into a short folder such as `C:\src`. One of the Python packages installs files with long paths, and Windows limits a whole path to 260 characters unless long paths are enabled; keep the path to your clone under about 90 characters. The setup script checks this before it installs anything.
 
-```bash
-cd python
-python -m venv .venv
-.venv/bin/pip install -r requirements-lock.txt   # on Windows: .venv\Scripts\pip
-.venv/bin/pip install -e . --no-deps
-.venv/bin/pytest
-.venv/bin/lint-imports
-.venv/bin/uvicorn --factory helpdesk.main:create_default_app
-```
-
-In a second terminal:
+From the repository's root folder:
 
 ```bash
-cd ts
-npm ci
-npm test
-npm run cli -- tickets open
+node setup.mjs
+node check.mjs
 ```
 
-`AGENTS.md` has the full list of commands and the rules for changing the code.
+`setup.mjs` creates `python/.venv`, installs the pinned Python packages and the TypeScript packages. `check.mjs` runs every check and prints one line each; CI runs the same two commands. Run `node setup.mjs` again after pulling a new chapter, in case the pinned packages changed.
+
+Each chapter's state of the repository has a tag: `git checkout ch03` shows the lab as chapter 3 left it.
+
+`AGENTS.md` has every individual command and the rules for changing the code.
 
 ## License
 

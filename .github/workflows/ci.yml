@@ -16,40 +16,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  python:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: python
+  # The same two commands a reader runs: node setup.mjs, then node check.mjs.
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      HELPDESK_PYTHON: python
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - run: pip install -r requirements-lock.txt && pip install -e . --no-deps
-      - run: ruff check . && ruff format --check .
-      - run: lint-imports
-      - run: pytest
-
-  typescript:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ts
-    steps:
-      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-
-  scripts:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-      - run: node --test postings/tally.test.mjs tools/harness-inventory.test.mjs tools/git-run.test.mjs
+      - run: node setup.mjs
+      - run: node check.mjs

@@ -28,6 +28,14 @@
 
 - **The guardrail tests no longer depend on the shell's encoding.** Found verifying chapter 20: with `PYTHONIOENCODING=utf-8` set, as some shells set it, `tests/guardrails/test_layers_contract.py` gave 12 failed and 12 errors on Windows (unset, or set to `cp1252`, 12 passed), because `run_guardrail` read lint-imports' output with `text=True`, in the locale's code page, while lint-imports wrote its box-drawing characters in UTF-8. The test now sets `PYTHONIOENCODING=utf-8` in lint-imports' environment and reads its output as UTF-8, so both ends agree whatever the shell says. A new test runs the guardrail with the variable unset and set to `utf-8`, `cp1252` and `utf-16`: remove the setting from lint-imports' environment and the `cp1252` and `utf-16` cases fail (1 failed and 1 error, checked on Windows), because lint-imports then writes in whatever the shell set while the test reads UTF-8. The variable decides what lint-imports writes on every platform, so those two cases should fail anywhere; only Windows has run them. 16 tests in the file now, and all 16 pass with the variable unset and set to each of the three.
 
+## 2026-09-22, chapter 5 lab
+
+- **`node setup.mjs`** sets everything up in one command: finds Python 3.12 or newer (`py -3` or `python` on Windows, `python3` or `python` elsewhere, or `HELPDESK_PYTHON`), creates `python/.venv`, installs the pinned packages and the helpdesk, and runs `npm ci`. On Windows it first checks that the longest installed path will fit in 259 characters, reading (never changing) the `LongPathsEnabled` registry value, and stops with a message that says how to fix it if not.
+- **`node check.mjs`** runs every check (ruff check, ruff format, lint-imports, pytest, the TypeScript type-check and tests, and the Node script tests), prints one line per check, and exits 1 with the end of the failing check's output.
+- **CI** now runs those same two commands, on Linux and on Windows, instead of three separate jobs. Not yet run: there is still no remote.
+- **README** quick start is now the two commands. It says only Python 3.14 has been tested.
+- **Tags** `ch01` to `ch05` mark each chapter's state of the repository.
+
 ## 2026-09-22, chapter 4 lab
 
 - **`tools/harness-inventory.mjs`** lists the evidence a repository's files give for each of the eight parts of a harness: instruction files, project tool configuration, tracked permission rules, checks (CI workflows, tests, linters, type checkers, import rules), feedback loops (agent hooks, git hooks, CI on pull requests), session state (changelogs, handoff and progress files) and review (CODEOWNERS, pull request templates). Measurement is always reported as not visible in files. It reports evidence and never scores, reads only tracked files in a git repository, and skips dependency folders otherwise. Every file name it looks for comes from the owning tool's documentation, read on 2026-09-22.

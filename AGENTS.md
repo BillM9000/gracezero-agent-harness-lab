@@ -26,6 +26,11 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 
 ## Commands
 
+Everything, from the repository root:
+
+- Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
+- Check: `node check.mjs` (every check below; CI runs the same command)
+
 Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere):
 
 - Set up: `python -m venv .venv`, then `pip install -r requirements-lock.txt` and `pip install -e . --no-deps`
@@ -62,5 +67,5 @@ Job postings, from the repository root:
 4. Tests use the mock model and never call a real model or the network.
 5. Code that wants a model's text calls `helpdesk.model.stops.final_text`, never `response.text` directly, so a refusal or a cut-off answer can't pass as a finished one.
 6. Warnings fail the Python test run. Fix the cause instead of silencing it; the one exception, raised inside Starlette, is listed in `pyproject.toml`.
-7. A change is done when every command above passes. Record it in `CHANGELOG.md` in the same commit.
+7. A change is done when `node check.mjs` passes. Record it in `CHANGELOG.md` in the same commit.
 8. No secrets in the repository.

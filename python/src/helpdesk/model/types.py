@@ -21,12 +21,6 @@ StopReason = Literal[
 
 
 @dataclass(frozen=True)
-class Message:
-    role: Role
-    content: str
-
-
-@dataclass(frozen=True)
 class ToolSpec:
     """A tool the model may ask to call. input_schema is JSON Schema."""
 
@@ -37,8 +31,36 @@ class ToolSpec:
 
 @dataclass(frozen=True)
 class ToolCall:
+    """A tool the model asked to run. The id pairs the call with its result."""
+
+    id: str
     name: str
     arguments: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ToolResult:
+    """What running a tool produced. is_error tells the model the call failed, so it can adjust."""
+
+    call_id: str
+    content: str
+    is_error: bool = False
+
+
+@dataclass(frozen=True)
+class Message:
+    """One turn of the conversation.
+
+    A user turn carries text or, after the model called tools, their results. An assistant turn
+    carries the model's text and tool calls, plus raw: the provider's own copy of the turn, which
+    a real client sends back unchanged on the next call.
+    """
+
+    role: Role
+    content: str = ""
+    tool_calls: tuple[ToolCall, ...] = ()
+    tool_results: tuple[ToolResult, ...] = ()
+    raw: Any = None
 
 
 @dataclass(frozen=True)
@@ -46,6 +68,7 @@ class ModelResponse:
     stop_reason: StopReason
     text: str = ""
     tool_calls: tuple[ToolCall, ...] = ()
+    raw: Any = None
 
 
 class ModelClient(Protocol):

@@ -9,7 +9,9 @@ from helpdesk.model.types import Message, ModelResponse, ToolCall
 def test_returns_scripted_responses_in_order_and_records_calls():
     model = MockModel(
         [
-            ModelResponse(stop_reason="tool_use", tool_calls=(ToolCall("search_kb", {"query": "password"}),)),
+            ModelResponse(
+                stop_reason="tool_use", tool_calls=(ToolCall("call_1", "search_kb", {"query": "password"}),)
+            ),
             ModelResponse(stop_reason="end_turn", text="Try the reset link."),
         ]
     )

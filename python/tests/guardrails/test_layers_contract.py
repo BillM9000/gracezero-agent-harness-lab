@@ -63,7 +63,7 @@ def test_data_layer_importing_a_service_is_caught(tmp_path):
     code, output = run_guardrail(workdir)
     assert code != 0, output
     assert "helpdesk.data.repository -> helpdesk.services.tickets" in output
-    assert "the data layer must not know about services or routes" in output
+    assert "the data layer must not know about services, routes or the assistant" in output
 
 
 def test_model_importing_a_service_is_caught(tmp_path):
@@ -83,3 +83,29 @@ def test_route_importing_the_data_layer_is_caught_with_the_fix(tmp_path):
     assert "BROKEN" in output
     assert "helpdesk.api.routes -> helpdesk.data.repository" in output
     assert "move the query into helpdesk.services and call that from the route" in output
+
+
+def test_the_assistant_importing_the_data_layer_is_caught_with_the_fix(tmp_path):
+    workdir = copy_package(tmp_path)
+    plant(workdir, "helpdesk.assistant.tools", "from helpdesk.data import repository")
+    code, output = run_guardrail(workdir)
+    assert code != 0, output
+    assert "helpdesk.assistant.tools -> helpdesk.data.repository" in output
+    assert "call that from the route or the tool" in output
+
+
+def test_routes_and_the_assistant_must_not_import_each_other(tmp_path):
+    workdir = copy_package(tmp_path)
+    plant(workdir, "helpdesk.api.routes", "from helpdesk.assistant import agent")
+    code, output = run_guardrail(workdir)
+    assert code != 0, output
+    assert "helpdesk.api.routes -> helpdesk.assistant.agent" in output
+    assert "put what both need in helpdesk.services" in output
+
+
+def test_model_importing_the_assistant_is_caught(tmp_path):
+    workdir = copy_package(tmp_path)
+    plant(workdir, "helpdesk.model.types", "from helpdesk.assistant import tools")
+    code, output = run_guardrail(workdir)
+    assert code != 0, output
+    assert "helpdesk.model.types -> helpdesk.assistant.tools" in output

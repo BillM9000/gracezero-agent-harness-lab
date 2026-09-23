@@ -7,7 +7,7 @@ name = "helpdesk"
 version = "0.1.0"
 description = "A small helpdesk service, the companion lab for a book on AI platform engineering."
 requires-python = ">=3.12"
-dependencies = ["fastapi>=0.141", "uvicorn>=0.53"]
+dependencies = ["fastapi>=0.141", "uvicorn>=0.53", "anthropic>=1.8"]
 
 # Exact versions this was last run against are in requirements-lock.txt.
 [project.optional-dependencies]
@@ -41,19 +41,19 @@ root_package = "helpdesk"
 # A layers contract only stops a lower layer importing a higher one. It does not stop a route
 # importing the data layer directly (tests/guardrails caught that), so the next contract does.
 [[tool.importlinter.contracts]]
-name = "Layers run api, then services, then data. A lower layer must never import a higher one: the data layer must not know about services or routes, and services must not know about routes."
+name = "Layers run api and assistant, then services, then data. A lower layer must never import a higher one: the data layer must not know about services, routes or the assistant, and services must not know about routes or the assistant. api and assistant are siblings and must not import each other: put what both need in helpdesk.services."
 type = "layers"
-layers = ["helpdesk.api", "helpdesk.services", "helpdesk.data"]
+layers = ["helpdesk.api | helpdesk.assistant", "helpdesk.services", "helpdesk.data"]
 
 [[tool.importlinter.contracts]]
-name = "Routes must not import the data layer directly. A route that needs data must call a service: move the query into helpdesk.services and call that from the route."
+name = "Routes and the assistant must not import the data layer directly. Code that needs data must call a service: move the query into helpdesk.services and call that from the route or the tool."
 type = "forbidden"
-source_modules = ["helpdesk.api"]
+source_modules = ["helpdesk.api", "helpdesk.assistant"]
 forbidden_modules = ["helpdesk.data"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "helpdesk.model is a leaf and must not import helpdesk.api, helpdesk.services or helpdesk.data. Pass what the model needs in as arguments instead."
+name = "helpdesk.model is a leaf and must not import helpdesk.api, helpdesk.assistant, helpdesk.services or helpdesk.data. Pass what the model needs in as arguments instead."
 type = "forbidden"
 source_modules = ["helpdesk.model"]
-forbidden_modules = ["helpdesk.api", "helpdesk.services", "helpdesk.data"]
+forbidden_modules = ["helpdesk.api", "helpdesk.assistant", "helpdesk.services", "helpdesk.data"]

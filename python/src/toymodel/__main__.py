@@ -12,7 +12,7 @@ import argparse
 from toymodel import bpe, nextword
 from toymodel.corpus import SUPPORT_REPLIES
 
-MERGES = 100  # training stops early once no pair of neighbours repeats
+MERGES = 100  # training stops early once no pair of neighbors repeats
 
 
 def show_tokens(texts: list[str]) -> None:

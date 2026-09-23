@@ -1,8 +1,8 @@
-"""A tiny byte-pair-encoding (BPE) tokenizer.
+"""A tiny byte-pair-encoding (BPE) tokenizer, trained on ten sentences.
 
-Training starts from single letters and repeatedly merges the pair of neighbours that appears most
-often. Real tokenizers work the same way on vastly more text. The result is the same too: words
-the training text used often become one token, and unfamiliar words are split into pieces.
+Training starts from single letters and repeatedly merges the pair of neighbors that appears most
+often. Words the training text used often end up as one token, and unfamiliar words are split
+into pieces.
 """
 
 from __future__ import annotations

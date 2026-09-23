@@ -9,6 +9,7 @@ fixtures in tests/policy_fixtures/ pin exactly what it accepts and what it refus
 from __future__ import annotations
 
 import difflib
+import json
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -51,6 +52,11 @@ FIELDS: dict[str, tuple[type, str]] = {
 TYPE_NAMES = {str: "text", int: "a whole number", list: "a list"}
 
 
+def shown(value: Any) -> str:
+    """A value as a definition file writes it: true, "6", ["get_ticket"]."""
+    return json.dumps(value, ensure_ascii=False)
+
+
 def is_a(value: Any, kind: type) -> bool:
     # In Python, True is an int. In a definition it's a mistake.
     return isinstance(value, kind) and not isinstance(value, bool)
@@ -62,8 +68,8 @@ def check(definition: dict[str, Any], policy: dict[str, Any]) -> list[Violation]
     for key in definition:
         if key not in FIELDS:
             close = difflib.get_close_matches(key, FIELDS, n=1)
-            hint = f"Did you mean {close[0]!r}?" if close else f"The fields are {', '.join(FIELDS)}."
-            reason = f"{key!r} isn't a field of an agent definition. {hint}"
+            hint = f"Did you mean {close[0]}?" if close else f"The fields are {', '.join(FIELDS)}."
+            reason = f"{key} isn't a field of an agent definition. {hint}"
             found.append(Violation(key, "unknown-field", reason))
 
     usable: dict[str, Any] = {}
@@ -71,7 +77,7 @@ def check(definition: dict[str, Any], policy: dict[str, Any]) -> list[Violation]
         if key not in definition:
             found.append(Violation(key, "missing", f"missing. {why}"))
         elif not is_a(definition[key], kind):
-            found.append(Violation(key, "type", f"must be {TYPE_NAMES[kind]}, not {definition[key]!r}."))
+            found.append(Violation(key, "type", f"must be {TYPE_NAMES[kind]}, not {shown(definition[key])}."))
         elif kind is str and not definition[key].strip():
             found.append(Violation(key, "empty", f"is empty. {why}"))
         else:
@@ -84,8 +90,8 @@ def check(definition: dict[str, Any], policy: dict[str, Any]) -> list[Violation]
             Violation(
                 "model",
                 "model",
-                f"{model!r} isn't an approved model. Use one of {', '.join(models)}, or ask the platform "
-                "team to approve it in agents/policy.toml.",
+                f"{shown(model)} isn't an approved model. Use one of {', '.join(map(shown, models))}, or ask "
+                "the platform team to approve it in agents/policy.toml.",
             )
         )
 
@@ -126,14 +132,14 @@ def check(definition: dict[str, Any], policy: dict[str, Any]) -> list[Violation]
 
     for i, tool in enumerate(usable.get("tools", [])):
         if not is_a(tool, str):
-            found.append(Violation(f"tools[{i}]", "type", f"must be a tool's name, not {tool!r}."))
+            found.append(Violation(f"tools[{i}]", "type", f"must be a tool's name, not {shown(tool)}."))
         elif tool not in policy["tools"]:
             found.append(
                 Violation(
                     f"tools[{i}]",
                     "tool",
-                    f"{tool!r} isn't a tool the platform provides. "
-                    f"The tools are {', '.join(policy['tools'])}.",
+                    f"{shown(tool)} isn't a tool the platform provides. "
+                    f"The tools are {', '.join(map(shown, policy['tools']))}.",
                 )
             )
 

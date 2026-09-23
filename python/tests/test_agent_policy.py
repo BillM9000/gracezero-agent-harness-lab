@@ -98,7 +98,7 @@ def triage(*args: str) -> subprocess.CompletedProcess[str]:
 def test_the_triage_assistant_refuses_a_definition_that_breaks_the_policy():
     run = triage("--agent", str(FIXTURES_DIR / "fail-model-not-approved.toml"))
     assert run.returncode == 2
-    assert "model: 'claude-opus-4-1' isn't an approved model." in run.stderr
+    assert 'model: "claude-opus-4-1" isn\'t an approved model.' in run.stderr
     assert run.stderr.rstrip().endswith("Nothing ran.")
     assert run.stdout == ""
 

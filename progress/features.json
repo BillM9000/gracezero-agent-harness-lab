@@ -92,6 +92,12 @@
       "proof": "tools/fix-loop.test.mjs::stops when the agent changes the checks, and leaves the change for a person"
     },
     {
+      "id": "rework-count",
+      "description": "A script reads a repository's git history and shows, by folder, how often fixes landed on recent agent work and how long after the change, with bookkeeping files left out.",
+      "status": "done",
+      "proof": "tools/rework.test.mjs::a fix to a file an agent changed days before is rework, counted in that file's folder"
+    },
+    {
       "id": "draft-reply",
       "description": "The assistant can draft a reply to a ticket, which a person reads before anything is sent.",
       "status": "todo",

@@ -1,7 +1,7 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 16 to 18, 24 and 25 are here,
-// the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter 1's
+// must then fail. Add entries when a chapter adds a guard. Chapters 16 to 18, 24, 25 and 31 are
+// here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter 1's
 // tally's check for missing fields; the guards from earlier chapters were broken by hand when they
 // were built (CHANGELOG.md records each time) and are the next candidates to add.
 
@@ -22,6 +22,8 @@ const AGENT_RULES = "python/src/agent_policy/rules.py";
 const FEEDBACK_TESTS = "tools/feedback.test.mjs";
 const STOP_TESTS = "tools/hooks/stop-check.test.mjs";
 const LOOP_TESTS = "tools/fix-loop.test.mjs";
+const REWORK = "tools/rework.mjs";
+const REWORK_TESTS = "tools/rework.test.mjs";
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -647,6 +649,78 @@ export const MUTATIONS = [
     find: "export const ALWAYS = [/^check\\.mjs$/, TOOLS,",
     replace: "export const ALWAYS = [TOOLS,",
     run: nodeTest(LOOP_TESTS, "stops when the agent changes the checks"),
+  },
+
+  // Chapter 31: the rework count.
+  {
+    guard: "rework: a co-author trailer naming an agent counts",
+    file: REWORK,
+    find: "/\\b(claude|copilot|codex|cursor|devin|gemini|aider|windsurf|jules)\\b/i",
+    replace: "/\\b(copilot|codex|cursor|devin|gemini|aider|windsurf|jules)\\b/i",
+    run: nodeTest(REWORK_TESTS, "counts agent commits"),
+  },
+  {
+    guard: "rework: so does an agent as the author",
+    file: REWORK,
+    find: "AGENT.test(commit.author) || ",
+    replace: "",
+    run: nodeTest(REWORK_TESTS, "counts agent commits"),
+  },
+  {
+    guard: "rework: fixed and fixes count as fixes",
+    file: REWORK,
+    find: "/^(fix(es|ed)?|hotfix|revert(s|ed)?)\\b/i",
+    replace: "/^(fix|hotfix|revert)\\b/i",
+    run: nodeTest(REWORK_TESTS, "fix subjects"),
+  },
+  {
+    guard: "rework: a fix to a person's change isn't rework",
+    file: REWORK,
+    find: "return before && before.agent && commit.time - before.time < within * DAY;",
+    replace: "return before && commit.time - before.time < within * DAY;",
+    run: nodeTest(REWORK_TESTS, "a fix to a person's change"),
+  },
+  {
+    guard: "rework: nor is a fix to an old agent change",
+    file: REWORK,
+    find: "return before && before.agent && commit.time - before.time < within * DAY;",
+    replace: "return before && before.agent;",
+    run: nodeTest(REWORK_TESTS, "a fix to a person's change"),
+  },
+  {
+    guard: "rework: the history reaches back before the window",
+    file: REWORK,
+    find: "readHistory(root, windowStart - within * DAY, { allFiles, ignore })",
+    replace: "readHistory(root, windowStart, { allFiles, ignore })",
+    run: nodeTest(REWORK_TESTS, "an agent change just before the window"),
+  },
+  {
+    guard: "rework: Markdown files are left out",
+    file: REWORK,
+    find: "(allFiles || !MARKDOWN.test(f))",
+    replace: "true",
+    run: nodeTest(REWORK_TESTS, "Markdown files don't make a fix rework"),
+  },
+  {
+    guard: "rework: --ignore leaves files out",
+    file: REWORK,
+    find: "!(ignore && ignore.test(f))",
+    replace: "true",
+    run: nodeTest(REWORK_TESTS, "--ignore leaves out files"),
+  },
+  {
+    guard: "rework: a fix counts once per folder",
+    file: REWORK,
+    find: "for (const name of new Set(reworked.map((f) => folder(f, depth)))) {",
+    replace: "for (const name of reworked.map((f) => folder(f, depth))) {",
+    run: nodeTest(REWORK_TESTS, "folders are grouped"),
+  },
+  {
+    guard: "rework: folders go --depth levels deep",
+    file: REWORK,
+    find: 'parts.slice(0, depth).join("/")',
+    replace: 'parts.slice(0, 1).join("/")',
+    run: nodeTest(REWORK_TESTS, "folders are grouped"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

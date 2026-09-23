@@ -6,6 +6,15 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
 
+## 2026-09-23: chapter 31, where agent work gets redone
+
+- `node tools/rework.mjs` counts, from git history alone, where fixes landed on recent agent work, by folder, with the median time to the fix; `node tools/rework-demo.mjs` builds a history to try it on. 10 new script tests.
+- Its first run on a real repository counted bookkeeping as rework (a changelog, a version number), so Markdown is now left out by default and `--ignore` leaves out more.
+- Broke each new guard in turn (10 new entries in `tools/mutations.mjs`); a test failed each time.
+- Work list: `rework-count` added as done, with its proof.
+- Checked with: `node check.mjs` (all 17 checks passed), `node tools/mutate.mjs` (all 80 caught, from a fresh clone) and `node tools/progress.mjs .` (no problems).
+- Next: `draft-reply`, still the first item to do.
+
 ## 2026-09-23: chapter 25, closing the loop
 
 - A Stop hook (`tools/hooks/stop-check.mjs`, wired up in `.claude/settings.json`) runs `node check.mjs --fast` when the agent stops and sends a failure back, at most three rounds in a row. `tools/fix-loop.mjs` does the same for a pipeline, with any agent command; `tools/stand-in-agent.mjs` stands in for one. 22 new script tests.

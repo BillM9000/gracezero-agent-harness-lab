@@ -45,7 +45,7 @@ Everything, from the repository root:
 - Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
 - Check: `node check.mjs` (all <!-- claim: checks -->17 checks; CI runs the same command)
 - Check quickly: `node check.mjs --fast` skips the three test suites, for after each edit; the full run is what counts
-- After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`. If it fails, change `LONGEST_INSTALLED_FILE` in `setup.mjs` to the number it prints.
+- After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`; if it fails, its message says what to change.
 - After changing a request or response model: `node tools/regenerate.mjs` (the API contract, then the TypeScript types), then `node check.mjs`, and fix what the type-check reports.
 
 Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere):
@@ -56,7 +56,7 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Guardrails: `lint-imports`, and `python -m helpdesk_lint` for the lab's own rule
 - Agent definitions: `python -m agent_policy` checks `agents/*.toml` against `agents/policy.toml`; `tests/policy_fixtures/` shows what each rule accepts and refuses
 - Run: `uvicorn --factory helpdesk.main:create_default_app` (`HELPDESK_DB` sets the database file)
-- Chapter 2 demos: `python -m toymodel tokens "reset my password"`, `python -m toymodel next "reset emails can take up to"`, `python -m helpdesk.model.cost`
+- Chapter 2 demos: `python -m toymodel tokens <text>`, `python -m toymodel next <text>`, `python -m helpdesk.model.cost`
 - The triage assistant: `python -m helpdesk.triage` (mock model, scripted); `python -m helpdesk.triage --real "..."` calls Anthropic's API and needs a credential such as `ANTHROPIC_API_KEY`
 
 TypeScript, from `ts/`:
@@ -77,6 +77,7 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 - `node tools/progress.mjs [path]` shows the work list and the last session's log entry, and fails if a done item names no test that exists, or if more than one item is in progress (chapter 10).
 - `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it; when you add a guard, add its entry (chapter 24).
 - `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command until they pass, at most three times, and stops early if nothing changes or the agent changes the checks; `node tools/stand-in-agent.mjs` stands in for an agent (chapter 25).
+- `node tools/rework.mjs [path]` shows where fixes landed on recent agent work, from git history alone; `node tools/rework-demo.mjs <folder>` builds a history to try it on (chapter 31).
 
 ## Rules
 

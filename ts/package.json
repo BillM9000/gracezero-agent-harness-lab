@@ -1,0 +1,20 @@
+{
+  "name": "helpdesk-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A typed client and command-line tool for the helpdesk API.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "cli": "node src/cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}

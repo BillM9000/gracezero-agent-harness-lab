@@ -49,10 +49,16 @@ test("a path that no longer exists fails, naming the line", () => {
   assert.match(output, /README\.md:3: `tools\/gone\.mjs` doesn't exist\. Fix the path in the document, or restore the file\./);
 });
 
-test("folders, placeholders, commands and setup's folders aren't taken for missing files", () => {
-  const readme = "`tools/` `tools/<name>.mjs` `node tools/x.mjs` `python/.venv/Scripts/python.exe` `ts/node_modules/`\n";
+test("folders, placeholders and setup's folders aren't taken for missing files", () => {
+  const readme = "`tools/` `tools/<name>.mjs` `node tools/a.mjs <path>` `python/.venv/Scripts/python.exe` `ts/node_modules/`\n";
   const { status, output } = check(repo({ "README.md": readme }));
   assert.equal(status, 0, output);
+});
+
+test("a path inside a command is checked too", () => {
+  const { status, output } = check(repo({ "AGENTS.md": "Regenerate with `node tools/gone.mjs --all`.\n" }));
+  assert.equal(status, 1);
+  assert.match(output, /AGENTS\.md:1: `tools\/gone\.mjs` doesn't exist\./);
 });
 
 test("a number that has drifted fails, giving both numbers and the fix", () => {

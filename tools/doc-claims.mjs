@@ -69,12 +69,15 @@ for (const doc of docs) {
     }
     if (fence) return;
 
-    // Paths in backticks that start at the root: no spaces, no placeholders, a known first part.
-    for (const [, span] of line.matchAll(/`([^`\s]+)`/g)) {
-      const path = span.replace(/\/$/, "");
-      if (!path.includes("/") || /[<>*{}]|\.\.\./.test(path) || !topLevel.has(path.split("/")[0]) || createdBySetup(path)) continue;
-      pathsChecked++;
-      if (!exists(path)) problems.push(`${at}: ${missing(path, `\`${span}\``)}`);
+    // Paths in backticks that start at the root, on their own or inside a command such as
+    // `node tools/x.mjs`: no placeholders, and a first part that is a top-level file or folder.
+    for (const [, span] of line.matchAll(/`([^`]+)`/g)) {
+      for (const token of span.split(/\s+/)) {
+        const path = token.replace(/\/$/, "");
+        if (!path.includes("/") || /[<>*{}[\]]|\.\.\./.test(path) || !topLevel.has(path.split("/")[0]) || createdBySetup(path)) continue;
+        pathsChecked++;
+        if (!exists(path)) problems.push(`${at}: ${missing(path, `\`${token}\``)}`);
+      }
     }
 
     // Relative link targets, resolved from the document's folder.

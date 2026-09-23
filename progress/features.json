@@ -80,6 +80,18 @@
       "proof": "tools/mutate.test.mjs::a mutation the test notices is caught, and the file is put back"
     },
     {
+      "id": "stop-hook",
+      "description": "When a coding agent says it's done, the fast checks run, and a failure goes back to it with what failed, how to rerun it and what doesn't count as a fix, at most three times in a row.",
+      "status": "done",
+      "proof": "tools/hooks/stop-check.test.mjs::after three blocks in a row, lets the agent stop and tells the person"
+    },
+    {
+      "id": "fix-loop",
+      "description": "A headless loop gives failing checks to an agent command with a cap on attempts, and stops early when an attempt changes nothing or when the agent changes the checks.",
+      "status": "done",
+      "proof": "tools/fix-loop.test.mjs::stops when the agent changes the checks, and leaves the change for a person"
+    },
+    {
       "id": "draft-reply",
       "description": "The assistant can draft a reply to a ticket, which a person reads before anything is sent.",
       "status": "todo",

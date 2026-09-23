@@ -11,6 +11,7 @@ The companion lab for a plain-English book on AI platform engineering by Bill Mc
 - **The first guardrail**: <!-- claim: import-contracts -->4 import rules that keep the layers apart and keep the model vendor's SDK inside one package, each with a failure message that says how to fix the violation, and tests that plant each violation in a copy of the code to prove the rule catches it.
 - **Import rules for the TypeScript package too** (chapter 16): ESLint for the rule that fits one file at a time, and dependency-cruiser for the rules between files, with tests that plant each violation and check that every file was read. The same layer rule in Go, Java and .NET is in `boundaries/`, run only by CI.
 - **Checks in tiers** (chapter 24): `node check.mjs --fast` runs everything but the test suites in seconds; CI runs the full set on every change to code, only the document checks on a change to Markdown alone, and every night `node tools/mutate.mjs` breaks each guard listed in `tools/mutations.mjs` and requires a test to catch it.
+- **Failures sent back to the agent** (chapter 25): when a coding agent says it's done, a Claude Code hook (`.claude/settings.json`) runs the fast checks and sends any failure back with how to rerun them and what doesn't count as a fix, at most three rounds in a row. For pipelines, `node tools/fix-loop.mjs` hands failing checks to any agent command, with a cap on attempts, and stops early when an attempt changes nothing or when the agent changes the checks themselves.
 - **Agent definitions checked against a policy** (chapter 18): the triage assistant is defined in `python/agents/triage.toml`, and `python -m agent_policy` checks it against the platform's rules in `python/agents/policy.toml` (approved models, a cost cap per call, a turn limit, known tools) before it may run. A corpus of small definitions in `python/tests/policy_fixtures/` says what each rule accepts and refuses.
 - **The lab's own lint rules** (chapter 17): `python -m helpdesk_lint` makes code read a model's text through `final_text`, and every exception must say why; a custom ESLint rule sends the command-line tool's output through `write`, and fixes what is safe to fix. Each message says what to do instead.
 - **The job-postings sample from chapter 1**: <!-- claim: postings -->45 coded United States postings, the script that counts them, and a template for coding your own.
@@ -22,7 +23,7 @@ The companion lab for a plain-English book on AI platform engineering by Bill Mc
 - **An instruction-file check** (chapter 6): `node tools/instruction-files.mjs <path>` reports what each instruction file puts in front of an agent at the start of a session, counting the files it imports, and flags a file over budget, an import that doesn't load, and a `CLAUDE.md` that hides an `AGENTS.md`.
 - **Chapter 2's toys and tools**: a toy tokenizer and next-word model that show why token counts and answers vary, a cost calculator for conversations that resend their history, and a check that refuses to treat a refused or cut-off answer as finished.
 
-Coming chapter by chapter: tools that change things, behind human approval; hooks; an MCP server; and evaluations.
+Coming chapter by chapter: tools that change things, behind human approval; an MCP server; and evaluations.
 
 ## Quick start
 

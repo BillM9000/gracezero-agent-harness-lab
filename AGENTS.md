@@ -29,6 +29,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
 | `progress/` | The work list (`features.json`) and the session log (`log.md`). See Starting a session below. |
 | `.github/workflows/` | CI: `ci.yml` runs `node setup.mjs` and `node check.mjs`; `docs.yml` checks changes to Markdown alone; `nightly.yml` runs `node tools/mutate.mjs` (chapter 24). |
+| `.claude/settings.json` | Claude Code's hooks: when the agent stops, `tools/hooks/stop-check.mjs` runs `node check.mjs --fast` and sends any failure back (chapter 25). |
 
 ## Starting a session
 
@@ -75,6 +76,7 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 - `node tools/doc-claims.mjs [path]` checks that paths named in `README.md`, `AGENTS.md` and `CLAUDE.md` exist, and that each number marked `<!-- claim: NAME -->` still matches the repository (chapter 8).
 - `node tools/progress.mjs [path]` shows the work list and the last session's log entry, and fails if a done item names no test that exists, or if more than one item is in progress (chapter 10).
 - `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it; when you add a guard, add its entry (chapter 24).
+- `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command until they pass, at most three times, and stops early if nothing changes or the agent changes the checks; `node tools/stand-in-agent.mjs` stands in for an agent (chapter 25).
 
 ## Rules
 
@@ -89,3 +91,4 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 9. Keep this file a map: under 200 lines and about 4,000 estimated tokens, which `node check.mjs` measures. Put detail that only some tasks need where those tasks meet it, such as an error message or a test, and name any other file with a reason to read it.
 10. Never edit a generated file by hand. `contracts/openapi.json` and `ts/src/api-types.ts` come from the code: change their source and regenerate them. `node check.mjs` fails if either is out of date.
 11. A number in these documents that a script can count is marked `<!-- claim: NAME -->`, and `node check.mjs` checks it; a new kind of number needs a counter in `tools/doc-claims.mjs`. A claim about behavior, such as "read-only," needs a test instead, like the one in `python/tests/test_triage_tools.py`.
+12. When a check fails, fix what it reports. Never weaken, skip or delete a check, test or rule to get a pass; if a check is wrong, stop and say why.

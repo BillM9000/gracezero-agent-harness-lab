@@ -6,6 +6,15 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
 
+## 2026-09-23: chapter 25, closing the loop
+
+- A Stop hook (`tools/hooks/stop-check.mjs`, wired up in `.claude/settings.json`) runs `node check.mjs --fast` when the agent stops and sends a failure back, at most three rounds in a row. `tools/fix-loop.mjs` does the same for a pipeline, with any agent command; `tools/stand-in-agent.mjs` stands in for one. 22 new script tests.
+- Broke each new guard in turn (14 new entries in `tools/mutations.mjs`); a test failed each time.
+- Work list: `stop-hook` and `fix-loop` added as done, with their proofs.
+- Not run with a live agent: the hook follows Claude Code's documented input and output, and its tests feed it that input.
+- Checked with: `node check.mjs` (all 17 checks passed), `node tools/mutate.mjs` (all 70 caught, from a fresh clone) and `node tools/progress.mjs .` (no problems).
+- Next: `draft-reply`, still the first item to do.
+
 ## 2026-09-23: chapter 24, checks in tiers
 
 - `node check.mjs --fast` skips the test suites; `node tools/mutate.mjs` breaks every listed guard and requires a test to catch it (56 entries); CI split into `ci.yml` (code), `docs.yml` (Markdown alone) and `nightly.yml` (mutations).

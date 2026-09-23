@@ -1,0 +1,7 @@
+{
+  "session_id": "try-it",
+  "hook_event_name": "Stop",
+  "stop_hook_active": true,
+  "cwd": ".",
+  "last_assistant_message": "Fixed it. Done now."
+}

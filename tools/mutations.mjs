@@ -1,9 +1,9 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 16 to 18 are here, the script
-// tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter 1's tally's check
-// for missing fields; the guards from earlier chapters were broken by hand when they were built
-// (CHANGELOG.md records each time) and are the next candidates to add.
+// must then fail. Add entries when a chapter adds a guard. Chapters 16 to 18, 24 and 25 are here,
+// the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter 1's
+// tally's check for missing fields; the guards from earlier chapters were broken by hand when they
+// were built (CHANGELOG.md records each time) and are the next candidates to add.
 
 const pytest = (...tests) => ({ cwd: "python", python: ["-m", "pytest", "-q", "-p", "no:cacheprovider", ...tests] });
 const vitest = (file, name) => ({ cwd: "ts", vitest: [file, "-t", name] });
@@ -19,6 +19,9 @@ const ESLINT = "ts/eslint.config.js";
 const RULE = "ts/scripts/eslint-rules/cli-output-through-write.ts";
 const MODEL_TEXT = "python/src/helpdesk_lint/model_text.py";
 const AGENT_RULES = "python/src/agent_policy/rules.py";
+const FEEDBACK_TESTS = "tools/feedback.test.mjs";
+const STOP_TESTS = "tools/hooks/stop-check.test.mjs";
+const LOOP_TESTS = "tools/fix-loop.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
 const ROUTES_FITNESS_TEST = "tests/fitness/test_routes_declare_response_models.py";
 const FAKE_FITNESS = "python/tests/fitness/test_tests_fake_the_model_client.py";
@@ -521,6 +524,106 @@ export const MUTATIONS = [
     find: "if (text.split(m.find).length !== 2) {",
     replace: "if (false) {",
     run: { node: ["--test", "tools/mutate.test.mjs"] },
+  },
+
+  // Chapter 25: sending failures back to the agent, and the limits on doing it.
+  {
+    guard: "feedback: the exit code decides whether the checks passed",
+    file: "tools/feedback.mjs",
+    find: "return { passed: run.status === 0, output };",
+    replace: 'return { passed: !output.includes("FAIL"), output };',
+    run: nodeTest(FEEDBACK_TESTS, "the exit code decides"),
+  },
+  {
+    guard: "feedback: the report leaves out the checks that passed",
+    file: "tools/feedback.mjs",
+    find: '.filter((line) => !line.startsWith("PASS  "))',
+    replace: ".filter(() => true)",
+    run: nodeTest(FEEDBACK_TESTS, "keeps the failing checks"),
+  },
+  {
+    guard: "feedback: the report is bounded",
+    file: "tools/feedback.mjs",
+    find: "if (kept.length <= max) return kept;",
+    replace: "return kept;",
+    run: nodeTest(FEEDBACK_TESTS, "cuts a long report"),
+  },
+  {
+    guard: "Stop hook: a failure blocks with exit code 2",
+    file: "tools/hooks/stop-decision.mjs",
+    find: "return { exitCode: 2, blocks, stderr };",
+    replace: "return { exitCode: 1, blocks, stderr };",
+    run: nodeTest(STOP_TESTS, "a failure blocks with exit code 2"),
+  },
+  {
+    guard: "Stop hook: three blocks in a row, then the agent may stop",
+    file: "tools/hooks/stop-decision.mjs",
+    find: "if (blocksSoFar >= MAX_BLOCKS) {",
+    replace: "if (false) {",
+    run: nodeTest(STOP_TESTS, "after three blocks in a row"),
+  },
+  {
+    guard: "Stop hook: a session id can't choose where the count goes",
+    file: "tools/hooks/stop-decision.mjs",
+    find: '.replace(/[^A-Za-z0-9_-]/g, "_")',
+    replace: "",
+    run: nodeTest(STOP_TESTS, "a session id can't choose"),
+  },
+  {
+    guard: "Stop hook: a stop that doesn't follow a block starts counting again",
+    file: "tools/hooks/stop-check.mjs",
+    find: "const blocksSoFar = input.stop_hook_active ? readBlocks(file) : 0;",
+    replace: "const blocksSoFar = readBlocks(file);",
+    run: nodeTest(STOP_TESTS, "a stop that doesn't follow a block"),
+  },
+  {
+    guard: "Stop hook: the checks run where the agent is working",
+    file: "tools/hooks/stop-check.mjs",
+    find: "repositoryRoot(input.cwd ?? process.cwd())",
+    replace: "repositoryRoot(process.cwd())",
+    run: nodeTest(STOP_TESTS, "a failure blocks with exit code 2"),
+  },
+  {
+    guard: "Stop hook: .claude/settings.json runs a script that exists",
+    file: ".claude/settings.json",
+    find: '"${CLAUDE_PROJECT_DIR}/tools/hooks/stop-check.mjs"',
+    replace: '"${CLAUDE_PROJECT_DIR}/tools/hook/stop-check.mjs"',
+    run: nodeTest(STOP_TESTS, "every command hook"),
+  },
+  {
+    guard: "fix loop: the prompt carries the report",
+    file: "tools/fix-loop.mjs",
+    find: "    failureReport(output),\n",
+    replace: '    "(see the checks)",\n',
+    run: nodeTest(LOOP_TESTS, "the prompt carries the report"),
+  },
+  {
+    guard: "fix loop: at most the set number of attempts",
+    file: "tools/fix-loop.mjs",
+    find: "for (let attempt = 1; attempt <= attempts; attempt++) {",
+    replace: "for (let attempt = 1; attempt <= attempts + 1; attempt++) {",
+    run: nodeTest(LOOP_TESTS, "stops after three attempts"),
+  },
+  {
+    guard: "fix loop: an attempt that changes nothing ends the loop",
+    file: "tools/fix-loop.mjs",
+    find: "if (withoutTimes(checks.output) === withoutTimes(previous.output)) {",
+    replace: "if (false) {",
+    run: nodeTest(LOOP_TESTS, "stops at once when an attempt"),
+  },
+  {
+    guard: "fix loop: a change to the checks stops the loop",
+    file: "tools/fix-loop.mjs",
+    find: "  if (changed.length) {",
+    replace: "  if (false) {",
+    run: nodeTest(LOOP_TESTS, "stops when the agent changes the checks"),
+  },
+  {
+    guard: "fix loop: check.mjs counts as one of the checks",
+    file: "tools/fix-loop.mjs",
+    find: "  /^check\\.mjs$/,\n",
+    replace: "",
+    run: nodeTest(LOOP_TESTS, "stops when the agent changes the checks"),
   },
 
   // Chapter 15's two structural checks, fixed after a review (2026-09-26): routers under any name,

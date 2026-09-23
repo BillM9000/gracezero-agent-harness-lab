@@ -1,0 +1,7 @@
+{
+  "session_id": "try-it",
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "cwd": ".",
+  "last_assistant_message": "Done: the change is in and everything passes."
+}

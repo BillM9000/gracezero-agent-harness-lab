@@ -21,6 +21,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to. |
 | `ts/` | TypeScript client and command-line tool for the API. |
 | `postings/` | The coded job-postings sample from chapter 1, the script that counts it, and a template for coding your own. |
+| `tools/harness-inventory.mjs` | Chapter 4's harness inventory: the evidence a repository's files give for each part of a harness. |
 | `.github/workflows/ci.yml` | CI: runs every check below. |
 
 ## Commands
@@ -41,6 +42,11 @@ TypeScript, from `ts/`:
 - Type-check: `npm run typecheck`
 - Test: `npm test`
 - Try the CLI: `npm run cli -- tickets open` (`--url` or `HELPDESK_URL` sets the server)
+
+Harness inventory, from the repository root:
+
+- Run: `node tools/harness-inventory.mjs <path-to-any-repository>`
+- Test: `node --test tools/harness-inventory.test.mjs`
 
 Job postings, from the repository root:
 

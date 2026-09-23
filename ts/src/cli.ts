@@ -34,7 +34,7 @@ export async function run(args: string[], client: Client, write: (line: string) 
       const t = await client.getTicket(Number(arg));
       write(`#${t.id} [${t.status}] ${t.subject}`);
       write(t.body);
-      for (const r of t.replies ?? []) write(`  ${r.author_kind}: ${r.body}`);
+      for (const r of t.replies) write(`  ${r.author_kind}: ${r.body}`);
       return 0;
     }
     if (command === "kb" && arg !== undefined) {

@@ -1,8 +1,9 @@
 // One command to run every check in the repository: node check.mjs
 //
-// Runs the Python lint, format, import-rule and test checks, the TypeScript type-check and
-// tests, the Node script tests, a check that setup.mjs's Windows path limit still fits the
-// installed packages, and a budget for the instruction files, then prints one line per check. Exits 1 if any fails, after printing the
+// Runs the Python lint, format, import-rule and test checks, a check that the API contract and the
+// TypeScript types generated from it are current, the TypeScript type-check and tests, the Node
+// script tests, a check that setup.mjs's Windows path limit still fits the installed packages, and a
+// budget for the instruction files, then prints one line per check. Exits 1 if any fails, after printing the
 // end of that check's output. CI runs this same command.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -27,8 +28,12 @@ const CHECKS = [
   ["Python lint (ruff check)", tool("ruff"), ["check", "."], { cwd: python }],
   ["Python format (ruff format --check)", tool("ruff"), ["format", "--check", "."], { cwd: python }],
   ["Import rules (lint-imports)", tool("lint-imports"), [], { cwd: python }],
+  // The contract is generated from the Python code, and the TypeScript types from the contract.
+  // These two run before the type-check, so drift is reported as drift before it shows up as type errors.
+  ["API contract (python -m helpdesk.contract)", tool("python"), ["-m", "helpdesk.contract", "check", "../contracts/openapi.json"], { cwd: python }],
   ["Python tests (pytest)", tool("python"), ["-m", "pytest", "-q", "-p", "no:cacheprovider"], { cwd: python }],
   // npm is a .cmd script on Windows, which Node only runs through a shell. The commands are fixed text.
+  ["TypeScript API types (npm run api-types)", "npm run api-types -- --check", [], { cwd: join(ROOT, "ts"), shell: true }],
   ["TypeScript type-check", "npm run typecheck", [], { cwd: join(ROOT, "ts"), shell: true }],
   ["TypeScript tests", "npm test", [], { cwd: join(ROOT, "ts"), shell: true }],
   [

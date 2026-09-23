@@ -10,7 +10,8 @@
   "scripts": {
     "typecheck": "tsc",
     "test": "vitest run",
-    "cli": "node src/cli.ts"
+    "cli": "node src/cli.ts",
+    "api-types": "node scripts/api-types.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",

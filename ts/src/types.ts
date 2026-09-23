@@ -1,41 +1,9 @@
-// Shapes returned by the helpdesk API. They mirror the Python service's JSON exactly.
+// The helpdesk API's shapes. They come from the service's contract, generated into api-types.ts
+// (npm run api-types); this file only gives the parts the client uses short names.
+import type { Reply, TicketSummary } from "./api-types.ts";
 
-export type TicketStatus = "open" | "pending" | "closed";
-export type Priority = "low" | "normal" | "high";
-export type AuthorKind = "customer" | "staff" | "assistant";
+export type { CloseRequest, KbArticle, NewReply, NewTicket, Reply, Ticket, TicketSummary } from "./api-types.ts";
 
-export interface Reply {
-  id: number;
-  ticket_id: number;
-  author_kind: AuthorKind;
-  author_id: number | null;
-  body: string;
-  created_at: string;
-}
-
-export interface Ticket {
-  id: number;
-  customer_id: number;
-  subject: string;
-  body: string;
-  status: TicketStatus;
-  priority: Priority;
-  assignee_id: number | null;
-  created_at: string;
-  closed_at: string | null;
-  replies?: Reply[];
-}
-
-export interface KbArticle {
-  id: number;
-  title: string;
-  body: string;
-  tags: string;
-}
-
-export interface NewTicket {
-  customer_id: number;
-  subject: string;
-  body: string;
-  priority?: Priority;
-}
+export type TicketStatus = TicketSummary["status"];
+export type Priority = TicketSummary["priority"];
+export type AuthorKind = Reply["author_kind"];

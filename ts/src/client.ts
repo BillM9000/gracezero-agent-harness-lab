@@ -1,4 +1,4 @@
-import type { AuthorKind, KbArticle, NewTicket, Ticket, TicketStatus } from "./types.ts";
+import type { AuthorKind, CloseRequest, KbArticle, NewReply, NewTicket, Ticket, TicketStatus, TicketSummary } from "./types.ts";
 
 export type Fetch = typeof fetch;
 
@@ -48,7 +48,7 @@ export class HelpdeskClient {
     return payload as T;
   }
 
-  listTickets(status?: TicketStatus): Promise<Ticket[]> {
+  listTickets(status?: TicketStatus): Promise<TicketSummary[]> {
     const query = status === undefined ? "" : `?status=${encodeURIComponent(status)}`;
     return this.#request("GET", `/tickets${query}`);
   }
@@ -62,15 +62,13 @@ export class HelpdeskClient {
   }
 
   addReply(id: number, authorKind: AuthorKind, body: string, authorId?: number): Promise<Ticket> {
-    return this.#request("POST", `/tickets/${id}/replies`, {
-      author_kind: authorKind,
-      author_id: authorId ?? null,
-      body,
-    });
+    const reply: NewReply = { author_kind: authorKind, author_id: authorId ?? null, body };
+    return this.#request("POST", `/tickets/${id}/replies`, reply);
   }
 
   closeTicket(id: number, staffId: number): Promise<Ticket> {
-    return this.#request("POST", `/tickets/${id}/close`, { staff_id: staffId });
+    const request: CloseRequest = { staff_id: staffId };
+    return this.#request("POST", `/tickets/${id}/close`, request);
   }
 
   searchKb(query: string, limit = 5): Promise<KbArticle[]> {

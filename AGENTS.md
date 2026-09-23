@@ -10,7 +10,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 
 | Path | What it is |
 |---|---|
-| `python/src/helpdesk/api/` | HTTP routes (FastAPI). Calls services only. |
+| `python/src/helpdesk/api/` | HTTP routes (FastAPI) and the request and response models, the one place the API's shapes are written. Calls services only. |
 | `python/src/helpdesk/services/` | Business rules. Calls the data layer. |
 | `python/src/helpdesk/data/` | SQL and the SQLite connection. |
 | `python/src/helpdesk/assistant/` | The triage assistant: an agent loop (`agent.py`) and the tools it may use (`tools.py`). Sits beside the API routes; calls services, never the data layer. |
@@ -19,9 +19,10 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `python/src/helpdesk/main.py` | Composition root for the web service. |
 | `python/src/helpdesk/triage.py` | Composition root for the triage assistant's command line. |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to. |
-| `ts/` | TypeScript client and command-line tool for the API. |
+| `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
+| `ts/` | TypeScript client and command-line tool for the API. `src/api-types.ts` is generated from the contract. |
 | `postings/` | The coded job-postings sample from chapter 1, the script that counts it, and a template for coding your own. |
-| `tools/` | Scripts the chapters build, each with a test beside it. See Scripts below. |
+| `tools/` | Scripts the chapters build; each one that checks something has a test beside it. See Scripts below. |
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
 | `.github/workflows/ci.yml` | CI: runs `node setup.mjs` and `node check.mjs`. |
 
@@ -32,6 +33,7 @@ Everything, from the repository root:
 - Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
 - Check: `node check.mjs` (every check; CI runs the same command)
 - After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`. If it fails, change `LONGEST_INSTALLED_FILE` in `setup.mjs` to the number it prints.
+- After changing a request or response model: `node tools/regenerate.mjs` (the API contract, then the TypeScript types), then `node check.mjs`, and fix what the type-check reports.
 
 Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere):
 
@@ -68,3 +70,4 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 7. A change is done when `node check.mjs` passes. Record it in `CHANGELOG.md` in the same commit.
 8. No secrets in the repository.
 9. Keep this file a map: under 200 lines and about 4,000 estimated tokens, which `node check.mjs` measures. Put detail that only some tasks need where those tasks meet it, such as an error message or a test, and name any other file with a reason to read it.
+10. Never edit a generated file by hand. `contracts/openapi.json` and `ts/src/api-types.ts` come from the code: change their source and regenerate them. `node check.mjs` fails if either is out of date.

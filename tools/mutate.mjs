@@ -26,8 +26,8 @@ const ROOT = resolve(process.argv[2] ?? join(dirname(fileURLToPath(import.meta.u
 const WINDOWS = process.platform === "win32";
 
 // Node's test runner sets NODE_TEST_CONTEXT for the processes it starts, and a `node --test` that
-// inherits it reports failures to that parent and exits 0. Each command run here has to answer for
-// itself, so the variable is removed. (This runner's own tests found it.)
+// inherits it skips its test files with a warning and exits 0. Each command run here has to answer
+// for itself, so the variable is removed. (This runner's own tests found it.)
 const ENV = { ...process.env };
 delete ENV.NODE_TEST_CONTEXT;
 

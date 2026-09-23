@@ -5,7 +5,7 @@ What each working session did, newest first. Add an entry at the end of every se
 ## 2026-09-23: chapter 24, checks in tiers
 
 - `node check.mjs --fast` skips the test suites; `node tools/mutate.mjs` breaks every listed guard and requires a test to catch it (56 entries); CI split into `ci.yml` (code), `docs.yml` (Markdown alone) and `nightly.yml` (mutations).
-- The runner's tests found that a nested `node --test` exits 0 under an inherited `NODE_TEST_CONTEXT`; the runner now removes it.
+- The runner's tests found that a nested `node --test` runs none of its test files and exits 0 under an inherited `NODE_TEST_CONTEXT`; the runner now removes it. (First written as "exits 0"; running it with its output shown found it skips the files, with a warning.)
 - Work list: `guard-mutations` added as done, with its proof.
 - Checked with: `node check.mjs` (all 17 checks passed), `node tools/mutate.mjs` (all 56 caught, from a fresh clone) and `node tools/progress.mjs .` (no problems).
 - Next: `draft-reply`, still the first item to do.

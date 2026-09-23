@@ -118,7 +118,10 @@ test("folders are grouped to --depth levels, and a fix counts once per folder", 
   const deep = main([root]);
   assert.match(row(deep, "server/routes"), /server\/routes\s+1\s+1\s+100%/);
   assert.match(row(deep, "(root)"), /\(root\)\s+1\s+1\s+100%/);
-  assert.match(row(main([root, "--depth", "1"]), "server"), /server\s+1\s+1\s+100%/);
+  const shallow = main([root, "--depth", "1"]);
+  assert.match(row(shallow, "server"), /server\s+1\s+1\s+100%/);
+  assert.match(shallow, /\(by folder, 1 level\):/);
+  assert.match(deep, /\(by folder, 2 levels\):/);
 });
 
 test("fix subjects: fix, fixes, fixed, fix(scope), hotfix and reverts count; fixture and prefix don't", () => {

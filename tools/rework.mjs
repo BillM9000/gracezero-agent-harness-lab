@@ -129,7 +129,7 @@ export function report({ totals, rows, top }, { days, within, depth, allFiles, i
   if (left.length) lines.push(`Left out: ${left.join(" and ")}.`);
   if (!rows.length) return [...lines, "", "No fix reworked recent agent work."].join("\n");
   const width = Math.max(6, ...rows.map((r) => r.area.length));
-  lines.push("", `Where fixes landed on recent agent work (by folder, ${depth} levels):`);
+  lines.push("", `Where fixes landed on recent agent work (by folder, ${depth} level${depth === 1 ? "" : "s"}):`);
   lines.push(`  ${"folder".padEnd(width)}  agent commits  rework fixes  rate  median time to fix`);
   for (const r of rows) {
     const cells = [

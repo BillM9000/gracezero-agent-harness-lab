@@ -75,6 +75,7 @@
 - **`node tools/rework-demo.mjs <folder>`** builds a 12-commit history with fixed dates to try it on, including the changelog and version traps; a test pins its three counts, which are chapter 31's Try it.
 - `AGENTS.md`: two commands shortened to make room (the install-paths failure message already says what to change), now 3,964 of its 4,000 estimated tokens.
 - 10 new script tests, and 10 new entries in `tools/mutations.mjs` (80 in all), each caught. `node check.mjs` still runs 17 checks.
+- Follow-up: the report said "(by folder, 1 levels)" with `--depth 1`; it now says "1 level", and a test checks both forms. Found while recording the field note's runs.
 
 ## 2026-09-23, chapter 25 lab
 

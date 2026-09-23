@@ -49,6 +49,15 @@
 
 - **The guardrail tests no longer depend on the shell's encoding.** Found verifying chapter 20: with `PYTHONIOENCODING=utf-8` set, as some shells set it, `tests/guardrails/test_layers_contract.py` gave 12 failed and 12 errors on Windows (unset, or set to `cp1252`, 12 passed), because `run_guardrail` read lint-imports' output with `text=True`, in the locale's code page, while lint-imports wrote its box-drawing characters in UTF-8. The test now sets `PYTHONIOENCODING=utf-8` in lint-imports' environment and reads its output as UTF-8, so both ends agree whatever the shell says. A new test runs the guardrail with the variable unset and set to `utf-8`, `cp1252` and `utf-16`: remove the setting from lint-imports' environment and the `cp1252` and `utf-16` cases fail (1 failed and 1 error, checked on Windows), because lint-imports then writes in whatever the shell set while the test reads UTF-8. The variable decides what lint-imports writes on every platform, so those two cases should fail anywhere; only Windows has run them. 16 tests in the file now, and all 16 pass with the variable unset and set to each of the three.
 
+## 2026-09-23, chapter 15 lab
+
+- **`python/tests/fitness/`**, three fitness functions: checks of a property of the code as a whole, rather than of one behavior.
+  - Every route that returns data declares its response model (`test_routes_declare_response_models.py`). It walks the routes module's syntax tree, so a comment that mentions `response_model` can't fool it, and its one exemption, the health route, carries a reason; an exemption that no longer applies fails too.
+  - Tests build the real model client only around a fake (`test_tests_fake_the_model_client.py`), which turns `AGENTS.md` rule 4 into a check. It follows import aliases, and treats `client=None` as no fake.
+  - Holistic: no read route returns a customer's email address (`test_no_route_returns_customer_email.py`). It runs the whole app on the sample data and calls every GET route the app describes, so a new route is checked without anyone adding it to a list.
+- 11 tests. Each fitness function was shown to fail on a real violation: a route without its response model, a test that builds the real client (only the fitness tests were run, so nothing could reach the API), and an email address added to the sample data with no code change at all, which only the holistic check can see. Breaking each rule's own logic failed a test too, once the missing case, a stale exemption, was found that way and given one.
+- **Work list and log:** `fitness-functions` added as done with its proof, and the session logged in `progress/log.md`, following `AGENTS.md`'s routine.
+
 ## 2026-09-23, chapter 10 lab
 
 - **`progress/features.json`**, the lab's work list in priority order: 6 items done, each naming the test that proves it, and 5 to do (drafting replies, approval before sending, an MCP server, a golden set, a model judge). JSON, because a model is less likely to rewrite structured fields than prose; its `about` field says to change only status and proof.

@@ -38,6 +38,12 @@
       "proof": "tools/harness-inventory.test.mjs::every kind of evidence is found and named"
     },
     {
+      "id": "fitness-functions",
+      "description": "Checks of properties of the code as a whole: every route declares its response model, tests fake the model client, and no read route returns a customer's email.",
+      "status": "done",
+      "proof": "python/tests/fitness/test_no_route_returns_customer_email.py::test_no_read_route_returns_a_customer_email"
+    },
+    {
       "id": "draft-reply",
       "description": "The assistant can draft a reply to a ticket, which a person reads before anything is sent.",
       "status": "todo",

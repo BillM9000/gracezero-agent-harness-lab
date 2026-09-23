@@ -18,7 +18,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. Teaching code, not part of the helpdesk. |
 | `python/src/helpdesk/main.py` | Composition root for the web service. |
 | `python/src/helpdesk/triage.py` | Composition root for the triage assistant's command line. |
-| `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to. |
+| `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to; `tests/fitness/` checks properties of the code as a whole (chapter 15). |
 | `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
 | `ts/` | TypeScript client and command-line tool for the API. `src/api-types.ts` is generated from the contract. |
 | `postings/` | The coded job-postings sample from chapter 1, the script that counts it, and a template for coding your own. |

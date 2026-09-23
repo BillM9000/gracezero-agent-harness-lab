@@ -17,6 +17,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `python/src/helpdesk/main.py` | Composition root: the only module that wires the layers together. |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to. |
 | `ts/` | TypeScript client and command-line tool for the API. |
+| `postings/` | The coded job-postings sample from chapter 1, the script that counts it, and a template for coding your own. |
 | `.github/workflows/ci.yml` | CI: runs every check below. |
 
 ## Commands
@@ -35,6 +36,12 @@ TypeScript, from `ts/`:
 - Type-check: `npm run typecheck`
 - Test: `npm test`
 - Try the CLI: `npm run cli -- tickets open` (`--url` or `HELPDESK_URL` sets the server)
+
+Job postings, from the repository root:
+
+- Count the sample: `node postings/tally.mjs postings/sample-2026-09-22.json`
+- Test: `node --test postings/tally.test.mjs`
+- `postings/sample-2026-09-22.json` is a dated record. Never edit its codes; code a new sample in a new file instead.
 
 ## Rules
 

@@ -1,0 +1,73 @@
+{
+  "sample": {
+    "pulled": "YYYY-MM-DD",
+    "source": "Where you found these postings: job sites, company job boards, a recruiter.",
+    "searches": [
+      "Each search exactly as you typed it, with its location filter."
+    ],
+    "inclusion": "The role's core work is building or running shared AI or agent infrastructure, tooling, guardrails or platforms that other teams, products or agents use. A title alone does not qualify.",
+    "exclusion": "Forward-deployed and solutions or sales roles, AI trainer and data annotation gigs, general software roles whose AI content is incidental, management and delivery-director roles.",
+    "limits": "What your sample cannot tell you: dates, places, search terms you chose, sites you could not read."
+  },
+  "codebook": {
+    "type": "Primary kind of job: infrastructure (running, serving or training AI at scale), enablement (shared AI capabilities, standards and governance for many internal teams), product-agents (agents or LLM features inside a customer-facing product), coding-agents (coding agents and AI developer tooling in engineering workflows), applied (a domain-specific AI system). alsoType records a clear second kind.",
+    "agents": "Builds, runs or governs AI agents (a model calling tools in a loop) or agentic workflows.",
+    "codingAgents": "Names or clearly describes AI coding agents or assistants as something the role builds for, operates or requires.",
+    "mcp": "Mentions the Model Context Protocol.",
+    "retrieval": "Retrieval-augmented generation, vector databases, embeddings or document-processing pipelines.",
+    "evaluation": "Evaluating model or AI output: golden sets, eval harnesses, model judges, quality gates, evaluation pipelines.",
+    "guardrails": "Guardrails, governance, policy, permission scoping for AI, or architectural constraints on AI output.",
+    "aiObservability": "Monitoring, logging, tracing or metrics for AI or ML systems.",
+    "costControl": "Token cost, spend limits, cost attribution, or compute cost optimization for AI.",
+    "humanApproval": "Human review queues, approvals, or human-in-the-loop for AI actions.",
+    "security": "Security or compliance named as a responsibility or requirement.",
+    "servingOrTraining": "Model serving or inference infrastructure, training, fine-tuning or GPU capacity, as required or preferred.",
+    "kubernetes": "Kubernetes named (EKS counts).",
+    "languages": "Named as required or preferred. typescriptOrJavascript includes Node.js and React."
+  },
+  "postings": [
+    {
+      "id": "P01",
+      "company": "Replace with the employer",
+      "title": "Replace with the title as posted",
+      "location": "Replace with the location",
+      "arrangement": "unknown",
+      "employment": "unknown",
+      "pay": null,
+      "posted": null,
+      "url": "https://example.com/replace-with-the-posting-link",
+      "source": "Replace with where you found it",
+      "type": "enablement",
+      "alsoType": null,
+      "agents": false,
+      "codingAgents": false,
+      "mcp": false,
+      "retrieval": false,
+      "evaluation": false,
+      "guardrails": false,
+      "aiObservability": false,
+      "costControl": false,
+      "humanApproval": false,
+      "security": false,
+      "servingOrTraining": false,
+      "kubernetes": false,
+      "python": false,
+      "typescriptOrJavascript": false,
+      "java": false,
+      "dotnet": false,
+      "go": false,
+      "codingAgentsNamed": [],
+      "yearsRequired": null,
+      "degreeRequired": null,
+      "note": "One sentence on the core work, in your own words. Say why you coded any borderline field the way you did."
+    }
+  ],
+  "excluded": [
+    {
+      "company": "Replace or delete",
+      "title": "A posting you read and left out",
+      "url": "https://example.com/replace-me",
+      "reason": "Which exclusion rule it met."
+    }
+  ]
+}

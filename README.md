@@ -9,6 +9,7 @@ The companion lab for a plain-English book on AI platform engineering by Bill Mc
 - **A deterministic mock model**, so everything runs offline and costs nothing. A real model arrives with the chapter that builds the first agent.
 - **The first guardrail**: import rules that keep the layers apart, each with a failure message that says how to fix the violation, and tests that plant each violation in a copy of the code to prove the rule catches it.
 - **The job-postings sample from chapter 1**: 33 coded United States postings, the script that counts them, and a template for coding your own.
+- **Chapter 2's toys and tools**: a toy tokenizer and next-word model that show why token counts and answers vary, a cost calculator for conversations that resend their history, and a check that refuses to treat a refused or cut-off answer as finished.
 
 Coming chapter by chapter: the triage assistant, hooks, an MCP server, evaluations, and the same boundary rule in Go, Java and .NET.
 

@@ -13,7 +13,8 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `python/src/helpdesk/api/` | HTTP routes (FastAPI). Calls services only. |
 | `python/src/helpdesk/services/` | Business rules. Calls the data layer. |
 | `python/src/helpdesk/data/` | SQL and the SQLite connection. |
-| `python/src/helpdesk/model/` | The model interface and a deterministic mock. Imports nothing else from the helpdesk. |
+| `python/src/helpdesk/model/` | The model interface, a deterministic mock, stop-reason handling (`stops.py`) and cost arithmetic (`cost.py`). Imports nothing else from the helpdesk. |
+| `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. Teaching code, not part of the helpdesk. |
 | `python/src/helpdesk/main.py` | Composition root: the only module that wires the layers together. |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to. |
 | `ts/` | TypeScript client and command-line tool for the API. |
@@ -29,6 +30,7 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Lint: `ruff check .` and `ruff format --check .`
 - Guardrails: `lint-imports`
 - Run: `uvicorn --factory helpdesk.main:create_default_app` (`HELPDESK_DB` sets the database file)
+- Chapter 2 demos: `python -m toymodel tokens "reset my password"`, `python -m toymodel next "reset emails can take up to"`, `python -m helpdesk.model.cost`
 
 TypeScript, from `ts/`:
 
@@ -49,6 +51,7 @@ Job postings, from the repository root:
 2. `helpdesk.model` imports nothing from the helpdesk. Pass it what it needs as arguments.
 3. Only `helpdesk/main.py` wires the layers together.
 4. Tests use the mock model and never call a real model or the network.
-5. Warnings fail the Python test run. Fix the cause instead of silencing it; the one exception, raised inside Starlette, is listed in `pyproject.toml`.
-6. A change is done when every command above passes. Record it in `CHANGELOG.md` in the same commit.
-7. No secrets in the repository.
+5. Code that wants a model's text calls `helpdesk.model.stops.final_text`, never `response.text` directly, so a refusal or a cut-off answer can't pass as a finished one.
+6. Warnings fail the Python test run. Fix the cause instead of silencing it; the one exception, raised inside Starlette, is listed in `pyproject.toml`.
+7. A change is done when every command above passes. Record it in `CHANGELOG.md` in the same commit.
+8. No secrets in the repository.

@@ -1,0 +1,10 @@
+# expect: fail
+# reasons: max_turns
+# A run needs at least one turn.
+name = "triage"
+owner = "support-tools"
+model = "claude-opus-5-5"
+max_tokens = 16000
+max_turns = 0
+tools = ["get_ticket", "search_kb"]
+system = "Triage helpdesk tickets and draft replies for staff to review."

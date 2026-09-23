@@ -1,0 +1,10 @@
+# expect: fail
+# reasons: system
+# An agent with no system prompt.
+name = "triage"
+owner = "support-tools"
+model = "claude-opus-5-5"
+max_tokens = 16000
+max_turns = 6
+tools = ["get_ticket", "search_kb"]
+system = ""

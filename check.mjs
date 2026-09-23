@@ -1,11 +1,12 @@
 // One command to run every check in the repository: node check.mjs
 //
-// Runs the Python lint, format, import-rule, model-text-rule and test checks, a check that the API
-// contract and the TypeScript types generated from it are current, the TypeScript type-check, import
-// rules and tests, the Node script tests, a check that setup.mjs's Windows path limit still fits the
-// installed packages, a budget for the instruction files, a check of what the documentation claims,
-// and a check that the work list's done items name real tests, then prints one line per check.
-// Exits 1 if any fails, after printing the end of that check's output. CI runs this same command.
+// Runs the Python lint, format, import-rule, model-text-rule, agent-policy and test checks, a check
+// that the API contract and the TypeScript types generated from it are current, the TypeScript
+// type-check, import rules and tests, the Node script tests, a check that setup.mjs's Windows path
+// limit still fits the installed packages, a budget for the instruction files, a check of what the
+// documentation claims, and a check that the work list's done items name real tests, then prints
+// one line per check. Exits 1 if any fails, after printing the end of that check's output. CI runs
+// this same command.
 //
 // node check.mjs --list prints the checks' names and runs nothing.
 import { spawnSync } from "node:child_process";
@@ -25,6 +26,8 @@ const CHECKS = [
   ["Python import rules (lint-imports)", tool("lint-imports"), [], { cwd: python }],
   // The lab's own lint rule (chapter 17): a model's text is read through final_text.
   ["Python model-text rule (python -m helpdesk_lint)", tool("python"), ["-m", "helpdesk_lint"], { cwd: python }],
+  // Agent definitions against the platform's policy (chapter 18).
+  ["Agent definitions (python -m agent_policy)", tool("python"), ["-m", "agent_policy"], { cwd: python }],
   // The contract is generated from the Python code, and the TypeScript types from the contract.
   // These two run before the type-check, so drift is reported as drift before it shows up as type errors.
   ["API contract (python -m helpdesk.contract)", tool("python"), ["-m", "helpdesk.contract", "check", "../contracts/openapi.json"], { cwd: python }],

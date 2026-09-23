@@ -68,6 +68,12 @@
       "proof": "ts/test/lint-rules.test.ts::fixes a console.log planted in the CLI's run() back to write()"
     },
     {
+      "id": "agent-policy",
+      "description": "The triage assistant is defined as data and checked against the platform's policy before it runs, with fixtures that specify every rule.",
+      "status": "done",
+      "proof": "python/tests/test_agent_policy.py::test_the_triage_assistant_refuses_a_definition_that_breaks_the_policy"
+    },
+    {
       "id": "draft-reply",
       "description": "The assistant can draft a reply to a ticket, which a person reads before anything is sent.",
       "status": "todo",

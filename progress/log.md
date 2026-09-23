@@ -2,6 +2,14 @@
 
 What each working session did, newest first. Add an entry at the end of every session: what changed, how you checked it, and what the next session should do first. Name the command behind each claim, so the next session can run it again instead of trusting the sentence.
 
+## 2026-09-23: chapter 18, agent definitions and their policy
+
+- The triage assistant's settings moved from `helpdesk/triage.py` into `agents/triage.toml`; `python -m agent_policy` checks every definition against `agents/policy.toml`, and the assistant refuses to run one that fails. 16 fixtures specify the rules; 26 tests.
+- Broke each guard in turn (17 changes); a test failed each time, once the one badly written change was fixed.
+- Work list: `agent-policy` added as done, with its proof.
+- Checked with: `node check.mjs` (all 17 checks passed) and `node tools/progress.mjs .` (no problems).
+- Next: `draft-reply`, still the first item to do.
+
 ## 2026-09-23: chapter 17, custom lint rules
 
 - Python: `python -m helpdesk_lint` enforces AGENTS.md rule 5 (a model's text through `final_text`). Its first run flagged `assistant/agent.py`'s transcript line, which is correct, so it carries a `# HDK101:` exception with its reason. 10 tests.

@@ -1,0 +1,23 @@
+# The platform's rules for agent definitions (chapter 18), kept as data. python -m agent_policy
+# checks every other file in this folder against it. Change a limit here; the rules that apply the
+# limits are in src/agent_policy/rules.py, and tests/policy_fixtures/ shows what they accept and
+# refuse.
+
+# The most one model call may spend on output, in US dollars: max_tokens times the model's output
+# price. At the prices below, that's 16,000 tokens from claude-opus-5-5 or 32,000 from
+# claude-sonnet-5.
+max_call_output_usd = 0.32
+
+# The most turns an agent may allow one run. The loop stops at the agent's own limit (chapter 3);
+# this caps what that limit may be.
+max_turns = 10
+
+# The tools an agent may be given. A test checks that they're exactly the tools the code provides
+# (src/helpdesk/assistant/tools.py).
+tools = ["get_ticket", "search_kb"]
+
+# The models an agent may use, with each one's output price per million tokens. A test checks the
+# prices against src/helpdesk/model/cost.py.
+[models]
+claude-opus-5-5 = { output_usd_per_million = 20.0 }
+claude-sonnet-5 = { output_usd_per_million = 10.0 }

@@ -17,6 +17,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `python/src/helpdesk/model/` | The model interface, a deterministic mock, the Anthropic client (`anthropic_client.py`), stop-reason handling (`stops.py`) and cost arithmetic (`cost.py`). Imports nothing else from the helpdesk. |
 | `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. Teaching code, not part of the helpdesk. |
 | `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
+| `python/agents/` | Agent definitions (`triage.toml`) and the platform's policy for them (`policy.toml`), checked by `python/src/agent_policy/` (chapter 18). |
 | `python/src/helpdesk/main.py` | Composition root for the web service. |
 | `python/src/helpdesk/triage.py` | Composition root for the triage assistant's command line. |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to; `tests/fitness/` checks properties of the code as a whole (chapter 15). |
@@ -41,7 +42,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
-- Check: `node check.mjs` (all <!-- claim: checks -->16 checks; CI runs the same command)
+- Check: `node check.mjs` (all <!-- claim: checks -->17 checks; CI runs the same command)
 - After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`. If it fails, change `LONGEST_INSTALLED_FILE` in `setup.mjs` to the number it prints.
 - After changing a request or response model: `node tools/regenerate.mjs` (the API contract, then the TypeScript types), then `node check.mjs`, and fix what the type-check reports.
 
@@ -51,6 +52,7 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Test: `pytest`
 - Lint: `ruff check .` and `ruff format --check .`
 - Guardrails: `lint-imports`, and `python -m helpdesk_lint` for the lab's own rule
+- Agent definitions: `python -m agent_policy` checks `agents/*.toml` against `agents/policy.toml`; `tests/policy_fixtures/` shows what each rule accepts and refuses
 - Run: `uvicorn --factory helpdesk.main:create_default_app` (`HELPDESK_DB` sets the database file)
 - Chapter 2 demos: `python -m toymodel tokens "reset my password"`, `python -m toymodel next "reset emails can take up to"`, `python -m helpdesk.model.cost`
 - The triage assistant: `python -m helpdesk.triage` (mock model, scripted); `python -m helpdesk.triage --real "..."` calls Anthropic's API and needs a credential such as `ANTHROPIC_API_KEY`

@@ -1,0 +1,11 @@
+# expect: fail
+# reasons: max_turn, max_turns
+# A typo is two problems: a field the policy doesn't know, and the one that's now missing.
+# The message for the first asks: did you mean 'max_turns'?
+name = "triage"
+owner = "support-tools"
+model = "claude-opus-5-5"
+max_tokens = 16000
+tools = ["get_ticket", "search_kb"]
+system = "Triage helpdesk tickets and draft replies for staff to review."
+max_turn = 6

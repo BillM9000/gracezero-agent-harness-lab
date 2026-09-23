@@ -1,0 +1,9 @@
+# expect: fail
+# reasons: owner
+# Nobody answers for this agent.
+name = "triage"
+model = "claude-opus-5-5"
+max_tokens = 16000
+max_turns = 6
+tools = ["get_ticket", "search_kb"]
+system = "Triage helpdesk tickets and draft replies for staff to review."

@@ -32,6 +32,15 @@ class Toolbox:
     def specs(self) -> tuple[ToolSpec, ...]:
         return tuple(t.spec for t in self._tools.values())
 
+    def only(self, names: Iterable[str]) -> Toolbox:
+        """The named tools, in that order. A name this toolbox doesn't have is an error, never a skip."""
+        wanted = list(names)
+        missing = [name for name in wanted if name not in self._tools]
+        if missing:
+            known = ", ".join(sorted(self._tools))
+            raise KeyError(f"No tool named {', '.join(missing)}. Available tools: {known}.")
+        return Toolbox(self._tools[name] for name in wanted)
+
     def run(self, call: ToolCall) -> ToolResult:
         """Run one call. Every failure comes back as a result the model can read and act on."""
         tool = self._tools.get(call.name)

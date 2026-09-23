@@ -3,9 +3,12 @@
 python -m helpdesk.triage                  the scripted demo, with the mock model
 python -m helpdesk.triage --max-turns 2    the same demo, stopped by the turn limit
 python -m helpdesk.triage --real "Ticket 3: what should we tell this customer?"
+python -m helpdesk.triage --agent FILE     run another agent definition instead of agents/triage.toml
 
---real calls Anthropic's API and needs a credential the SDK can find, such as ANTHROPIC_API_KEY.
-Each run uses a fresh in-memory copy of the sample data, so nothing is saved.
+The assistant is built from its definition, agents/triage.toml, which must pass the platform's
+policy (agents/policy.toml, chapter 18) before anything runs. --real calls Anthropic's API and
+needs a credential the SDK can find, such as ANTHROPIC_API_KEY. Each run uses a fresh in-memory
+copy of the sample data, so nothing is saved.
 """
 
 from __future__ import annotations
@@ -13,7 +16,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
+from agent_policy import AGENTS, POLICY, load
+from agent_policy.rules import check
 from helpdesk.assistant.agent import TurnLimitReached, run_agent
 from helpdesk.assistant.tools import triage_tools
 from helpdesk.data.db import connect, init_schema
@@ -21,13 +27,6 @@ from helpdesk.data.seed import seed
 from helpdesk.model.mock import MockModel
 from helpdesk.model.stops import IncompleteResponse
 from helpdesk.model.types import Message, ModelClient, ModelResponse, ToolCall
-
-SYSTEM = (
-    "You are the triage assistant for a small software company's helpdesk. Use the tools to read "
-    "the ticket and search the knowledge base before you answer. Then draft a short reply to the "
-    "customer for a member of staff to review. You never send replies or change tickets yourself. "
-    "If the knowledge base doesn't cover the problem, say so instead of guessing."
-)
 
 DEMO_TASK = "Ticket 1: the customer says the reset email never arrives. Draft a reply."
 
@@ -65,10 +64,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="python -m helpdesk.triage")
     parser.add_argument("task", nargs="?", help="what to ask the assistant (needs --real)")
     parser.add_argument("--real", action="store_true", help="use Anthropic's API instead of the mock")
-    parser.add_argument("--max-turns", type=int, default=6)
+    parser.add_argument("--max-turns", type=int, help="this run's turn limit (default: the definition's)")
+    parser.add_argument("--agent", type=Path, default=AGENTS / "triage.toml", help="the definition to run")
     args = parser.parse_args()
     if args.task and not args.real:
         parser.error("the mock only knows its demo script; add --real to ask your own question")
+
+    # The policy checks what will actually run: the definition, with this run's --max-turns applied.
+    agent = load(args.agent)
+    if args.max_turns is not None:
+        agent["max_turns"] = args.max_turns
+    violations = check(agent, load(POLICY))
+    if violations:
+        for violation in violations:
+            print(f"{violation.path}: {violation.reason}", file=sys.stderr)
+        refused = "Refused: this agent breaks the platform's policy (agents/policy.toml). Nothing ran."
+        print(refused, file=sys.stderr)
+        return 2
 
     conn = connect(":memory:")
     init_schema(conn)
@@ -77,13 +89,15 @@ def main() -> int:
     if args.real:
         from helpdesk.model.anthropic_client import AnthropicModel
 
-        model, task, label = AnthropicModel(), args.task or DEMO_TASK, "Anthropic API"
+        model = AnthropicModel(model=agent["model"], max_tokens=agent["max_tokens"])
+        task, label = args.task or DEMO_TASK, f"Anthropic API ({agent['model']})"
     else:
         model, task, label = MockModel(DEMO_SCRIPT), DEMO_TASK, "mock, scripted"
 
     print(f"Task: {task}\nModel: {label}\n")
+    tools = triage_tools(conn).only(agent["tools"])
     try:
-        run = run_agent(model, triage_tools(conn), system=SYSTEM, task=task, max_turns=args.max_turns)
+        run = run_agent(model, tools, system=agent["system"], task=task, max_turns=agent["max_turns"])
     except TurnLimitReached as stop:
         print_transcript(stop.transcript)
         print(f"\nStopped: {stop}")
@@ -95,7 +109,7 @@ def main() -> int:
         conn.close()
     print_transcript(run.transcript)
     print(f"turn {run.turns}  answers:\n\n{run.answer}\n")
-    print(f"Finished in {run.turns} turns (limit {args.max_turns}).")
+    print(f"Finished in {run.turns} turns (limit {agent['max_turns']}).")
     return 0
 
 

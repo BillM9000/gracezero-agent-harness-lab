@@ -1,0 +1,10 @@
+# expect: fail
+# reasons: model, max_turns, tools[0]
+# Every problem is reported in one run, not one per run.
+name = "triage"
+owner = "support-tools"
+model = "claude-opus-4-1"
+max_tokens = 16000
+max_turns = 20
+tools = ["delete_ticket"]
+system = "Triage helpdesk tickets and draft replies for staff to review."

@@ -3,8 +3,8 @@
 // Runs the Python lint, format, import-rule and test checks, a check that the API contract and the
 // TypeScript types generated from it are current, the TypeScript type-check and tests, the Node
 // script tests, a check that setup.mjs's Windows path limit still fits the installed packages, a
-// budget for the instruction files, and a check of what the documentation claims, then prints one
-// line per check. Exits 1 if any fails, after printing the end of that check's output. CI runs
+// budget for the instruction files, a check of what the documentation claims, and a check that the
+// work list's done items name real tests, then prints one line per check. Exits 1 if any fails, after printing the end of that check's output. CI runs
 // this same command.
 //
 // node check.mjs --list prints the checks' names and runs nothing.
@@ -34,7 +34,16 @@ const CHECKS = [
   [
     "Script tests",
     process.execPath,
-    ["--test", "postings/tally.test.mjs", "tools/harness-inventory.test.mjs", "tools/install-paths.test.mjs", "tools/instruction-files.test.mjs", "tools/doc-claims.test.mjs", "tools/git-run.test.mjs"],
+    [
+      "--test",
+      "postings/tally.test.mjs",
+      "tools/harness-inventory.test.mjs",
+      "tools/install-paths.test.mjs",
+      "tools/instruction-files.test.mjs",
+      "tools/doc-claims.test.mjs",
+      "tools/progress.test.mjs",
+      "tools/git-run.test.mjs",
+    ],
     { cwd: ROOT },
   ],
   ["Setup's path limit (tools/install-paths.mjs)", process.execPath, ["tools/install-paths.mjs"], { cwd: ROOT }],
@@ -42,6 +51,8 @@ const CHECKS = [
   // target, and 4,000 estimated tokens, so long lines can't hide inside the line count.
   ["Instruction files (tools/instruction-files.mjs)", process.execPath, ["tools/instruction-files.mjs", ".", "--max-tokens", "4000"], { cwd: ROOT }],
   ["Documentation claims (tools/doc-claims.mjs)", process.execPath, ["tools/doc-claims.mjs", "."], { cwd: ROOT }],
+  // Every item marked done names a test that exists; the Python and script tests above run them.
+  ["Work list (tools/progress.mjs)", process.execPath, ["tools/progress.mjs", "."], { cwd: ROOT }],
 ];
 
 if (process.argv.includes("--list")) {

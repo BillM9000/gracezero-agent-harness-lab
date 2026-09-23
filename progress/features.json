@@ -1,0 +1,71 @@
+{
+  "about": "The lab's work list (chapter 10), in priority order. An item is done only when its proof test exists and passes: node tools/progress.mjs checks that the test exists, and node check.mjs runs it. Work on one item at a time. Change an item's status and proof; never delete or reword an item to make the list look finished.",
+  "features": [
+    {
+      "id": "helpdesk-layers",
+      "description": "The helpdesk's routes, services and data layer stay in order, enforced by import rules whose failure messages say how to fix the violation.",
+      "status": "done",
+      "proof": "python/tests/guardrails/test_layers_contract.py::test_route_importing_the_data_layer_is_caught_with_the_fix"
+    },
+    {
+      "id": "refusals-are-not-answers",
+      "description": "A refused or cut-off model response can't pass as a finished answer.",
+      "status": "done",
+      "proof": "python/tests/test_stops.py::test_a_refusal_is_not_an_answer_even_though_it_is_a_success"
+    },
+    {
+      "id": "triage-loop-stops",
+      "description": "The triage assistant's loop stops at its turn limit.",
+      "status": "done",
+      "proof": "python/tests/test_agent.py::test_a_model_that_never_stops_is_stopped_by_the_turn_limit"
+    },
+    {
+      "id": "triage-tools-read-only",
+      "description": "The triage assistant has exactly two tools, and both only read.",
+      "status": "done",
+      "proof": "python/tests/test_triage_tools.py::test_the_assistants_tools_only_read"
+    },
+    {
+      "id": "api-contract",
+      "description": "The API contract is generated from the code, and a contract that falls behind fails with the change named.",
+      "status": "done",
+      "proof": "python/tests/test_contract.py::test_a_contract_behind_the_code_fails_and_names_the_change"
+    },
+    {
+      "id": "harness-inventory",
+      "description": "A script lists the evidence a repository's files give for each part of a harness.",
+      "status": "done",
+      "proof": "tools/harness-inventory.test.mjs::every kind of evidence is found and named"
+    },
+    {
+      "id": "draft-reply",
+      "description": "The assistant can draft a reply to a ticket, which a person reads before anything is sent.",
+      "status": "todo",
+      "proof": null
+    },
+    {
+      "id": "approval-before-sending",
+      "description": "Sending a reply or closing a ticket waits for a person's approval (chapter 19).",
+      "status": "todo",
+      "proof": null
+    },
+    {
+      "id": "mcp-server",
+      "description": "An MCP server offers the helpdesk's read tools to any MCP client (chapter 12).",
+      "status": "todo",
+      "proof": null
+    },
+    {
+      "id": "golden-set",
+      "description": "A golden set of tickets with known good answers, for evaluating the assistant (chapter 21).",
+      "status": "todo",
+      "proof": null
+    },
+    {
+      "id": "model-judge",
+      "description": "A model judge grades the assistant's drafts against a rubric (chapter 22).",
+      "status": "todo",
+      "proof": null
+    }
+  ]
+}

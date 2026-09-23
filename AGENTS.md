@@ -24,14 +24,22 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `postings/` | The coded job-postings sample from chapter 1, the script that counts it, and a template for coding your own. |
 | `tools/` | Scripts the chapters build; each one that checks something has a test beside it. See Scripts below. |
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
+| `progress/` | The work list (`features.json`) and the session log (`log.md`). See Starting a session below. |
 | `.github/workflows/ci.yml` | CI: runs `node setup.mjs` and `node check.mjs`. |
+
+## Starting a session
+
+1. Get your bearings: `git log --oneline -10` for what changed lately, and `node tools/progress.mjs` for what's done, what's next and what the last session left.
+2. Run `node setup.mjs` and `node check.mjs`, so you know everything passes before you change anything.
+3. Work on one item from `progress/features.json`. Mark it done only when a test proves it, and name that test as its proof.
+4. Before you stop, add a dated entry at the top of `progress/log.md`: what changed, how you checked it, and what comes next.
 
 ## Commands
 
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
-- Check: `node check.mjs` (all <!-- claim: checks -->12 checks; CI runs the same command)
+- Check: `node check.mjs` (all <!-- claim: checks -->13 checks; CI runs the same command)
 - After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`. If it fails, change `LONGEST_INSTALLED_FILE` in `setup.mjs` to the number it prints.
 - After changing a request or response model: `node tools/regenerate.mjs` (the API contract, then the TypeScript types), then `node check.mjs`, and fix what the type-check reports.
 
@@ -59,6 +67,7 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 - `node tools/install-paths.mjs` checks setup's Windows path limit against the installed packages (chapter 5).
 - `node tools/instruction-files.mjs <path> [--max-lines N] [--max-tokens N]` reports what each instruction file loads, and when (chapter 6).
 - `node tools/doc-claims.mjs [path]` checks that paths named in `README.md`, `AGENTS.md` and `CLAUDE.md` exist, and that each number marked `<!-- claim: NAME -->` still matches the repository (chapter 8).
+- `node tools/progress.mjs [path]` shows the work list and the last session's log entry, and fails if a done item names no test that exists, or if more than one item is in progress (chapter 10).
 
 ## Rules
 

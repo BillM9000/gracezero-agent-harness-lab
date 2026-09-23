@@ -1,0 +1,30 @@
+name: docs
+
+# A change to Markdown runs the checks that read the documents: the instruction files' budget
+# (chapter 6), what the documentation claims (chapter 8) and the work list and log (chapter 10).
+# None of them needs Python or npm packages installed, so this takes seconds. ci.yml skips a change
+# that touches nothing but Markdown; skipping these checks too would let a broken claim through
+# unchecked, the gap chapter 8's field note ends on (chapter 24).
+on:
+  push:
+    branches: [main]
+    paths: ["**.md"]
+  pull_request:
+    paths: ["**.md"]
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: node tools/instruction-files.mjs . --max-tokens 4000
+      - run: node tools/doc-claims.mjs .
+      - run: node tools/progress.mjs .

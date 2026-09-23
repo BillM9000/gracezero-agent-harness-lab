@@ -1,11 +1,14 @@
 name: ci
 
-# No paths-ignore for Markdown: node check.mjs checks the instruction files' size (chapter 6) and
-# what the documentation claims (chapter 8), so a change to the docs alone must still run it.
+# Every push to main and every pull request runs the full checks, except a change to Markdown and
+# nothing else: that runs docs.yml, which checks the documents (chapters 6, 8 and 10) without
+# installing anything (chapter 24). A change to code and documents together runs both.
 on:
   push:
     branches: [main]
+    paths-ignore: ["**.md"]
   pull_request:
+    paths-ignore: ["**.md"]
   # A run on request (gh workflow run ci.yml), for a push that changed only Markdown and so ran
   # docs.yml alone, such as the first push of a copy of this repository.
   workflow_dispatch:
@@ -31,6 +34,9 @@ jobs:
           - os: ubuntu-latest
             python: "3.12"
     runs-on: ${{ matrix.os }}
+    # GitHub cancels a job after 360 minutes unless told sooner. A run that hangs should cost
+    # half an hour at most.
+    timeout-minutes: 30
     env:
       HELPDESK_PYTHON: python
     steps:
@@ -49,6 +55,7 @@ jobs:
   # violation, so a rule that checks nothing fails.
   go:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: boundaries/go
@@ -62,6 +69,7 @@ jobs:
 
   java:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: boundaries/java
@@ -75,6 +83,7 @@ jobs:
 
   dotnet:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: boundaries/dotnet

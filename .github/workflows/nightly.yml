@@ -1,0 +1,29 @@
+name: nightly
+
+# Breaks every guard in tools/mutations.mjs, one at a time, and requires a test to catch each
+# (chapter 24). It takes minutes rather than seconds, so it runs once a day and on request, not on
+# every push. It runs on the latest commit of the default branch.
+on:
+  schedule:
+    # 04:17 UTC. GitHub's documentation says scheduled runs can be delayed, and some dropped, at busy
+    # times such as the start of each hour, and are switched off in a public repository after 60
+    # days without activity.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  mutations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HELPDESK_PYTHON: python
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: node setup.mjs
+      - run: node tools/mutate.mjs

@@ -28,7 +28,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `tools/` | Scripts the chapters build; each one that checks something has a test beside it. See Scripts below. |
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
 | `progress/` | The work list (`features.json`) and the session log (`log.md`). See Starting a session below. |
-| `.github/workflows/ci.yml` | CI: runs `node setup.mjs` and `node check.mjs`. |
+| `.github/workflows/` | CI: `ci.yml` runs `node setup.mjs` and `node check.mjs`; `docs.yml` checks changes to Markdown alone; `nightly.yml` runs `node tools/mutate.mjs` (chapter 24). |
 
 ## Starting a session
 
@@ -43,6 +43,7 @@ Everything, from the repository root:
 
 - Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
 - Check: `node check.mjs` (all <!-- claim: checks -->17 checks; CI runs the same command)
+- Check quickly: `node check.mjs --fast` skips the three test suites, for after each edit; the full run is what counts
 - After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`. If it fails, change `LONGEST_INSTALLED_FILE` in `setup.mjs` to the number it prints.
 - After changing a request or response model: `node tools/regenerate.mjs` (the API contract, then the TypeScript types), then `node check.mjs`, and fix what the type-check reports.
 
@@ -73,6 +74,7 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 - `node tools/instruction-files.mjs <path> [--max-lines N] [--max-tokens N]` reports what each instruction file loads, and when (chapter 6).
 - `node tools/doc-claims.mjs [path]` checks that paths named in `README.md`, `AGENTS.md` and `CLAUDE.md` exist, and that each number marked `<!-- claim: NAME -->` still matches the repository (chapter 8).
 - `node tools/progress.mjs [path]` shows the work list and the last session's log entry, and fails if a done item names no test that exists, or if more than one item is in progress (chapter 10).
+- `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it; when you add a guard, add its entry (chapter 24).
 
 ## Rules
 

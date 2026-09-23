@@ -74,6 +74,12 @@
       "proof": "python/tests/test_agent_policy.py::test_the_triage_assistant_refuses_a_definition_that_breaks_the_policy"
     },
     {
+      "id": "guard-mutations",
+      "description": "Every guard from chapters 16 to 18 is broken on purpose every night, and a test must catch each; the runner checks its own controls.",
+      "status": "done",
+      "proof": "tools/mutate.test.mjs::a mutation the test notices is caught, and the file is put back"
+    },
+    {
       "id": "draft-reply",
       "description": "The assistant can draft a reply to a ticket, which a person reads before anything is sent.",
       "status": "todo",

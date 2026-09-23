@@ -9,6 +9,8 @@
 // this same command.
 //
 // node check.mjs --list prints the checks' names and runs nothing.
+// node check.mjs --fast skips the three test suites and runs the rest, the tier cheap enough to
+// run after every edit (chapter 24). The full run is still what counts: CI runs it.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -20,6 +22,8 @@ const BIN = join(ROOT, "python", ".venv", WINDOWS ? "Scripts" : "bin");
 const tool = (name) => join(BIN, WINDOWS ? `${name}.exe` : name);
 
 const python = join(ROOT, "python");
+// Marks a test suite. Suites take most of the run's time, so --fast leaves them out.
+const SUITE = "suite";
 const CHECKS = [
   ["Python lint (ruff check)", tool("ruff"), ["check", "."], { cwd: python }],
   ["Python format (ruff format --check)", tool("ruff"), ["format", "--check", "."], { cwd: python }],
@@ -31,14 +35,14 @@ const CHECKS = [
   // The contract is generated from the Python code, and the TypeScript types from the contract.
   // These two run before the type-check, so drift is reported as drift before it shows up as type errors.
   ["API contract (python -m helpdesk.contract)", tool("python"), ["-m", "helpdesk.contract", "check", "../contracts/openapi.json"], { cwd: python }],
-  ["Python tests (pytest)", tool("python"), ["-m", "pytest", "-q", "-p", "no:cacheprovider"], { cwd: python }],
+  ["Python tests (pytest)", tool("python"), ["-m", "pytest", "-q", "-p", "no:cacheprovider"], { cwd: python }, SUITE],
   // npm is a .cmd script on Windows, which Node only runs through a shell. The commands are fixed text.
   ["TypeScript API types (npm run api-types)", "npm run api-types -- --check", [], { cwd: join(ROOT, "ts"), shell: true }],
   ["TypeScript type-check", "npm run typecheck", [], { cwd: join(ROOT, "ts"), shell: true }],
   // ESLint checks one file at a time; dependency-cruiser checks the rules between files (chapter 16).
   ["TypeScript import rules (eslint)", "npm run lint", [], { cwd: join(ROOT, "ts"), shell: true }],
   ["TypeScript dependency rules (dependency-cruiser)", "npm run deps", [], { cwd: join(ROOT, "ts"), shell: true }],
-  ["TypeScript tests", "npm test", [], { cwd: join(ROOT, "ts"), shell: true }],
+  ["TypeScript tests", "npm test", [], { cwd: join(ROOT, "ts"), shell: true }, SUITE],
   [
     "Script tests",
     process.execPath,
@@ -50,9 +54,11 @@ const CHECKS = [
       "tools/instruction-files.test.mjs",
       "tools/doc-claims.test.mjs",
       "tools/progress.test.mjs",
+      "tools/mutate.test.mjs",
       "tools/git-run.test.mjs",
     ],
     { cwd: ROOT },
+    SUITE,
   ],
   ["Setup's path limit (tools/install-paths.mjs)", process.execPath, ["tools/install-paths.mjs"], { cwd: ROOT }],
   // The lab's own budget for what its instruction files load: 200 lines, Claude Code's documented
@@ -76,8 +82,10 @@ if (missing.length) {
   process.exit(1);
 }
 
+const fast = process.argv.includes("--fast");
+const selected = CHECKS.filter(([, , , , kind]) => !(fast && kind === SUITE));
 let failed = 0;
-for (const [label, command, args, options] of CHECKS) {
+for (const [label, command, args, options] of selected) {
   const started = Date.now();
   const run = spawnSync(command, args, { encoding: "utf8", ...options });
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
@@ -89,5 +97,7 @@ for (const [label, command, args, options] of CHECKS) {
     console.log(output.split("\n").slice(-25).map((line) => `      ${line}`).join("\n"));
   }
 }
-console.log(failed ? `\n${failed} of ${CHECKS.length} checks failed.` : `\nAll ${CHECKS.length} checks passed.`);
+const skipped = CHECKS.length - selected.length;
+const note = skipped ? ` (--fast: ${skipped} test suites not run; run node check.mjs for everything)` : "";
+console.log(failed ? `\n${failed} of ${selected.length} checks failed${note}.` : `\nAll ${selected.length} checks passed${note}.`);
 process.exit(failed ? 1 : 0);

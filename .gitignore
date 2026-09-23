@@ -9,3 +9,8 @@ __pycache__/
 
 # TypeScript
 ts/node_modules/
+
+# Chapter 16 side-by-side builds
+boundaries/java/target/
+boundaries/dotnet/bin/
+boundaries/dotnet/obj/

@@ -44,6 +44,18 @@
       "proof": "python/tests/fitness/test_no_route_returns_customer_email.py::test_no_read_route_returns_a_customer_email"
     },
     {
+      "id": "model-sdk-in-one-package",
+      "description": "Only helpdesk.model imports the model vendor's SDK, enforced by an allow-list rule that covers modules written after it.",
+      "status": "done",
+      "proof": "python/tests/guardrails/test_layers_contract.py::test_a_module_written_after_the_contract_is_covered_too"
+    },
+    {
+      "id": "typescript-import-rules",
+      "description": "The TypeScript package keeps its layers and its Node-only code in the CLI, checked by ESLint and dependency-cruiser, and both checks read every file.",
+      "status": "done",
+      "proof": "ts/test/boundaries.test.ts::reads every TypeScript file in the package"
+    },
+    {
       "id": "draft-reply",
       "description": "The assistant can draft a reply to a ticket, which a person reads before anything is sent.",
       "status": "todo",

@@ -2,6 +2,16 @@
 
 What each working session did, newest first. Add an entry at the end of every session: what changed, how you checked it, and what the next session should do first. Name the command behind each claim, so the next session can run it again instead of trusting the sentence.
 
+## 2026-09-23: chapter 16, boundary rules
+
+- Python: a fourth import contract keeps the `anthropic` SDK inside `helpdesk.model` (an allow-list, so new modules are covered), and each contract's fix is now in `broken_contract_guidance`. 2 new guardrail tests.
+- TypeScript: ESLint (`npm run lint`) and dependency-cruiser (`npm run deps`) enforce the package's import rules; `ts/test/boundaries.test.ts` plants a violation for each and checks that both tools read every file. TypeScript 6's API now sits beside TypeScript 7 for these tools.
+- `boundaries/`: the same layer rule in Go, Java and .NET. Not run: only CI can run them, and it hasn't.
+- Broke each guard in turn (20 changes); a test failed each time.
+- Work list: `model-sdk-in-one-package` and `typescript-import-rules` added as done, with their proofs.
+- Checked with: `node check.mjs` (all 15 checks passed) and `node tools/progress.mjs .` (no problems).
+- Next: `draft-reply`, still the first item to do.
+
 ## 2026-09-23: chapter 15, fitness functions
 
 - Added `python/tests/fitness/`: two checks that walk the syntax tree (every route declares a response model; no test builds the real model client without a fake) and one that runs the whole app (no read route returns a customer's email). Each has tests that plant a violation. 11 tests.

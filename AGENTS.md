@@ -20,7 +20,8 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `python/src/helpdesk/triage.py` | Composition root for the triage assistant's command line. |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to; `tests/fitness/` checks properties of the code as a whole (chapter 15). |
 | `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
-| `ts/` | TypeScript client and command-line tool for the API. `src/api-types.ts` is generated from the contract. |
+| `ts/` | TypeScript client and command-line tool for the API. `src/api-types.ts` is generated from the contract. Import rules: `eslint.config.js` and `.dependency-cruiser.cjs`. |
+| `boundaries/` | The helpdesk's layer rule in Go, Java and .NET (chapter 16). Only CI runs them. |
 | `postings/` | The coded job-postings sample from chapter 1, the script that counts it, and a template for coding your own. |
 | `tools/` | Scripts the chapters build; each one that checks something has a test beside it. See Scripts below. |
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
@@ -39,7 +40,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
-- Check: `node check.mjs` (all <!-- claim: checks -->13 checks; CI runs the same command)
+- Check: `node check.mjs` (all <!-- claim: checks -->15 checks; CI runs the same command)
 - After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`. If it fails, change `LONGEST_INSTALLED_FILE` in `setup.mjs` to the number it prints.
 - After changing a request or response model: `node tools/regenerate.mjs` (the API contract, then the TypeScript types), then `node check.mjs`, and fix what the type-check reports.
 
@@ -57,6 +58,7 @@ TypeScript, from `ts/`:
 
 - Set up: `npm ci`
 - Type-check: `npm run typecheck`
+- Import rules: `npm run lint` (ESLint, one file at a time) and `npm run deps` (dependency-cruiser, between files)
 - Test: `npm test`
 - Try the CLI: `npm run cli -- tickets open` (`--url` or `HELPDESK_URL` sets the server)
 
@@ -71,8 +73,8 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 
 ## Rules
 
-1. Layers run api and assistant (siblings that never import each other), then services, then data. Neither routes nor the assistant import `helpdesk.data`: move the query into a service and call that. `lint-imports` enforces this, and its failure message says how to fix it.
-2. `helpdesk.model` imports nothing from the helpdesk. Pass it what it needs as arguments.
+1. Layers run api and assistant (siblings that never import each other), then services, then data. Neither routes nor the assistant import `helpdesk.data`: move the query into a service and call that. `lint-imports` enforces this, and its failure message says how to fix it. In `ts/`, the CLI uses the client and the client uses the types; only `src/cli.ts` uses Node's built-in modules, and only `src/types.ts` imports `src/api-types.ts`. `npm run lint` and `npm run deps` enforce this.
+2. `helpdesk.model` imports nothing from the helpdesk, and nothing else imports the `anthropic` SDK. Pass the model what it needs as arguments, and pass code that needs a model a `ModelClient`.
 3. Only the composition roots, `helpdesk/main.py` and `helpdesk/triage.py`, wire the layers together.
 4. Tests use the mock model and never call a real model or the network.
 5. Code that wants a model's text calls `helpdesk.model.stops.final_text`, never `response.text` directly, so a refusal or a cut-off answer can't pass as a finished one.

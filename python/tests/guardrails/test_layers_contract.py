@@ -1,7 +1,7 @@
-"""The layer guardrail catches a real violation, and its failure message carries the fix.
+"""Each import contract catches a real violation, and its failure message carries the fix.
 
-Both tests run import-linter on a copy of the package, so the real source is never touched.
-The clean copy is the control: if it failed too, the violation test would prove nothing.
+Every test runs import-linter on a copy of the package, so the real source is never touched.
+The clean copy is the control: if it failed too, the violation tests would prove nothing.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ def plant(workdir: Path, module: str, line: str) -> None:
 def test_clean_copy_keeps_every_contract(tmp_path):
     code, output = run_guardrail(copy_package(tmp_path))
     assert code == 0, output
-    assert "3 kept, 0 broken" in output
+    assert "4 kept, 0 broken" in output
 
 
 def test_data_layer_importing_a_service_is_caught(tmp_path):
@@ -109,3 +109,24 @@ def test_model_importing_the_assistant_is_caught(tmp_path):
     code, output = run_guardrail(workdir)
     assert code != 0, output
     assert "helpdesk.model.types -> helpdesk.assistant.tools" in output
+
+
+def test_a_service_importing_the_sdk_is_caught_with_the_fix(tmp_path):
+    workdir = copy_package(tmp_path)
+    plant(workdir, "helpdesk.services.tickets", "import anthropic")
+    code, output = run_guardrail(workdir)
+    assert code != 0, output
+    assert "helpdesk.services.tickets -> anthropic" in output
+    assert "Take a ModelClient as an argument instead, so tests can pass the mock" in output
+
+
+def test_a_module_written_after_the_contract_is_covered_too(tmp_path):
+    # The protected contract lists who may import the SDK, not who may not, so a new module is
+    # covered without anyone adding it, even when its import is inside a function.
+    workdir = copy_package(tmp_path)
+    (workdir / "src" / "helpdesk" / "reports.py").write_text(
+        "def summary() -> str:\n    import anthropic\n\n    return str(anthropic)\n", encoding="utf-8"
+    )
+    code, output = run_guardrail(workdir)
+    assert code != 0, output
+    assert "helpdesk.reports -> anthropic" in output

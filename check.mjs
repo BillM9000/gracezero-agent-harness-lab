@@ -2,9 +2,12 @@
 //
 // Runs the Python lint, format, import-rule and test checks, a check that the API contract and the
 // TypeScript types generated from it are current, the TypeScript type-check and tests, the Node
-// script tests, a check that setup.mjs's Windows path limit still fits the installed packages, and a
-// budget for the instruction files, then prints one line per check. Exits 1 if any fails, after printing the
-// end of that check's output. CI runs this same command.
+// script tests, a check that setup.mjs's Windows path limit still fits the installed packages, a
+// budget for the instruction files, and a check of what the documentation claims, then prints one
+// line per check. Exits 1 if any fails, after printing the end of that check's output. CI runs
+// this same command.
+//
+// node check.mjs --list prints the checks' names and runs nothing.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -14,14 +17,6 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const WINDOWS = process.platform === "win32";
 const BIN = join(ROOT, "python", ".venv", WINDOWS ? "Scripts" : "bin");
 const tool = (name) => join(BIN, WINDOWS ? `${name}.exe` : name);
-
-const missing = [];
-if (!existsSync(tool("python"))) missing.push("python/.venv");
-if (!existsSync(join(ROOT, "ts", "node_modules"))) missing.push("ts/node_modules");
-if (missing.length) {
-  console.error(`Not set up yet (missing ${missing.join(" and ")}). Run node setup.mjs first.`);
-  process.exit(1);
-}
 
 const python = join(ROOT, "python");
 const CHECKS = [
@@ -39,14 +34,28 @@ const CHECKS = [
   [
     "Script tests",
     process.execPath,
-    ["--test", "postings/tally.test.mjs", "tools/harness-inventory.test.mjs", "tools/install-paths.test.mjs", "tools/instruction-files.test.mjs", "tools/git-run.test.mjs"],
+    ["--test", "postings/tally.test.mjs", "tools/harness-inventory.test.mjs", "tools/install-paths.test.mjs", "tools/instruction-files.test.mjs", "tools/doc-claims.test.mjs", "tools/git-run.test.mjs"],
     { cwd: ROOT },
   ],
   ["Setup's path limit (tools/install-paths.mjs)", process.execPath, ["tools/install-paths.mjs"], { cwd: ROOT }],
   // The lab's own budget for what its instruction files load: 200 lines, Claude Code's documented
   // target, and 4,000 estimated tokens, so long lines can't hide inside the line count.
   ["Instruction files (tools/instruction-files.mjs)", process.execPath, ["tools/instruction-files.mjs", ".", "--max-tokens", "4000"], { cwd: ROOT }],
+  ["Documentation claims (tools/doc-claims.mjs)", process.execPath, ["tools/doc-claims.mjs", "."], { cwd: ROOT }],
 ];
+
+if (process.argv.includes("--list")) {
+  for (const [label] of CHECKS) console.log(label);
+  process.exit(0);
+}
+
+const missing = [];
+if (!existsSync(tool("python"))) missing.push("python/.venv");
+if (!existsSync(join(ROOT, "ts", "node_modules"))) missing.push("ts/node_modules");
+if (missing.length) {
+  console.error(`Not set up yet (missing ${missing.join(" and ")}). Run node setup.mjs first.`);
+  process.exit(1);
+}
 
 let failed = 0;
 for (const [label, command, args, options] of CHECKS) {

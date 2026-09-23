@@ -1,11 +1,11 @@
 name: ci
 
+# No paths-ignore for Markdown: node check.mjs checks the instruction files' size (chapter 6) and
+# what the documentation claims (chapter 8), so a change to the docs alone must still run it.
 on:
   push:
     branches: [main]
-    paths-ignore: ["**.md"]
   pull_request:
-    paths-ignore: ["**.md"]
   # A run on request (gh workflow run ci.yml), for a push that changed only Markdown and so ran
   # docs.yml alone, such as the first push of a copy of this repository.
   workflow_dispatch:

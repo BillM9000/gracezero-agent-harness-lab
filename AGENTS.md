@@ -31,7 +31,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
-- Check: `node check.mjs` (every check; CI runs the same command)
+- Check: `node check.mjs` (all <!-- claim: checks -->12 checks; CI runs the same command)
 - After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`. If it fails, change `LONGEST_INSTALLED_FILE` in `setup.mjs` to the number it prints.
 - After changing a request or response model: `node tools/regenerate.mjs` (the API contract, then the TypeScript types), then `node check.mjs`, and fix what the type-check reports.
 
@@ -58,6 +58,7 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 - `node tools/harness-inventory.mjs <path>` lists the evidence a repository's files give for each part of a harness (chapter 4).
 - `node tools/install-paths.mjs` checks setup's Windows path limit against the installed packages (chapter 5).
 - `node tools/instruction-files.mjs <path> [--max-lines N] [--max-tokens N]` reports what each instruction file loads, and when (chapter 6).
+- `node tools/doc-claims.mjs [path]` checks that paths named in `README.md`, `AGENTS.md` and `CLAUDE.md` exist, and that each number marked `<!-- claim: NAME -->` still matches the repository (chapter 8).
 
 ## Rules
 
@@ -71,3 +72,4 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 8. No secrets in the repository.
 9. Keep this file a map: under 200 lines and about 4,000 estimated tokens, which `node check.mjs` measures. Put detail that only some tasks need where those tasks meet it, such as an error message or a test, and name any other file with a reason to read it.
 10. Never edit a generated file by hand. `contracts/openapi.json` and `ts/src/api-types.ts` come from the code: change their source and regenerate them. `node check.mjs` fails if either is out of date.
+11. A number in these documents that a script can count is marked `<!-- claim: NAME -->`, and `node check.mjs` checks it; a new kind of number needs a counter in `tools/doc-claims.mjs`. A claim about behavior, such as "read-only," needs a test instead, like the one in `python/tests/test_triage_tools.py`.

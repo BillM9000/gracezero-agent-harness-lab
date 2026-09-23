@@ -8,6 +8,25 @@ def call(conn, name, **arguments):
     return triage_tools(conn).run(ToolCall("c1", name, arguments))
 
 
+def test_the_assistants_tools_only_read(conn):
+    # The README says the assistant has two read-only tools. A counter could check the "two";
+    # only a test can check "read-only". A tool that changes anything needs a person's approval
+    # first (chapter 19), so adding one should fail here and be a decision, not a quiet change.
+    toolbox = triage_tools(conn)
+    assert {spec.name for spec in toolbox.specs} == {"get_ticket", "search_kb"}
+
+    def snapshot():
+        return [
+            [tuple(row) for row in conn.execute(f"SELECT * FROM {table} ORDER BY id")]
+            for table in ("tickets", "replies", "kb_articles")
+        ]
+
+    before = snapshot()
+    toolbox.run(ToolCall("c1", "get_ticket", {"ticket_id": 1}))
+    toolbox.run(ToolCall("c2", "search_kb", {"query": "password"}))
+    assert snapshot() == before
+
+
 def test_get_ticket_reads_the_ticket(conn):
     result = call(conn, "get_ticket", ticket_id=1)
     assert not result.is_error

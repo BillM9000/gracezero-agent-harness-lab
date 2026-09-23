@@ -13,10 +13,15 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const WINDOWS = process.platform === "win32";
 const VENV_PYTHON = join(ROOT, "python", ".venv", WINDOWS ? "Scripts/python.exe" : "bin/python");
 
-// The longest path the pinned packages install, counted from site-packages (anthropic 1.8.0,
-// measured 2026-09-22), and the fixed part of the path from the clone to site-packages.
-const LONGEST_INSTALLED_PATH = 133;
+// The longest file the pinned packages install, counted from site-packages: a module in
+// anthropic 1.8.0, measured 2026-09-22. Compiled bytecode in __pycache__ runs longer, but pip
+// skips a compiled file it can't write and Python runs without it, so it doesn't count here.
+// tools/install-paths.mjs measures the installed packages again on every check, so this number
+// can't quietly go stale when a package is added.
+const LONGEST_INSTALLED_FILE = 108;
+// The fixed part of the path from the clone to site-packages, and Windows' limit on a whole path.
 const TO_SITE_PACKAGES = "\\python\\.venv\\Lib\\site-packages\\".length;
+const WINDOWS_PATH_LIMIT = 259;
 
 function fail(message) {
   console.error(`\nSetup stopped: ${message}`);
@@ -43,14 +48,17 @@ function longPathsEnabled() {
 }
 
 // Windows limits a whole path to 260 characters (259 plus a terminating null) unless long
-// paths are enabled. Check before installing, so the failure is this message, not pip's.
+// paths are enabled. pip writes each file straight to its final path, so in a folder that is too
+// deep it stops part way through with "No such file or directory". Check before installing, so
+// the failure is this message instead.
 if (WINDOWS) {
-  const total = ROOT.length + TO_SITE_PACKAGES + LONGEST_INSTALLED_PATH;
-  if (total > 259 && !longPathsEnabled()) {
+  const longestFolder = WINDOWS_PATH_LIMIT - TO_SITE_PACKAGES - LONGEST_INSTALLED_FILE;
+  if (ROOT.length > longestFolder && !longPathsEnabled()) {
     fail(
-      `this folder's path is ${ROOT.length} characters long, so the longest installed file would need ` +
-        `${total} characters and Windows allows 259. Move the repository to a shorter folder, such as ` +
-        "C:\\src\\agent-harness-lab (keep the path under about 90 characters), or enable long paths " +
+      `this folder's path is ${ROOT.length} characters long, and on Windows it can be at most ${longestFolder}: ` +
+        `the longest file the Python packages install would need a path of ` +
+        `${ROOT.length + TO_SITE_PACKAGES + LONGEST_INSTALLED_FILE} characters, and Windows allows ${WINDOWS_PATH_LIMIT}. ` +
+        "Move the repository to a shorter folder, such as C:\\src\\agent-harness-lab, or enable long paths " +
         "as Microsoft's page \"Maximum Path Length Limitation\" describes, then run setup again.",
     );
   }

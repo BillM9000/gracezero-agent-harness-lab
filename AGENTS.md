@@ -22,6 +22,8 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `ts/` | TypeScript client and command-line tool for the API. |
 | `postings/` | The coded job-postings sample from chapter 1, the script that counts it, and a template for coding your own. |
 | `tools/harness-inventory.mjs` | Chapter 4's harness inventory: the evidence a repository's files give for each part of a harness. |
+| `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
+| `tools/install-paths.mjs` | Fails if the installed Python packages have a file longer than `setup.mjs`'s Windows path check allows for. |
 | `.github/workflows/ci.yml` | CI: runs every check below. |
 
 ## Commands
@@ -30,6 +32,7 @@ Everything, from the repository root:
 
 - Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
 - Check: `node check.mjs` (every check below; CI runs the same command)
+- After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`. If it fails, change `LONGEST_INSTALLED_FILE` in `setup.mjs` to the number it prints.
 
 Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere):
 

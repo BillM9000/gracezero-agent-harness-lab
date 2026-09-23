@@ -1,8 +1,9 @@
 // One command to run every check in the repository: node check.mjs
 //
 // Runs the Python lint, format, import-rule and test checks, the TypeScript type-check and
-// tests, and the Node script tests, then prints one line per check. Exits 1 if any fails,
-// after printing the end of that check's output. CI runs this same command.
+// tests, the Node script tests, and a check that setup.mjs's Windows path limit still fits the
+// installed packages, then prints one line per check. Exits 1 if any fails, after printing the
+// end of that check's output. CI runs this same command.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -30,7 +31,13 @@ const CHECKS = [
   // npm is a .cmd script on Windows, which Node only runs through a shell. The commands are fixed text.
   ["TypeScript type-check", "npm run typecheck", [], { cwd: join(ROOT, "ts"), shell: true }],
   ["TypeScript tests", "npm test", [], { cwd: join(ROOT, "ts"), shell: true }],
-  ["Script tests", process.execPath, ["--test", "postings/tally.test.mjs", "tools/harness-inventory.test.mjs"], { cwd: ROOT }],
+  [
+    "Script tests",
+    process.execPath,
+    ["--test", "postings/tally.test.mjs", "tools/harness-inventory.test.mjs", "tools/install-paths.test.mjs"],
+    { cwd: ROOT },
+  ],
+  ["Setup's path limit (tools/install-paths.mjs)", process.execPath, ["tools/install-paths.mjs"], { cwd: ROOT }],
 ];
 
 let failed = 0;

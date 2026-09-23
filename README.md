@@ -12,6 +12,7 @@ The companion lab for a plain-English book on AI platform engineering by Bill Mc
 - **The job-postings sample from chapter 1**: 33 coded United States postings, the script that counts them, and a template for coding your own.
 - **A harness inventory** (`node tools/harness-inventory.mjs <path>`): lists the evidence any repository's files give for each of the eight parts of a harness from chapter 4.
 - **One command to set up and one to check** (chapter 5): `node setup.mjs` and `node check.mjs`, the same two commands CI runs.
+- **An instruction-file check** (chapter 6): `node tools/instruction-files.mjs <path>` reports what each instruction file puts in front of an agent at the start of a session, counting the files it imports, and flags a file over budget, an import that doesn't load, and a `CLAUDE.md` that hides an `AGENTS.md`.
 - **Chapter 2's toys and tools**: a toy tokenizer and next-word model that show why token counts and answers vary, a cost calculator for conversations that resend their history, and a check that refuses to treat a refused or cut-off answer as finished.
 
 Coming chapter by chapter: tools that change things, behind human approval; hooks; an MCP server; evaluations; and the same boundary rule in Go, Java and .NET.

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for any coding agent, and any person, working in this repository. `CLAUDE.md` points here, so every tool reads the same rules.
+Instructions for any coding agent, and any person, working in this repository. `CLAUDE.md` imports this file, so Claude Code and every other tool read the same rules.
 
 ## What this is
 
@@ -21,17 +21,16 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to. |
 | `ts/` | TypeScript client and command-line tool for the API. |
 | `postings/` | The coded job-postings sample from chapter 1, the script that counts it, and a template for coding your own. |
-| `tools/harness-inventory.mjs` | Chapter 4's harness inventory: the evidence a repository's files give for each part of a harness. |
+| `tools/` | Scripts the chapters build, each with a test beside it. See Scripts below. |
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
-| `tools/install-paths.mjs` | Fails if the installed Python packages have a file longer than `setup.mjs`'s Windows path check allows for. |
-| `.github/workflows/ci.yml` | CI: runs every check below. |
+| `.github/workflows/ci.yml` | CI: runs `node setup.mjs` and `node check.mjs`. |
 
 ## Commands
 
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
-- Check: `node check.mjs` (every check below; CI runs the same command)
+- Check: `node check.mjs` (every check; CI runs the same command)
 - After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`. If it fails, change `LONGEST_INSTALLED_FILE` in `setup.mjs` to the number it prints.
 
 Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere):
@@ -51,16 +50,12 @@ TypeScript, from `ts/`:
 - Test: `npm test`
 - Try the CLI: `npm run cli -- tickets open` (`--url` or `HELPDESK_URL` sets the server)
 
-Harness inventory, from the repository root:
+Scripts, from the repository root. Each has a test file beside it: run `node --test` on that file.
 
-- Run: `node tools/harness-inventory.mjs <path-to-any-repository>`
-- Test: `node --test tools/harness-inventory.test.mjs`
-
-Job postings, from the repository root:
-
-- Count the sample: `node postings/tally.mjs postings/sample-2026-09-22.json`
-- Test: `node --test postings/tally.test.mjs`
-- `postings/sample-2026-09-22.json` is a dated record. Never edit its codes; code a new sample in a new file instead.
+- `node postings/tally.mjs postings/sample-2026-09-22.json` counts chapter 1's postings sample. The sample is a dated record: never edit its codes; code a new sample in a new file instead.
+- `node tools/harness-inventory.mjs <path>` lists the evidence a repository's files give for each part of a harness (chapter 4).
+- `node tools/install-paths.mjs` checks setup's Windows path limit against the installed packages (chapter 5).
+- `node tools/instruction-files.mjs <path> [--max-lines N] [--max-tokens N]` reports what each instruction file loads, and when (chapter 6).
 
 ## Rules
 
@@ -72,3 +67,4 @@ Job postings, from the repository root:
 6. Warnings fail the Python test run. Fix the cause instead of silencing it; the one exception, raised inside Starlette, is listed in `pyproject.toml`.
 7. A change is done when `node check.mjs` passes. Record it in `CHANGELOG.md` in the same commit.
 8. No secrets in the repository.
+9. Keep this file a map: under 200 lines and about 4,000 estimated tokens, which `node check.mjs` measures. Put detail that only some tasks need where those tasks meet it, such as an error message or a test, and name any other file with a reason to read it.

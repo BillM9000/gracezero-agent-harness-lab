@@ -1,8 +1,8 @@
 // One command to run every check in the repository: node check.mjs
 //
 // Runs the Python lint, format, import-rule and test checks, the TypeScript type-check and
-// tests, the Node script tests, and a check that setup.mjs's Windows path limit still fits the
-// installed packages, then prints one line per check. Exits 1 if any fails, after printing the
+// tests, the Node script tests, a check that setup.mjs's Windows path limit still fits the
+// installed packages, and a budget for the instruction files, then prints one line per check. Exits 1 if any fails, after printing the
 // end of that check's output. CI runs this same command.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -34,10 +34,13 @@ const CHECKS = [
   [
     "Script tests",
     process.execPath,
-    ["--test", "postings/tally.test.mjs", "tools/harness-inventory.test.mjs", "tools/install-paths.test.mjs", "tools/git-run.test.mjs"],
+    ["--test", "postings/tally.test.mjs", "tools/harness-inventory.test.mjs", "tools/install-paths.test.mjs", "tools/instruction-files.test.mjs", "tools/git-run.test.mjs"],
     { cwd: ROOT },
   ],
   ["Setup's path limit (tools/install-paths.mjs)", process.execPath, ["tools/install-paths.mjs"], { cwd: ROOT }],
+  // The lab's own budget for what its instruction files load: 200 lines, Claude Code's documented
+  // target, and 4,000 estimated tokens, so long lines can't hide inside the line count.
+  ["Instruction files (tools/instruction-files.mjs)", process.execPath, ["tools/instruction-files.mjs", ".", "--max-tokens", "4000"], { cwd: ROOT }],
 ];
 
 let failed = 0;

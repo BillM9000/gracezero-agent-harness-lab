@@ -19,6 +19,7 @@ from pathlib import Path
 import anyio
 import httpx2
 import pytest
+import uvicorn
 from starlette.testclient import TestClient
 
 from helpdesk.assistant.tools import triage_tools
@@ -28,6 +29,7 @@ from helpdesk.mcp_server import (
     CATALOG_NAME,
     STAFF_VARIABLE,
     TOOL_SCOPES,
+    Serving,
     build_http_app,
     catalog_problems,
     main,
@@ -557,7 +559,8 @@ def test_the_command_serves_the_lab_client_over_http(running):
 
 def test_the_server_stops_cleanly_when_interrupted(tmp_path):
     # Ctrl+C in the server's terminal. On Windows a script can't press it for another process, so the
-    # test sends Ctrl+Break, which uvicorn and the server handle the same way.
+    # test sends Ctrl+Break, which uvicorn and the server handle the same way. The server says it's
+    # serving once uvicorn is listening and taking the signals, so every run takes the same path.
     env = {k: v for k, v in os.environ.items() if k != STAFF_VARIABLE}
     env["HELPDESK_RUN_DIR"] = str(tmp_path)
     windows = sys.platform == "win32"
@@ -574,6 +577,22 @@ def test_the_server_stops_cleanly_when_interrupted(tmp_path):
     assert server.wait(timeout=30) == 0
     assert server.stderr.read().strip().endswith("helpdesk MCP server: stopped.")
     server.stderr.close()
+
+
+def test_the_stop_handler_only_asks_uvicorn_to_stop():
+    # Chapter 20: a handler that raised KeyboardInterrupt lost a stop now and then, when the exception
+    # landed in a weakref callback during an import, where Python reports it and carries on. uvicorn's
+    # own flag can't be lost that way: it reads it once it has started, and on every tick after.
+    async def never_served(scope, receive, send):
+        raise AssertionError("this server is never started")
+
+    server = Serving(uvicorn.Config(never_served), ready="")
+    assert server.should_exit is False
+    try:
+        server.stop(signal.SIGINT, None)
+    except KeyboardInterrupt:
+        pytest.fail("the handler raised KeyboardInterrupt: it should only set uvicorn's should_exit")
+    assert server.should_exit is True
 
 
 def test_the_sdks_own_client_can_use_it_with_a_token(running):

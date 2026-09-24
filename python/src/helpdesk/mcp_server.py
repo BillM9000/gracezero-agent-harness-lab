@@ -344,8 +344,26 @@ def shown(path: Path) -> str:
         return path.as_posix()
 
 
-def interrupted(number: int, frame: Any) -> None:
-    raise KeyboardInterrupt
+class Serving(uvicorn.Server):
+    """uvicorn's server, which says it's serving once it listens, and stops for a signal at any moment.
+
+    stop() is the handler for Ctrl+C (Ctrl+Break too, on Windows) and SIGTERM whenever uvicorn isn't
+    taking them itself, and it only asks uvicorn to stop. It used to raise KeyboardInterrupt, which
+    lands wherever the program happens to be: inside a weakref callback during an import, Python
+    prints it and carries on, so now and then a stop was lost and the server served on (chapter 20).
+    """
+
+    def __init__(self, config: uvicorn.Config, ready: str) -> None:
+        super().__init__(config)
+        self.ready = ready
+
+    async def startup(self, sockets: list[socket.socket] | None = None) -> None:
+        await super().startup(sockets=sockets)
+        # Listening now, with uvicorn taking the signals, so a client or a Ctrl+C can follow at once.
+        print(self.ready, file=sys.stderr, flush=True)
+
+    def stop(self, number: int, frame: Any) -> None:
+        self.should_exit = True
 
 
 def serve_http(port: int, catalog: Path) -> int:
@@ -380,20 +398,19 @@ def serve_http(port: int, catalog: Path) -> int:
         verifier = Verifier(public_key_at(folder), issuer=ISSUER, audience=resource)
         audit = AuditLog(folder / "audit.jsonl")
         app = build_http_app(conn, resource=resource, verifier=verifier, audit=audit)
-        # Ctrl+C (Ctrl+Break too, on Windows) stops it, at any moment. While it serves, uvicorn takes
-        # the signal, shuts down cleanly, then raises it again here, where it ends the run quietly.
-        for stop in STOP_SIGNALS:
-            signal.signal(stop, interrupted)
-        print(
-            f"helpdesk MCP server: {resource}, over Streamable HTTP, for the person each request's token "
-            f"names. It accepts tokens from {ISSUER} issued for that address; audit log {shown(audit.path)}.",
-            file=sys.stderr,
-            flush=True,
+        server = Serving(
+            uvicorn.Config(app, log_level="warning"),
+            ready=f"helpdesk MCP server: {resource}, over Streamable HTTP, for the person each request's "
+            f"token names. It accepts tokens from {ISSUER} issued for that address; audit log "
+            f"{shown(audit.path)}.",
         )
+        # Ctrl+C (Ctrl+Break too, on Windows) stops it, at any moment. While it serves, uvicorn takes
+        # the signal, shuts down cleanly, then raises it again for server.stop, which takes it the rest
+        # of the time. Windows' default for Ctrl+Break, which ends the process, never gets it.
+        for stop in STOP_SIGNALS:
+            signal.signal(stop, server.stop)
         try:
-            uvicorn.Server(uvicorn.Config(app, log_level="warning")).run(sockets=[listener])
-        except KeyboardInterrupt:
-            pass
+            server.run(sockets=[listener])
         finally:
             audit.close()
         print("helpdesk MCP server: stopped.", file=sys.stderr)

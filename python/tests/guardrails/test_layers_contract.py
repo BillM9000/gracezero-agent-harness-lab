@@ -15,6 +15,10 @@ from pathlib import Path
 PYTHON_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = PYTHON_ROOT / "src" / "helpdesk"
 PYPROJECT = PYTHON_ROOT / "pyproject.toml"
+# lint-imports draws boxes when its output can take them, and PYTHONIOENCODING, which some shells
+# set, decides what it writes. So the test says which encoding lint-imports writes and reads it
+# back in the same one, whatever the shell has set.
+ENCODING = "utf-8"
 
 
 def lint_imports() -> str:
@@ -30,13 +34,13 @@ def copy_package(workdir: Path) -> Path:
 
 
 def run_guardrail(workdir: Path) -> tuple[int, str]:
-    env = {**os.environ, "PYTHONPATH": str(workdir / "src")}
+    env = {**os.environ, "PYTHONPATH": str(workdir / "src"), "PYTHONIOENCODING": ENCODING}
     result = subprocess.run(
         [lint_imports(), "--config", str(workdir / "pyproject.toml")],
         cwd=workdir,
         env=env,
         capture_output=True,
-        text=True,
+        encoding=ENCODING,
     )
     # import-linter wraps long lines; collapse whitespace so assertions can match whole sentences.
     return result.returncode, " ".join((result.stdout + result.stderr).split())

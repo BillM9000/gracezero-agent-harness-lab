@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 13, 16 to 18, 24, 25
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 18, 24, 25
 // and 30 are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and
 // chapter 1's tally's check for missing fields; the guards from earlier chapters were broken by
 // hand when they were built (CHANGELOG.md records each time) and are the next candidates to add.
@@ -48,6 +48,10 @@ const TOKEN_TESTS = "tests/test_mcp_tokens.py";
 const HTTP_TESTS = "tests/test_mcp_http.py";
 const CATALOG_TESTS = "tests/test_mcp_catalog.py";
 const catalogFixture = (name) => pytest(`${CATALOG_TESTS}::test_each_fixture_gets_exactly_the_verdict_it_names[${name}]`);
+const REVISE = "python/src/helpdesk/assistant/revise.py";
+const TEAM = "python/src/helpdesk/assistant/team.py";
+const REVISE_TESTS = "tests/test_revise.py";
+const TEAM_TESTS = "tests/test_team.py";
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -1429,6 +1433,113 @@ export const MUTATIONS = [
     find: '{"serverUrl": s["url"]} if s["transport"] == "http" else {"serverCommand": s["command"]}',
     replace: '{"serverName": s["name"]}',
     run: pytest(`${CATALOG_TESTS}::test_the_allowlist_names_each_server_by_address_or_exact_command_never_by_name`),
+  },
+
+  // Chapter 14: evaluator and optimizer, orchestrator and workers.
+  {
+    guard: "revise: the loop stops at its round limit",
+    file: REVISE,
+    find: "    for number in range(1, max_rounds + 1):",
+    replace: "    for number in range(1, max_rounds + 100):",
+    run: pytest(`${REVISE_TESTS}::test_a_drafter_that_never_fixes_it_stops_at_the_round_limit`),
+  },
+  {
+    guard: "revise: a draft is accepted only when the check passes",
+    file: REVISE,
+    find: "        if report.ok:",
+    replace: "        if True:",
+    run: pytest(`${REVISE_TESTS}::test_a_draft_that_fails_the_check_goes_back_and_the_revision_is_accepted`),
+  },
+  {
+    guard: "revise: the check's findings go back to the drafter",
+    file: REVISE,
+    find: "        request = feedback(report)",
+    replace: "        request = task",
+    run: pytest(`${REVISE_TESTS}::test_the_revision_request_carries_the_problem_the_check_found`),
+  },
+  {
+    guard: "revise: an unchanged draft stops the loop",
+    file: REVISE,
+    find: "        if unchanged:",
+    replace: "        if False:",
+    run: pytest(`${REVISE_TESTS}::test_an_unchanged_draft_stops_the_loop_before_the_limit`),
+  },
+  {
+    guard: "team: a customer is delegated once",
+    file: TEAM,
+    find: "        if customer_name in self.workers:",
+    replace: "        if False:",
+    run: pytest(`${TEAM_TESTS}::test_a_customer_delegated_twice_is_refused_and_keeps_one_worker`),
+  },
+  {
+    guard: "team: a customer outside the batch is refused",
+    file: TEAM,
+    find: "        if customer_name not in batch:",
+    replace: "        if not batch:",
+    run: pytest(`${TEAM_TESTS}::test_an_unknown_customer_is_refused_with_how_to_name_one`),
+  },
+  {
+    guard: "team: workers get only the reading tools",
+    file: TEAM,
+    find: 'WORKER_TOOLS = ("get_ticket", "search_kb")',
+    replace: 'WORKER_TOOLS = ("get_ticket", "search_kb", "find_tickets")',
+    run: pytest(`${TEAM_TESTS}::test_each_worker_starts_with_only_its_brief_and_only_reading_tools`),
+  },
+  {
+    guard: "team: a worker that stops without drafts is recorded as failed",
+    file: TEAM,
+    find: "            self.workers[customer_name] = Worker(customer_name, ids, None, None, str(stop))\n",
+    replace: "",
+    run: pytest(`${TEAM_TESTS}::test_a_worker_that_stops_without_drafts_is_counted_as_failed_whatever_the_summary_says`),
+  },
+  {
+    guard: "team: the batch is complete only when nothing failed or is missing",
+    file: TEAM,
+    find: "        return not self.failed and not self.missing",
+    replace: "        return True",
+    run: pytest(`${TEAM_TESTS}::test_a_worker_that_stops_without_drafts_is_counted_as_failed_whatever_the_summary_says`),
+  },
+  {
+    guard: "team: a customer never delegated is counted as missing",
+    file: TEAM,
+    find: "        missing = tuple(c for c in batch if c not in self.workers)",
+    replace: "        missing = ()",
+    run: pytest(`${TEAM_TESTS}::test_a_customer_never_delegated_is_missing`),
+  },
+  {
+    guard: "team: a worker's drafts count only when their citations hold",
+    file: TEAM,
+    find: " and self.report.ok and not self.unread",
+    replace: " and not self.unread",
+    run: pytest(`${TEAM_TESTS}::test_a_worker_whose_citations_fail_is_not_counted_as_drafted`),
+  },
+  {
+    guard: "team: a worker's drafts count only when it read every ticket",
+    file: TEAM,
+    find: " and self.report.ok and not self.unread",
+    replace: " and self.report.ok",
+    run: pytest(`${TEAM_TESTS}::test_a_worker_that_skips_a_ticket_is_not_counted`),
+  },
+  {
+    guard: "team: the count is made even when the orchestrator stops",
+    file: TEAM,
+    find: "        return TeamRun(None, tuple(team.workers.values()), team.account(), str(stop))",
+    replace: "        raise",
+    run: pytest(`${TEAM_TESTS}::test_the_count_is_made_even_when_the_orchestrator_stops_part_way`),
+  },
+  {
+    guard: "team: the batch is the open and pending tickets only",
+    file: TICKETS,
+    find: '    rows = [t for t in visible_tickets(conn, person) if t["status"] in ACTIVE]',
+    replace: "    rows = visible_tickets(conn, person)",
+    run: pytest(`${TEAM_TESTS}::test_the_batch_is_every_open_or_pending_ticket_the_person_can_see_by_customer`),
+  },
+  {
+    guard: "patterns: nothing runs when a definition breaks the policy",
+    file: "python/src/helpdesk/patterns.py",
+    find: "        for v in check(d, policy)",
+    replace: "        for v in []",
+    run: pytest("tests/test_patterns_compare.py::test_nothing_runs_when_a_definition_breaks_the_policy"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

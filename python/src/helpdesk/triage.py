@@ -24,7 +24,7 @@ from pathlib import Path
 from agent_policy import AGENTS, POLICY, load
 from agent_policy.rules import check
 from helpdesk.assistant.agent import TurnLimitReached, run_agent
-from helpdesk.assistant.tools import triage_tools
+from helpdesk.assistant.tools import passages_given, triage_tools
 from helpdesk.data.db import connect, init_schema
 from helpdesk.data.seed import seed
 from helpdesk.model.mock import MockModel
@@ -52,19 +52,6 @@ DEMO_SCRIPT = [
         ),
     ),
 ]
-
-
-def passages_given(transcript: tuple[Message, ...]) -> dict[str, str]:
-    """Every passage the knowledge-base searches in this run showed the model, by id. The
-    transcript is the record of what the model actually read, so citations are checked against
-    it, not against the knowledge base as a whole."""
-    searches = {call.id for message in transcript for call in message.tool_calls if call.name == "search_kb"}
-    given: dict[str, str] = {}
-    for message in transcript:
-        for result in message.tool_results:
-            if result.call_id in searches and not result.is_error:
-                given.update(citations.passages_in(result.content))
-    return given
 
 
 def report_citations(answer: str, transcript: tuple[Message, ...], known: set[str]) -> bool:

@@ -24,8 +24,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from helpdesk.model.types import ToolCall, ToolResult, ToolSpec
-from helpdesk.services import kb, tickets
+from helpdesk.model.types import Message, ToolCall, ToolResult, ToolSpec
+from helpdesk.services import citations, kb, tickets
 from helpdesk.services.access import Person
 from helpdesk.services.errors import ServiceError
 
@@ -83,6 +83,13 @@ class Toolbox:
             known = ", ".join(sorted(self._tools))
             raise KeyError(f"No tool named {', '.join(missing)}. Available tools: {known}.")
         return Toolbox((self._tools[name] for name in wanted), self.max_result_chars)
+
+    def plus(self, *extra: Tool) -> Toolbox:
+        """These tools and more, such as chapter 14's delegate_customer. A name used twice is an error."""
+        clash = [t.spec.name for t in extra if t.spec.name in self._tools]
+        if clash:
+            raise KeyError(f"This toolbox already has a tool named {', '.join(clash)}.")
+        return Toolbox([*self._tools.values(), *extra], self.max_result_chars)
 
     def limited(self, max_result_chars: int) -> Toolbox:
         """The same tools, cutting results at a different length."""
@@ -269,6 +276,21 @@ SEARCH_KB = ToolSpec(
     },
     strict=True,
 )
+
+
+def passages_given(transcript: Iterable[Message]) -> dict[str, str]:
+    """Every passage the knowledge-base searches in a run showed the model, by id. The transcript
+    is the record of what the model actually read, so citations are checked against it, not
+    against the knowledge base as a whole (chapter 9). Chapter 14's workers are checked the same
+    way, each against its own transcript."""
+    messages = list(transcript)
+    searches = {call.id for message in messages for call in message.tool_calls if call.name == "search_kb"}
+    given: dict[str, str] = {}
+    for message in messages:
+        for result in message.tool_results:
+            if result.call_id in searches and not result.is_error:
+                given.update(citations.passages_in(result.content))
+    return given
 
 
 def search_kb_tool(conn: sqlite3.Connection) -> Tool:

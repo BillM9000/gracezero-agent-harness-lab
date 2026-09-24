@@ -134,6 +134,12 @@
       "proof": "python/tests/test_mcp_http.py::test_a_token_for_another_server_is_refused"
     },
     {
+      "id": "multi-agent-patterns",
+      "description": "An orchestrator hands each customer's tickets to a worker with its own context and counts in code what came back, whatever its own summary says; a draft goes back to be revised until the citation check passes, at most three rounds; and what each design sends to the model is measured (chapter 14).",
+      "status": "done",
+      "proof": "python/tests/test_team.py::test_a_worker_that_stops_without_drafts_is_counted_as_failed_whatever_the_summary_says"
+    },
+    {
       "id": "golden-set",
       "description": "A golden set of tickets with known good answers, for evaluating the assistant (chapter 21).",
       "status": "todo",

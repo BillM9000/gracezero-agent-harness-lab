@@ -6,6 +6,17 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
 
+## 2026-09-24: chapter 14, multi-agent patterns
+
+- `python -m helpdesk.patterns batch`: an orchestrator (`agents/orchestrator.toml`, tools `find_tickets` and a new `delegate_customer`) hands each customer's open and pending tickets to a worker with its own context and only `get_ticket` and `search_kb` (`helpdesk/assistant/team.py`). Each worker's drafts are citation-checked against its own transcript, and the orchestrator gets a short report. After the run, the code counts every customer in the batch as drafted, failed or never delegated, whatever the orchestrator's summary says; `--fail ben` cuts one worker off to show it.
+- `python -m helpdesk.patterns revise`: a draft goes back with the citation check's findings until it passes, comes back unchanged, or reaches 3 rounds (`helpdesk/assistant/revise.py`). `run_agent` takes a `history` so a round continues the conversation.
+- `python -m helpdesk.patterns compare`: the same batch of 8 tickets by one agent all at once, one agent a ticket at a time, and the team, in characters sent and estimated tokens.
+- `passages_given` moved from `triage.py` to `helpdesk/assistant/tools.py`, so the triage assistant and the workers use the same one. `delegate_customer` joined the policy's tools and the tool-definition fitness test.
+- 28 new Python tests (319 in all); 15 new entries in `tools/mutations.mjs` (170 in all).
+- Work list: `multi-agent-patterns` added as done, with its proof.
+- Checked with: `node check.mjs` (all 19 checks passed) and `node tools/progress.mjs .` (no problems).
+- Next: `draft-reply`, still the first item to do.
+
 ## 2026-09-23: chapter 13, governing MCP servers
 
 - `python -m helpdesk.mcp_server --http` serves the MCP server over Streamable HTTP as an OAuth resource server: tokens from the lab's test issuer, checked for type, signature, issuer, expiry and audience (`mcp_governance/tokens.py`); a scope for each operation, 403 `insufficient_scope` without it; the person from the token; the `Authorization` header removed before the MCP server sees the request; an audit record for every request (`mcp_governance/resource_server.py`, `audit.py`).

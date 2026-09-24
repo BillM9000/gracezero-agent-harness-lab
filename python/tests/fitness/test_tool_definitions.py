@@ -13,11 +13,19 @@ from __future__ import annotations
 import re
 
 from helpdesk.assistant.narrow import narrow_tools
+from helpdesk.assistant.team import Team, orchestrator_tools
 from helpdesk.assistant.tools import triage_tools
+from helpdesk.model.mock import MockModel
 from helpdesk.model.types import ToolSpec
 from helpdesk.services.access import Person
 
-SETS = {"triage": triage_tools, "narrow": narrow_tools}
+
+def team_tools(conn, person):
+    """Chapter 14's orchestrator's tools. No worker starts, so its model is never called."""
+    return orchestrator_tools(Team(conn, person, lambda _customer: MockModel([]), system="", known=()))
+
+
+SETS = {"triage": triage_tools, "narrow": narrow_tools, "orchestrator": team_tools}
 # Names that leave the model guessing what to pass: an id, a name, or the whole record?
 AMBIGUOUS = {"id", "user", "ticket", "customer", "staff", "person"}
 MIN_SENTENCES = 3

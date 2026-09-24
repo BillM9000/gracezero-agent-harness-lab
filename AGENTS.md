@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for any coding agent or person working here. `CLAUDE.md` imports this file, so every tool reads the same rules.
+For any coding agent or person working here. `CLAUDE.md` imports this file, so every tool reads the same rules.
 
 ## What this is
 
@@ -13,13 +13,13 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | `python/src/helpdesk/api/` | HTTP routes (FastAPI) and the request and response models. Calls services only. |
 | `python/src/helpdesk/services/` | Business rules: what each member of staff may see (`access.py`, chapter 11), retrieval and citation checks (chapter 9). Calls the data layer. |
 | `python/src/helpdesk/data/` | SQL and the SQLite connection. |
-| `python/src/helpdesk/assistant/` | The triage assistant: an agent loop (`agent.py`), its tools (`tools.py`), and a set kept only to compare against (`narrow.py`). A tool acts for the person it was built for, never one in its arguments. Calls services. |
+| `python/src/helpdesk/assistant/` | The triage assistant: an agent loop (`agent.py`), its tools (`tools.py`), a set kept only to compare against (`narrow.py`), and chapter 14's patterns (`team.py`, `revise.py`). A tool acts for the person it was built for, never one in its arguments. Calls services. |
 | `python/src/helpdesk/model/` | The model interface, a deterministic mock, the Anthropic client (`anthropic_client.py`), stop-reason handling (`stops.py`) and cost arithmetic (`cost.py`). Imports nothing else from the helpdesk. |
 | `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. |
 | `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
 | `python/agents/` | Agent definitions and the platform's policy for them, checked by `python/src/agent_policy/` (chapter 18). |
 | `python/catalog/` | Approved MCP servers and their rules' data, checked by `python/src/mcp_governance/`, also home of the HTTP server's token checks and audit log (chapter 13). |
-| `python/src/helpdesk/main.py`, `triage.py`, `kb.py`, `tools.py`, `mcp_server.py` | Composition roots: the web service, the triage assistant, the knowledge base's and tools' command lines, and the MCP server (chapters 12 and 13). |
+| `python/src/helpdesk/main.py`, `triage.py`, `kb.py`, `tools.py`, `mcp_server.py`, `patterns.py` | Composition roots: the web service, the triage assistant, the knowledge base's and tools' command lines, the MCP server (chapters 12 and 13) and the patterns (chapter 14). |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to; `tests/fitness/` checks properties of the code as a whole (chapter 15). |
 | `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
 | `ts/` | TypeScript client and command-line tool for the API. `src/api-types.ts` is generated from the contract. Import rules: `eslint.config.js` and `.dependency-cruiser.cjs`. |
@@ -45,8 +45,8 @@ Everything, from the repository root:
 - Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
 - Check: `node check.mjs` (all <!-- claim: checks -->19 checks; CI runs the same command)
 - Check quickly: `node check.mjs --fast` skips the three test suites; the full run is what counts
-- After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`; if it fails, its message says what to change.
-- After changing a request or response model: `node tools/regenerate.mjs` (the API contract, then the TypeScript types), then fix what `node check.mjs` reports.
+- After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`.
+- After changing a request or response model: `node tools/regenerate.mjs`, then fix what `node check.mjs` reports.
 
 Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere):
 
@@ -56,9 +56,10 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Policies: `python -m agent_policy` for agents, `python -m mcp_governance` for MCP servers (also `allowlist`, `audit`); `tests/policy_fixtures/` and `tests/catalog_fixtures/` show what each rule accepts and refuses
 - Run: `uvicorn --factory helpdesk.main:create_default_app` (`HELPDESK_DB` sets the database file)
 - Chapter 2 demos: `python -m toymodel tokens|next <text>`, `python -m helpdesk.model.cost`
-- The triage assistant: `python -m helpdesk.triage` (the mock, scripted); `--real "..."` calls Anthropic's API (it needs a credential)
+- The triage assistant: `python -m helpdesk.triage` (the mock, scripted); `--real "..."` calls Anthropic's API
 - Knowledge base: `python -m helpdesk.kb eval` checks retrieval against `python/evals/kb_questions.json`; also `query`, `cite`, `chunks`, `size`
 - Tools: `python -m helpdesk.tools list`, `schema`, `call` (one call, `--as` a member of staff) and `compare`
+- Patterns: `python -m helpdesk.patterns revise`, `batch` and `compare`
 - MCP: `python -m helpdesk.mcp_client --as sam tools` asks the stdio server as Sam; also `call`, `read`, `prompt`, `--wire`. Over HTTP: `python -m helpdesk.mcp_server --http`, and the client with `--url http://127.0.0.1:8765/mcp`
 
 TypeScript, from `ts/`:
@@ -83,7 +84,7 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 
 ## Rules
 
-1. Layers run api and assistant (siblings that never import each other), then services, then data. Neither routes nor the assistant import `helpdesk.data`: move the query into a service and call that. `lint-imports` enforces this, and its failure message says how to fix it. In `ts/`, the CLI uses the client and the client uses the types; only `src/cli.ts` uses Node's built-in modules, and only `src/types.ts` imports `src/api-types.ts`. `npm run lint` and `npm run deps` enforce this.
+1. Layers run api and assistant (siblings that never import each other), then services, then data. Neither routes nor the assistant import `helpdesk.data`: move the query into a service and call that. `lint-imports` enforces this. In `ts/`, the CLI uses the client and the client uses the types; only `src/cli.ts` uses Node's built-in modules, and only `src/types.ts` imports `src/api-types.ts`. `npm run lint` and `npm run deps` enforce this.
 2. `helpdesk.model` imports nothing from the helpdesk, and nothing else imports the `anthropic` SDK. Pass the model what it needs as arguments, and pass code that needs a model a `ModelClient`.
 3. Only the composition roots (see Layout) wire the layers together.
 4. Tests use the mock model and never reach another machine; a server a test starts listens on 127.0.0.1.

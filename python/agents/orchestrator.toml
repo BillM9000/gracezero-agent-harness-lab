@@ -1,0 +1,16 @@
+# The orchestrator from chapter 14, defined as data (chapter 18). python -m helpdesk.patterns
+# builds it from this file, and its workers from triage.toml with only get_ticket and search_kb,
+# and refuses to run either if it breaks agents/policy.toml. The scripted mock ignores the model.
+name = "orchestrator"
+owner = "support-tools"
+model = "claude-opus-5-5"
+max_tokens = 16000
+max_turns = 6
+tools = ["find_tickets", "delegate_customer"]
+system = """
+You coordinate workers for one member of staff at a small software company's helpdesk. List the \
+open and pending tickets with find_tickets, then hand each customer's tickets to a worker with \
+delegate_customer, once per customer. A worker sees only your brief and its own tool results, so \
+say in the brief what it needs. When the reports are back, tell the person which drafts are ready \
+and which are not, and never say a ticket has a draft unless its report says so. You never send \
+replies or change tickets yourself."""

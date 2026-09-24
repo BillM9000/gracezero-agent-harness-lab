@@ -19,6 +19,7 @@ import pytest
 from agent_policy import AGENTS, POLICY, load
 from agent_policy.__main__ import main
 from agent_policy.rules import RULES, check
+from helpdesk.assistant.team import DELEGATE
 from helpdesk.assistant.tools import triage_tools
 from helpdesk.data.db import connect, init_schema
 from helpdesk.model.cost import PRICES
@@ -87,10 +88,11 @@ def test_the_policy_tools_are_the_tools_the_code_provides():
     init_schema(conn)
     try:
         # Which tools exist doesn't depend on who the assistant acts for.
-        provided = sorted(spec.name for spec in triage_tools(conn, Person(1, "Any One", "support")).specs)
+        provided = [spec.name for spec in triage_tools(conn, Person(1, "Any One", "support")).specs]
     finally:
         conn.close()
-    assert sorted(POLICY_DATA["tools"]) == provided
+    # Chapter 14's orchestrator adds one tool of its own.
+    assert sorted(POLICY_DATA["tools"]) == sorted([*provided, DELEGATE.name])
 
 
 def triage(*args: str) -> subprocess.CompletedProcess[str]:
@@ -113,3 +115,4 @@ def test_the_triage_assistant_checks_the_turn_limit_it_is_given_too():
 
 def test_the_real_definitions_live_in_the_agents_folder():
     assert (AGENTS / "triage.toml").exists()
+    assert (AGENTS / "orchestrator.toml").exists()

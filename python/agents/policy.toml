@@ -13,8 +13,8 @@ max_call_output_usd = 0.32
 max_turns = 10
 
 # The tools an agent may be given. A test checks that they're exactly the tools the code provides
-# (src/helpdesk/assistant/tools.py).
-tools = ["get_ticket", "find_tickets", "search_kb"]
+# (src/helpdesk/assistant/tools.py, and delegate_customer in team.py, chapter 14).
+tools = ["get_ticket", "find_tickets", "search_kb", "delegate_customer"]
 
 # The models an agent may use, with each one's output price per million tokens. A test checks the
 # prices against src/helpdesk/model/cost.py.

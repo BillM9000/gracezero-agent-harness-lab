@@ -7,6 +7,7 @@ finished answer. A turn limit ends the loop if the model never stops on its own.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from helpdesk.assistant.tools import Toolbox
@@ -30,8 +31,18 @@ class AgentRun:
     transcript: tuple[Message, ...]
 
 
-def run_agent(model: ModelClient, tools: Toolbox, *, system: str, task: str, max_turns: int = 6) -> AgentRun:
-    messages: list[Message] = [Message("user", task)]
+def run_agent(
+    model: ModelClient,
+    tools: Toolbox,
+    *,
+    system: str,
+    task: str,
+    max_turns: int = 6,
+    history: Sequence[Message] = (),
+) -> AgentRun:
+    """Run the loop on a task. history continues an earlier run's conversation (chapter 14's
+    revision loop sends its feedback this way); max_turns counts this run's turns only."""
+    messages: list[Message] = [*history, Message("user", task)]
     for turn in range(1, max_turns + 1):
         response = model.complete(system=system, messages=messages, tools=tools.specs)
         # HDK101: the turn goes into the transcript as it came; the answer goes through final_text below.

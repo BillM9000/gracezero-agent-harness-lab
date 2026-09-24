@@ -177,9 +177,9 @@
     },
     {
       "id": "golden-set",
-      "description": "A golden set of tickets with known good answers, for evaluating the assistant (chapter 21).",
-      "status": "todo",
-      "proof": null
+      "description": "Golden sets of tasks for the assistant, each with a key of properties rather than words: facts graded against what the run's own tools returned, what it must never say, the proposals it must file, and citations; several trials a task with pass@k and pass^k; and a check that every reference passes and every scripted mistake fails (chapter 21).",
+      "status": "done",
+      "proof": "python/tests/test_evals.py::test_a_fact_the_tools_never_returned_fails_even_when_it_is_true"
     },
     {
       "id": "model-judge",

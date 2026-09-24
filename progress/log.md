@@ -6,6 +6,17 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
 
+## 2026-09-24: chapter 21, golden sets
+
+- The guardrail tests set `PYTHONIOENCODING` for lint-imports and read its output in that encoding (`67ceb32`); a new test runs them with the variable unset and set to `utf-8`, `cp1252` and `utf-16`. The committed file before the fix gave 12 failed and 12 errors with `utf-8` set.
+- `python/evals/tasks.json`: 10 tasks with keys of properties and reference solutions for both tool sets; `python/evals/reasons.json`: 3 rejected drafts. `helpdesk/assistant/grading.py` grades a run against what its own tools returned; `python -m helpdesk.evals` has `check`, `run` (`--vary`, `--suite`, `--set`), `compare` and `team`, all on the mock unless `--real`.
+- `python -m helpdesk.evals check` is the 21st check.
+- 33 new Python tests (420), 27 new mutations (263), each applied by hand and caught before commit.
+- Work list: `golden-set` done, proved by `tests/test_evals.py`.
+- Checked with: `node check.mjs` (all 21 checks passed) and `node tools/progress.mjs .` (no problems).
+- Not run: `--real`, for any command. Each measurement a real model would make (chapters 11, 14, 19 and 20) waits for a paid run; the chapter lists the commands.
+- Next: `model-judge` (chapter 22).
+
 ## 2026-09-24: chapter 20, the agent attack surface
 
 - What a customer writes reaches the assistant as a JSON string, labeled (`helpdesk/services/untrusted.py`); `flag()` marks instruction-shaped text, and proposals filed after reading it carry the flags to `python -m helpdesk.approvals`.

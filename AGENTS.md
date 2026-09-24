@@ -19,7 +19,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
 | `python/agents/` | Agent definitions, the platform's policy for them and the models' retirement dates (`models.toml`), checked by `python/src/agent_policy/` (chapters 18, 20). |
 | `python/catalog/` | Approved MCP servers and their rules' data, checked by `python/src/mcp_governance/`, also home of the HTTP server's token checks and audit log (chapter 13). |
-| `python/src/helpdesk/main.py`, `triage.py`, `kb.py`, `tools.py`, `mcp_server.py`, `patterns.py`, `approvals.py`, `injections.py` | Composition roots: the web service, the triage assistant, the knowledge base's and tools' command lines, the MCP server, the patterns, the approval queue and the red-team cases. |
+| `python/src/helpdesk/main.py`, `triage.py`, `kb.py`, `tools.py`, `mcp_server.py`, `patterns.py`, `approvals.py`, `injections.py`, `evals.py` | Composition roots: the web service and the commands below. |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to; `tests/fitness/` checks properties of the code as a whole (chapter 15). |
 | `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
 | `ts/` | TypeScript client and command-line tool for the API. `src/api-types.ts` is generated from the contract. Import rules: `eslint.config.js` and `.dependency-cruiser.cjs`. |
@@ -43,7 +43,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (`python/.venv`, the pinned packages, `npm ci`)
-- Check: `node check.mjs` (all <!-- claim: checks -->20 checks; CI runs the same command). Model retirement dates are checked as of the latest `read` in `python/agents/models.toml`; `AGENT_POLICY_TODAY=YYYY-MM-DD` sets another.
+- Check: `node check.mjs` (all <!-- claim: checks -->21 checks; CI runs the same command). Model retirement dates are checked as of the latest `read` in `python/agents/models.toml`; `AGENT_POLICY_TODAY=YYYY-MM-DD` sets another.
 - Check quickly: `node check.mjs --fast` skips the three test suites; the full run is what counts
 - After changing a pin: `node tools/lockfiles.mjs hashes`, `node setup.mjs`, then `node tools/install-paths.mjs`.
 - After changing a request or response model: `node tools/regenerate.mjs`, then fix what `node check.mjs` reports.
@@ -57,6 +57,7 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Run: `uvicorn --factory helpdesk.main:create_default_app` (`HELPDESK_DB` sets the database file)
 - The triage assistant: `python -m helpdesk.triage` (the mock, scripted); `--real "..."` calls Anthropic's API
 - Red team: `python -m helpdesk.injections run`, and `flag "text"`
+- Golden sets: `python -m helpdesk.evals check`, `run`, `compare` and `team` (`--vary SEED` on the mock; `--real` is billed)
 - Knowledge base: `python -m helpdesk.kb eval` checks retrieval against `python/evals/kb_questions.json`; also `query`, `cite`, `chunks`, `size`
 - Tools: `python -m helpdesk.tools list`, `schema`, `call` and `compare`
 - Patterns: `python -m helpdesk.patterns revise`, `batch` and `compare`

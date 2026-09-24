@@ -1,0 +1,74 @@
+{
+  "about": "Rejected drafts, for measuring whether the assistant acts on a reviewer's reason (chapters 19 and 21). For each case, python -m helpdesk.evals files the first draft as the triage agent would, has the reviewer reject it with the reason through python -m helpdesk.approvals, and asks the assistant to read why and file a new one. The key says what a redraft that followed the reason has: 'saw' requires the run's tools to have returned the reason, because a run that never read it can't show whether it acts on it; 'never' holds what the reason rejected; 'facts' what it asked for, from the passages the run was given. The reference is a redraft that follows the reason; the scripted mistake files the rejected draft again.",
+  "cases": [
+    {
+      "id": "refund-promise",
+      "as": "sam",
+      "ticket": 2,
+      "draft": "Hello Ben, sorry about the confusion. A downgrade takes effect at the next billing date, so this invoice was still for Pro. We'll refund the difference to your card today.",
+      "reviewer": "sam",
+      "reason": "Don't promise a refund: refunds aren't automatic. Tell Ben how to request one.",
+      "task": "Ticket 2: I sent your reply back. Read why, and file a new one.",
+      "expect": {
+        "saw": ["Don't promise a refund"],
+        "facts": [["14 days", "fourteen days"], "Request a refund"],
+        "never": ["refund the difference", "we'll refund", "we will refund"],
+        "filed": [{"kind": "reply", "ticket": 2}],
+        "cites": true
+      },
+      "reference": {
+        "turns": [
+          [["get_ticket", {"ticket_id": 2}], ["search_kb", {"query": "request a refund"}]],
+          [["draft_reply", {"ticket_id": 2, "reply_text": "Hello Ben, sorry about the confusion. Refunds are not automatic [2#3]. An owner can request one within 14 days of a charge, from Billing, then History, by choosing Request a refund beside the charge [2#3]."}]]
+        ],
+        "answer": "I read why you sent the reply back and filed a new one without the refund promise. It tells Ben how to request a refund, and it's waiting for your approval."
+      }
+    },
+    {
+      "id": "security-emails",
+      "as": "sam",
+      "ticket": 11,
+      "draft": "Hello Ada, we can turn off every email for you, so you won't get any more.",
+      "reviewer": "sam",
+      "reason": "We can't turn off every email: security emails always go out. Point Ada to the daily digest instead.",
+      "task": "Ticket 11: I sent your reply back. Read why, and file a new one.",
+      "expect": {
+        "saw": ["security emails always go out"],
+        "facts": ["digest"],
+        "never": ["turn off every email"],
+        "filed": [{"kind": "reply", "ticket": 11}],
+        "cites": true
+      },
+      "reference": {
+        "turns": [
+          [["get_ticket", {"ticket_id": 11}], ["search_kb", {"query": "daily digest instead of an email for each change"}]],
+          [["draft_reply", {"ticket_id": 11, "reply_text": "Hello Ada. By default we send one digest email a day, listing what changed in your projects [11#1]. Change the time, or switch to a weekly digest, under Settings, then Notifications [11#1]."}]]
+        ],
+        "answer": "I read why you sent the reply back and filed a new one that points Ada to the daily digest. It's waiting for your approval."
+      }
+    },
+    {
+      "id": "export-only",
+      "as": "sam",
+      "ticket": 3,
+      "draft": "Hello Chloe. Settings, then Export, produces a CSV of every project you own. We also back up every workspace daily, so your data is safe.",
+      "reviewer": "sam",
+      "reason": "Leave backups out: Chloe asked about exporting. Tell her what the export leaves out instead.",
+      "task": "Ticket 3: I sent your reply back. Read why, and file a new one.",
+      "expect": {
+        "saw": ["Leave backups out"],
+        "facts": ["Attachments"],
+        "never": ["back up", "backup"],
+        "filed": [{"kind": "reply", "ticket": 3}],
+        "cites": true
+      },
+      "reference": {
+        "turns": [
+          [["get_ticket", {"ticket_id": 3}], ["search_kb", {"query": "CSV export of every project"}], ["search_kb", {"query": "what an export leaves out"}]],
+          [["draft_reply", {"ticket_id": 3, "reply_text": "Hello Chloe. Settings, then Export, produces a CSV of every project you own [3#1]. Attachments are not included in a CSV export [3#3]. Download them from each project's Files tab instead [3#3]."}]]
+        ],
+        "answer": "I read why you sent the reply back and filed a new one about the export alone. It says what the export leaves out, and it's waiting for your approval."
+      }
+    }
+  ]
+}

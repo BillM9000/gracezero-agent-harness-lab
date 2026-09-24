@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 20, 24, 25
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 21, 24, 25
 // and 30 are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and
 // chapter 1's tally's check for missing fields; the guards from earlier chapters were broken by
 // hand when they were built (CHANGELOG.md records each time) and are the next candidates to add.
@@ -64,6 +64,9 @@ const LOCKFILES = "tools/lockfiles.mjs";
 const LOCK_TESTS = "tools/lockfiles.test.mjs";
 const injections = (name) => pytest(`${INJECTIONS}::${name}`);
 const lockTest = (name) => nodeTest(LOCK_TESTS, name);
+const GRADING = "python/src/helpdesk/assistant/grading.py";
+const EVALS = "python/src/helpdesk/evals.py";
+const evalsTest = (name) => pytest(`tests/test_evals.py::${name}`);
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -2364,6 +2367,198 @@ export const MUTATIONS = [
     find: "    if (version !== entry.version) {",
     replace: "    if (false) {",
     run: lockTest("installed npm packages must be"),
+  },
+
+  // Chapter 21: golden sets. The graders, the trial statistics, the check on the golden sets
+  // themselves, and the encoding fix in the guardrail tests found while verifying chapter 20.
+  {
+    guard: "golden sets: a key with an unknown field is refused",
+    file: GRADING,
+    find: "    if unknown:",
+    replace: "    if False:",
+    run: evalsTest("test_a_key_with_an_unknown_field_is_refused"),
+  },
+  {
+    guard: "golden sets: a number doesn't match inside a longer one (after)",
+    file: GRADING,
+    find: '        pattern += r"(?!\\d)"',
+    replace: '        pattern += ""',
+    run: evalsTest("test_a_number_never_matches_inside_a_longer_one"),
+  },
+  {
+    guard: "golden sets: a number doesn't match inside a longer one (before)",
+    file: GRADING,
+    find: '        pattern = r"(?<!\\d)" + pattern',
+    replace: "        pattern = pattern",
+    run: evalsTest("test_a_number_never_matches_inside_a_longer_one"),
+  },
+  {
+    guard: "golden sets: a fact must be in what the run's tools returned",
+    file: GRADING,
+    find: "        elif not has(fact, had):",
+    replace: "        elif False:",
+    run: evalsTest("test_a_fact_the_tools_never_returned_fails_even_when_it_is_true"),
+  },
+  {
+    guard: "golden sets: what the model had is its tools' results, not its own words",
+    file: GRADING,
+    find: "    had = returned(trial.transcript)",
+    replace: "    had = produced(trial)",
+    run: evalsTest("test_a_fact_the_tools_never_returned_fails_even_when_it_is_true"),
+  },
+  {
+    guard: "golden sets: a fact must be in what the run wrote",
+    file: GRADING,
+    find: "        if not has(fact, wrote):",
+    replace: "        if False:",
+    run: evalsTest("test_a_missing_fact_fails_and_any_listed_form_counts"),
+  },
+  {
+    guard: "golden sets: saw requires the run's tools to have returned the text",
+    file: GRADING,
+    find: "        if not has(fact, had):\n            failures.append(\n                f'saw:",
+    replace: "        if False:\n            failures.append(\n                f'saw:",
+    run: evalsTest("test_saw_fails_a_trial_whose_tools_never_returned_the_text"),
+  },
+  {
+    guard: "golden sets: never fails text the key forbids",
+    file: GRADING,
+    find: "        if found(text, wrote):",
+    replace: "        if False:",
+    run: evalsTest("test_never_covers_the_answer_and_every_proposal_it_filed"),
+  },
+  {
+    guard: "golden sets: what a run wrote includes every proposal it filed",
+    file: GRADING,
+    find: '    return "\\n".join([trial.answer, *(f.text for f in trial.filed)])',
+    replace: "    return trial.answer",
+    run: evalsTest("test_never_covers_the_answer_and_every_proposal_it_filed"),
+  },
+  {
+    guard: "golden sets: filed compares the proposals in the helpdesk",
+    file: GRADING,
+    find: "        if got != sorted(key.filed):",
+    replace: "        if False:",
+    run: evalsTest("test_filed_compares_the_proposals_in_the_helpdesk_not_the_answer"),
+  },
+  {
+    guard: "golden sets: cites checks every citation",
+    file: GRADING,
+    find: "    if key.cites:",
+    replace: "    if False:",
+    run: evalsTest("test_cites_checks_the_answer_and_every_reply_against_the_passages_given"),
+  },
+  {
+    guard: "golden sets: a run that stopped fails and says why",
+    file: GRADING,
+    find: '    if trial.stopped is not None:\n        return Grade((f"stopped without an answer',
+    replace: '    if False:\n        return Grade((f"stopped without an answer',
+    run: evalsTest("test_a_run_that_stopped_fails_and_says_why"),
+  },
+  {
+    guard: "golden sets: a red-team run calling a tool it lacks obeyed",
+    file: GRADING,
+    find: "            if call.name not in tools:",
+    replace: "            if False:",
+    run: evalsTest("test_obeying_a_ticket_is_graded_from_what_the_run_tried"),
+  },
+  {
+    guard: "golden sets: a red-team run trying to close a ticket obeyed",
+    file: GRADING,
+    find: '            elif call.name == "close_ticket":',
+    replace: "            elif False:",
+    run: evalsTest("test_obeying_a_ticket_is_graded_from_what_the_run_tried"),
+  },
+  {
+    guard: "golden sets: a reply naming other customers obeyed",
+    file: GRADING,
+    find: "                if leaked:",
+    replace: "                if False:",
+    run: evalsTest("test_obeying_a_ticket_is_graded_from_what_the_run_tried"),
+  },
+  {
+    guard: "golden sets: a batch fails a ticket its run never read",
+    file: GRADING,
+    find: "            if i not in read:",
+    replace: "            if False:",
+    run: evalsTest("test_a_batch_fails_for_each_ticket_unread_unnamed_or_never_handed_out"),
+  },
+  {
+    guard: "golden sets: a batch fails a ticket no draft names",
+    file: GRADING,
+    find: "            if i not in named:",
+    replace: "            if False:",
+    run: evalsTest("test_a_batch_fails_for_each_ticket_unread_unnamed_or_never_handed_out"),
+  },
+  {
+    guard: "golden sets: a batch fails a ticket never handed out",
+    file: GRADING,
+    find: "    for i in sorted(set(batch) - handed):",
+    replace: "    for i in []:",
+    run: evalsTest("test_a_batch_fails_for_each_ticket_unread_unnamed_or_never_handed_out"),
+  },
+  {
+    guard: "golden sets: pass@k is the unbiased estimator",
+    file: GRADING,
+    find: "    return 1.0 - math.comb(n - c, k) / math.comb(n, k)",
+    replace: "    return c / n",
+    run: evalsTest("test_pass_at_k_and_pass_hat_k_are_the_papers_estimators"),
+  },
+  {
+    guard: "golden sets: pass^k is the unbiased estimator",
+    file: GRADING,
+    find: "    return math.comb(c, k) / math.comb(n, k)",
+    replace: "    return c / n",
+    run: evalsTest("test_pass_at_k_and_pass_hat_k_are_the_papers_estimators"),
+  },
+  {
+    guard: "golden sets: the stand-in plays a mistake some of the time",
+    file: EVALS,
+    find: "        if rng.random() < REFERENCE_SHARE or not mistakes:",
+    replace: "        if True:",
+    run: evalsTest("test_the_stand_in_varies_the_same_way_for_the_same_seed"),
+  },
+  {
+    guard: "golden sets: a red-team run that never read the ticket shows nothing",
+    file: EVALS,
+    find: '                    if not found(json.dumps(case["subject"], ensure_ascii=False), read):',
+    replace: "                    if False:",
+    run: evalsTest("test_a_red_team_trial_that_never_read_the_ticket_shows_nothing"),
+  },
+  {
+    guard: "golden sets: check refuses a reference calling a tool the set lacks",
+    file: EVALS,
+    find: "                if missing:",
+    replace: "                if False:",
+    run: evalsTest("test_a_reference_calling_a_tool_the_set_lacks_fails_the_check"),
+  },
+  {
+    guard: "golden sets: check reports a reference that fails its key",
+    file: EVALS,
+    find: 'problems.append(f"{where}: the reference fails: {failure}")',
+    replace: "pass",
+    run: evalsTest("test_a_key_that_asks_for_what_the_person_cant_see_fails_the_check"),
+  },
+  {
+    guard: "golden sets: check reports a mistake no grader catches",
+    file: EVALS,
+    find: "                    if wrong.grade.passed:",
+    replace: "                    if False:",
+    run: evalsTest("test_a_mistake_no_grader_catches_fails_the_check"),
+  },
+  {
+    guard: "golden sets: --vary is refused with --real",
+    file: EVALS,
+    find: '    if getattr(args, "vary", None) is not None and args.real:',
+    replace: "    if False:",
+    run: evalsTest("test_vary_and_real_together_are_refused"),
+  },
+  {
+    guard: "guardrail tests: lint-imports writes the encoding the test reads, whatever the shell sets",
+    file: `python/${LAYERS}`,
+    find: '"PYTHONPATH": str(workdir / "src"), "PYTHONIOENCODING": ENCODING}',
+    replace: '"PYTHONPATH": str(workdir / "src")}',
+    run: pytest(`${LAYERS}::test_the_output_reads_the_same_whatever_encoding_the_shell_sets`),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

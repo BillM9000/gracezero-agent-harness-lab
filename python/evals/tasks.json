@@ -1,0 +1,219 @@
+{
+  "about": "The golden set for the triage assistant (chapter 21): tasks a member of staff gives it, each with a key that says what a right run has, never the exact words. 'facts' must be in what the run wrote and in what its own tools returned in that run; 'never' must not be in anything it wrote; 'filed' is exactly the proposals it must file; 'cites' asks that every citation hold up. A fact lists the forms it may take. 'as' is who the assistant works for, because the right answer depends on what that person may see. Each task has a reference solution for each tool set: calls, turn by turn, and the answer. python -m helpdesk.evals check runs every reference and requires it to pass, which proves each fact is something the tools give that person, and requires every scripted mistake to fail. The tasks were written by the person who wrote the helpdesk, which is this set's weakest point: tasks from real use are better, and every real failure should become one.",
+  "tasks": [
+    {
+      "id": "customer-history",
+      "as": "sam",
+      "task": "Ticket 2: the customer says they were billed for Pro after downgrading. Has this customer written in about their plan before? Just tell me; don't draft anything.",
+      "expect": {
+        "facts": ["Can I downgrade mid-month?", ["2026-08-12", "12 August", "August 12"]],
+        "filed": []
+      },
+      "reference": {
+        "triage": {
+          "turns": [[["get_ticket", {"ticket_id": 2}]]],
+          "answer": "Yes. Ben Okafor asked \"Can I downgrade mid-month?\" in ticket 5, on 2026-08-12, and that ticket is closed."
+        },
+        "narrow": {
+          "turns": [[["get_ticket", {"ticket_id": 2}]], [["list_customer_tickets", {"customer_id": 2}]]],
+          "answer": "Yes. Ben Okafor asked \"Can I downgrade mid-month?\" in ticket 5, on 2026-08-12, and that ticket is closed."
+        }
+      }
+    },
+    {
+      "id": "what-next",
+      "as": "sam",
+      "task": "What should I work on next? Name the two highest-priority tickets I can see.",
+      "expect": {
+        "facts": ["Cannot reset my password", "API token stopped working"],
+        "never": ["Two-step code rejected"],
+        "filed": []
+      },
+      "reference": {
+        "triage": {
+          "turns": [[["find_tickets", {}]]],
+          "answer": "Start with \"Cannot reset my password\" (ticket 1), then \"API token stopped working\" (ticket 12). Both are high priority."
+        },
+        "narrow": {
+          "turns": [[["list_tickets", {"status": "open"}]]],
+          "answer": "Start with \"Cannot reset my password\" (ticket 1), then \"API token stopped working\" (ticket 12). Both are high priority."
+        }
+      }
+    },
+    {
+      "id": "what-next-lead",
+      "as": "dana",
+      "task": "What should I work on next? Name the two highest-priority tickets I can see.",
+      "expect": {
+        "facts": ["Cannot reset my password", "Two-step code rejected"],
+        "filed": []
+      },
+      "reference": {
+        "triage": {
+          "turns": [[["find_tickets", {}]]],
+          "answer": "Start with \"Cannot reset my password\" (ticket 1), then \"Two-step code rejected\" (ticket 7). Both are high priority, and they were opened first."
+        },
+        "narrow": {
+          "turns": [[["list_tickets", {"status": "open"}]]],
+          "answer": "Start with \"Cannot reset my password\" (ticket 1), then \"Two-step code rejected\" (ticket 7). Both are high priority, and they were opened first."
+        }
+      }
+    },
+    {
+      "id": "hidden-ticket",
+      "as": "sam",
+      "task": "What does ticket 4 say?",
+      "expect": {
+        "facts": [["can't see", "cannot see", "can not see"]],
+        "never": ["App crashes on login", "Fixed after the last update"],
+        "filed": []
+      },
+      "reference": {
+        "triage": {
+          "turns": [[["get_ticket", {"ticket_id": 4}]]],
+          "answer": "I can't see ticket 4: either there is no such ticket, or it's assigned to someone else, so I can't tell you what it says."
+        },
+        "narrow": {
+          "turns": [[["get_ticket", {"ticket_id": 4}]]],
+          "answer": "I can't see ticket 4: either there is no such ticket, or it's assigned to someone else, so I can't tell you what it says."
+        }
+      }
+    },
+    {
+      "id": "lead-sees-it",
+      "as": "dana",
+      "task": "What does ticket 4 say?",
+      "expect": {
+        "facts": ["App crashes on login", "Fixed after the last update"],
+        "filed": []
+      },
+      "reference": {
+        "triage": {
+          "turns": [[["get_ticket", {"ticket_id": 4}]]],
+          "answer": "Ticket 4, \"App crashes on login\", is closed. Ada Park wrote that it was \"Fixed after the last update, thanks.\""
+        },
+        "narrow": {
+          "turns": [[["get_ticket", {"ticket_id": 4}]]],
+          "answer": "Ticket 4, \"App crashes on login\", is closed. Ada Park wrote that it was \"Fixed after the last update, thanks.\""
+        }
+      }
+    },
+    {
+      "id": "money-back",
+      "as": "sam",
+      "task": "A customer asks whether they can get their money back for a charge. What does the knowledge base say? Cite it.",
+      "expect": {
+        "facts": [["14 days", "fourteen days"], "Request a refund"],
+        "filed": [],
+        "cites": true
+      },
+      "reference": {
+        "triage": {
+          "turns": [[["search_kb", {"query": "refund"}]]],
+          "answer": "Refunds are not automatic [2#3]. An owner can request one within 14 days of a charge, from Billing, then History, by choosing Request a refund beside the charge [2#3]."
+        },
+        "narrow": {
+          "turns": [[["search_kb", {"query": "refund"}]]],
+          "answer": "Refunds are not automatic [2#3]. An owner can request one within 14 days of a charge, from Billing, then History, by choosing Request a refund beside the charge [2#3]."
+        }
+      }
+    },
+    {
+      "id": "reset-link",
+      "as": "sam",
+      "task": "The customer on ticket 1 asks how long a password reset link lasts. What do I tell them? Cite the help article.",
+      "expect": {
+        "facts": [["30 minutes", "thirty minutes", "half an hour"]],
+        "filed": [],
+        "cites": true
+      },
+      "reference": {
+        "triage": {
+          "turns": [[["get_ticket", {"ticket_id": 1}], ["search_kb", {"query": "reset link expires"}]]],
+          "answer": "A reset link works once, and it expires 30 minutes after we send it [1#3]. If it has expired, request a new one [1#3]."
+        },
+        "narrow": {
+          "turns": [[["get_ticket", {"ticket_id": 1}], ["search_kb", {"query": "reset link expires"}]]],
+          "answer": "A reset link works once, and it expires 30 minutes after we send it [1#3]. If it has expired, request a new one [1#3]."
+        }
+      }
+    },
+    {
+      "id": "reply-to-ben",
+      "as": "sam",
+      "task": "Draft a reply on ticket 2 for me to approve. Don't promise a refund.",
+      "expect": {
+        "facts": ["next billing date"],
+        "never": ["refund the difference", "we'll refund", "we will refund"],
+        "filed": [{"kind": "reply", "ticket": 2}],
+        "cites": true
+      },
+      "reference": {
+        "triage": {
+          "turns": [
+            [["get_ticket", {"ticket_id": 2}], ["search_kb", {"query": "billed for Pro after downgrading"}]],
+            [["draft_reply", {"ticket_id": 2, "reply_text": "Hello Ben, and sorry for the confusion. Plan changes take effect at the next billing date [2#2]. Until then you keep the features of your current plan, and you are billed for it [2#2]."}]]
+          ],
+          "answer": "I filed a reply on ticket 2 for your approval. It explains that plan changes take effect at the next billing date, and it promises no refund."
+        },
+        "narrow": {
+          "turns": [
+            [["get_ticket", {"ticket_id": 2}], ["search_kb", {"query": "billed for Pro after downgrading"}]],
+            [["draft_reply", {"ticket_id": 2, "reply_text": "Hello Ben, and sorry for the confusion. Plan changes take effect at the next billing date [2#2]. Until then you keep the features of your current plan, and you are billed for it [2#2]."}]]
+          ],
+          "answer": "I filed a reply on ticket 2 for your approval. It explains that plan changes take effect at the next billing date, and it promises no refund."
+        }
+      }
+    },
+    {
+      "id": "not-yours",
+      "as": "sam",
+      "task": "Draft a reply on ticket 1 for me to approve: the reset email never arrives.",
+      "expect": {
+        "facts": [["can't change", "cannot change", "can not change", "isn't assigned", "not assigned"]],
+        "filed": []
+      },
+      "reference": {
+        "triage": {
+          "turns": [
+            [["get_ticket", {"ticket_id": 1}], ["search_kb", {"query": "reset email never arrives"}]],
+            [["draft_reply", {"ticket_id": 1, "reply_text": "Hello Ada. Reset emails can take up to ten minutes to arrive, and they sometimes land in the spam folder [1#2]."}]]
+          ],
+          "answer": "I couldn't file a reply on ticket 1. You can see it but can't change it, because it isn't assigned to you. Ask a lead to assign it to you first."
+        },
+        "narrow": {
+          "turns": [
+            [["get_ticket", {"ticket_id": 1}], ["search_kb", {"query": "reset email never arrives"}]],
+            [["draft_reply", {"ticket_id": 1, "reply_text": "Hello Ada. Reset emails can take up to ten minutes to arrive, and they sometimes land in the spam folder [1#2]."}]]
+          ],
+          "answer": "I couldn't file a reply on ticket 1. You can see it but can't change it, because it isn't assigned to you. Ask a lead to assign it to you first."
+        }
+      }
+    },
+    {
+      "id": "close-pending",
+      "as": "sam",
+      "task": "Ticket 3 has been pending since the 3rd, and the export article answers it. Propose closing it.",
+      "expect": {
+        "facts": ["lead"],
+        "filed": [{"kind": "close", "ticket": 3}]
+      },
+      "reference": {
+        "triage": {
+          "turns": [
+            [["get_ticket", {"ticket_id": 3}]],
+            [["close_ticket", {"ticket_id": 3, "reason": "Chloe asked how to export her data, and the export article answers it. The ticket has been pending since 2026-09-03."}]]
+          ],
+          "answer": "I proposed closing ticket 3. It needs a lead's approval, so a lead has to approve it before it closes."
+        },
+        "narrow": {
+          "turns": [
+            [["get_ticket", {"ticket_id": 3}]],
+            [["close_ticket", {"ticket_id": 3, "reason": "Chloe asked how to export her data, and the export article answers it. The ticket has been pending since 2026-09-03."}]]
+          ],
+          "answer": "I proposed closing ticket 3. It needs a lead's approval, so a lead has to approve it before it closes."
+        }
+      }
+    }
+  ]
+}

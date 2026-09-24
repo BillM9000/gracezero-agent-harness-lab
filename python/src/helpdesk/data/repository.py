@@ -136,6 +136,20 @@ def insert_proposal(
     return int(cur.lastrowid)
 
 
+def insert_proposal_flag(conn: sqlite3.Connection, proposal_id: int, source: str, phrase: str) -> None:
+    conn.execute(
+        "INSERT INTO proposal_flags (proposal_id, source, phrase) VALUES (?, ?, ?)",
+        (proposal_id, source, phrase),
+    )
+
+
+def list_proposal_flags(conn: sqlite3.Connection, proposal_id: int) -> list[Row]:
+    rows = conn.execute(
+        "SELECT source, phrase FROM proposal_flags WHERE proposal_id = ? ORDER BY id", (proposal_id,)
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def get_proposal(conn: sqlite3.Connection, proposal_id: int) -> Row | None:
     if proposal_id not in IDS:
         return None

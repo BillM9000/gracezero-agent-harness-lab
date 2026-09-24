@@ -3,6 +3,7 @@
 HELPDESK_STAFF=sam python -m helpdesk.mcp_server    serve MCP on stdio, acting for Sam
 python -m helpdesk.mcp_server --http                serve Streamable HTTP on 127.0.0.1:8765,
                                                     for the person each request's token names
+python -m helpdesk.mcp_server --definitions         print the digest of its tool definitions
 
 On stdio, an MCP host starts this as a subprocess and speaks JSON-RPC to it, one message a line,
 over its standard input and output. python -m helpdesk.mcp_client plays the host.
@@ -16,8 +17,9 @@ Over HTTP (chapter 13), one server serves everyone, as an OAuth resource server:
 carries an access token, which mcp_governance.ResourceServer verifies (issued by the lab's test
 issuer, for this server alone, unexpired) before the request is served by the same server as on
 stdio, built for the person the token names. Each operation needs a scope (required_scopes), every
-request is written to the audit log, and the server refuses to start if its tools or scopes differ
-from its entry in the catalog of approved servers (catalog/servers.toml).
+request is written to the audit log, and the server refuses to start if its tools, scopes or tool
+definitions differ from its entry in the catalog of approved servers (catalog/servers.toml). The
+definitions are what a model reads (chapter 20), so the entry pins their digest.
 
 It offers three kinds of thing, and each is another way in to the same data:
 - tools: the triage assistant's three (helpdesk/assistant/tools.py), run through the same toolbox,
@@ -62,7 +64,7 @@ from helpdesk.services.access import Person
 from helpdesk.services.errors import Invalid, ServiceError
 from mcp_governance import SERVERS, load, run_dir
 from mcp_governance.audit import AuditLog
-from mcp_governance.catalog import entry, offered_differs
+from mcp_governance.catalog import definitions_digest, entry, offered_differs
 from mcp_governance.resource_server import ASGIApp, PersonApp, Receive, ResourceServer, Scope, Send
 from mcp_governance.tokens import ISSUER, Verifier, public_key_at
 
@@ -310,7 +312,29 @@ def catalog_problems(conn: sqlite3.Connection, server: dict[str, Any] | None) ->
         for name in offered
         if name not in TOOL_SCOPES
     ]
+    # Chapter 20: the definitions are text the model reads, so a changed description is a changed
+    # instruction, and needs the same review as a new tool.
+    digest, pinned = definitions(conn), server.get("definitions")
+    if pinned is None:
+        problems.append(
+            "the catalog doesn't pin its tool definitions: once they're reviewed, add "
+            f'definitions = "{digest}"'
+        )
+    elif pinned != digest:
+        problems.append(
+            f"its tool definitions aren't the ones the catalog approved ({digest}, approved {pinned}): a "
+            "changed description is a changed instruction to the model, so review the change and update the "
+            "entry"
+        )
     return problems
+
+
+def definitions(conn: sqlite3.Connection) -> str:
+    """The digest of the tool definitions this server offers, as the catalog pins it (chapter 20)."""
+    specs = triage_tools(conn, Person(0, "Catalog Check", "none")).specs
+    return definitions_digest(
+        [{"name": s.name, "description": s.description, "input_schema": s.input_schema} for s in specs]
+    )
 
 
 def shown(path: Path) -> str:
@@ -387,7 +411,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--catalog", type=Path, default=SERVERS, help="with --http, the catalog to check against"
     )
+    parser.add_argument(
+        "--definitions", action="store_true", help="print the digest of its tool definitions, and stop"
+    )
     args = parser.parse_args(argv)
+    if args.definitions:
+        conn = connect(":memory:")
+        try:
+            print(definitions(conn))
+        finally:
+            conn.close()
+        return 0
     return serve_http(args.port, args.catalog) if args.http else serve_stdio()
 
 

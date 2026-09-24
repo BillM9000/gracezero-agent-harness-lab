@@ -1,0 +1,11 @@
+# expect: fail
+# reasons: model
+# Active, but it may retire as soon as 2026-10-15 (agents/models.toml), inside the policy's 90 days
+# of the date the tests check as of, 2026-09-24.
+name = "triage"
+owner = "support-tools"
+model = "claude-haiku-4-5-20251001"
+max_tokens = 16000
+max_turns = 6
+tools = ["get_ticket", "search_kb"]
+system = "Triage helpdesk tickets and draft replies for staff to review."

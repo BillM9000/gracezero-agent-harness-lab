@@ -19,7 +19,7 @@ def test_call_prints_what_the_model_would_get_back():
     assert run.returncode == 0, run.stderr
     assert run.stdout.splitlines()[:2] == [
         'get_ticket {"ticket_id": 1}, acting for Sam Rivera (support)',
-        "result: Ticket 1 [open, high priority]: Cannot reset my password",
+        'result: Ticket 1 [open, high priority]: "Cannot reset my password"',
     ]
 
 
@@ -29,7 +29,7 @@ def test_call_refuses_what_the_person_cannot_see_and_exits_1():
     assert "error: Sam Rivera can't see ticket 4:" in refused.stdout
     shown = tools("call", "get_ticket", "ticket_id=4", "--as", "dana")
     assert shown.returncode == 0
-    assert "result: Ticket 4 [closed, normal priority]: App crashes on login" in shown.stdout
+    assert 'result: Ticket 4 [closed, normal priority]: "App crashes on login"' in shown.stdout
 
 
 def test_call_reads_json_values_and_takes_the_rest_as_text():

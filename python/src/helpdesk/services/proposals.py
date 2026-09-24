@@ -10,6 +10,7 @@ pyproject.toml), so nothing an agent can call approves anything.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Sequence
 from typing import Any
 
 from helpdesk.data import repository
@@ -17,6 +18,7 @@ from helpdesk.services import access
 from helpdesk.services.access import Person
 from helpdesk.services.errors import Conflict, Forbidden, Invalid, NotFound, ServiceError
 from helpdesk.services.tickets import Clock, utc_now
+from helpdesk.services.untrusted import Flag
 
 # What each kind of proposal does once approved, in words.
 KINDS = {"reply": "send a reply", "close": "close the ticket"}
@@ -31,10 +33,13 @@ def propose(
     text: str,
     needs: str,
     clock: Clock = utc_now,
+    flags: Sequence[Flag] = (),
 ) -> dict[str, Any]:
     """File a change for approval, for the person the agent acts for. Refuses, and records the
     refusal, when that person may not change the ticket, when the ticket is closed, or when the same
-    kind of change is already waiting on it."""
+    kind of change is already waiting on it. flags are what the agent had read that looked like
+    instructions (chapter 20); they go with the proposal to whoever decides it, and change nothing
+    about whether it may be filed."""
     if kind not in KINDS:
         raise Invalid(f"kind must be one of {', '.join(KINDS)}; got {kind!r}")
     if needs not in access.APPROVERS:
@@ -70,6 +75,8 @@ def propose(
     proposal_id = repository.insert_proposal(
         conn, kind, ticket_id, text.strip(), agent, person.id, needs, now
     )
+    for flag in flags:
+        repository.insert_proposal_flag(conn, proposal_id, flag.source, flag.phrase)
     repository.insert_log(
         conn,
         now,
@@ -95,8 +102,8 @@ def get(conn: sqlite3.Connection, person: Person, proposal_id: int) -> dict[str,
 
 
 def named(conn: sqlite3.Connection, proposal: dict[str, Any]) -> dict[str, Any]:
-    """A proposal with names instead of ids: its ticket's subject, and who it was for and who
-    decided it."""
+    """A proposal with names instead of ids: its ticket's subject, who it was for and who decided
+    it, and the flags filed with it (chapter 20)."""
     staff = {p.id: p.name for p in access.staff(conn)}
     ticket = repository.get_ticket(conn, proposal["ticket_id"])
     return {
@@ -104,4 +111,5 @@ def named(conn: sqlite3.Connection, proposal: dict[str, Any]) -> dict[str, Any]:
         "subject": ticket["subject"] if ticket else None,
         "proposed_for_name": staff.get(proposal["proposed_for"]),
         "decided_by_name": staff.get(proposal["decided_by"]),
+        "flags": repository.list_proposal_flags(conn, proposal["id"]),
     }

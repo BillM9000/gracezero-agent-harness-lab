@@ -1,0 +1,12 @@
+# expect: pass
+# A server started on the person's machine, at a pinned version, with the digest of the tool
+# definitions that were reviewed (chapter 20). Any transport may pin its definitions.
+[[servers]]
+name = "notes"
+owner = "knowledge-team"
+transport = "stdio"
+command = ["npx", "-y", "notes-server@1.4.2"]
+tools = ["search_notes"]
+definitions = "sha256:0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0"
+approved = "2026-09-24"
+approved_by = "platform-security"

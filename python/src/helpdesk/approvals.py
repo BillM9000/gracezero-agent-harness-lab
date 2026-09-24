@@ -36,7 +36,22 @@ WHAT = {"reply": "reply on ticket", "close": "close ticket"}
 def line(proposal: dict[str, Any]) -> str:
     """#2  close ticket 3 (How do I export my data?), for Sam Rivera"""
     what = f"{WHAT[proposal['kind']]} {proposal['ticket_id']} ({proposal['subject']})"
-    return f"#{proposal['id']}  {what}, filed by {proposal['agent']} for {proposal['proposed_for_name']}"
+    flagged = f"  FLAGGED ({len(proposal['flags'])})" if proposal["flags"] else ""
+    by = f"filed by {proposal['agent']} for {proposal['proposed_for_name']}"
+    return f"#{proposal['id']}  {what}, {by}{flagged}"
+
+
+def flag_lines(proposal: dict[str, Any]) -> list[str]:
+    """What the agent had read that looked like instructions, for the person deciding (chapter 20)."""
+    if not proposal["flags"]:
+        return []
+    lines = ["Flagged: before filing this, the agent read text shaped like instructions:"]
+    lines += [f"  {f['source']}: {f['phrase']}" for f in proposal["flags"]]
+    lines.append(
+        "A flag, not a verdict: approve only what the person it acted for asked for, and what you'd "
+        "do anyway."
+    )
+    return lines
 
 
 def run_list(conn: Any, person: Person) -> int:
@@ -60,6 +75,8 @@ def run_show(conn: Any, person: Person, proposal_id: int, who: str) -> int:
         print(f"Rejected by {proposal['decided_by_name']}: {proposal['reason']}")
     elif proposal["status"] == "approved":
         print(f"Approved by {proposal['decided_by_name']}.")
+    for flagged in flag_lines(proposal):
+        print(flagged)
     if proposal["kind"] == "reply":
         try:
             print(f"To: {decisions.recipient(conn, person, proposal_id)}")

@@ -7,16 +7,20 @@ python -m helpdesk.triage --agent FILE     run another agent definition instead 
 python -m helpdesk.triage --as dana        act for another member of staff (default: sam)
 python -m helpdesk.triage --demo propose   chapter 19: the assistant proposes changes for approval
 python -m helpdesk.triage --demo redraft   chapter 19: it reads why a draft was rejected, and redrafts
+python -m helpdesk.triage --demo injected  chapter 20: a customer's ticket gives it orders, and it obeys
 python -m helpdesk.triage --db FILE        work in a saved helpdesk, such as .run/helpdesk.db
 
 The assistant is built from its definition, agents/triage.toml, which must pass the platform's
-policy (agents/policy.toml, chapter 18) before anything runs. --real calls Anthropic's API and
-needs a credential the SDK can find, such as ANTHROPIC_API_KEY. Each run uses a fresh in-memory
-copy of the sample data unless --db names a file, so by default nothing is saved. The assistant
-acts for one member of staff, and its tools show only what that person may see (chapter 11). Its
-tools that change things only file proposals, which python -m helpdesk.approvals decides (chapter
-19); they need --db to outlast the run. After an answer, every citation in it is checked against the
-passages the run's searches returned (chapter 9), and a problem makes the exit code 1.
+policy (agents/policy.toml, chapter 18), including its model's retirement date (agents/models.toml,
+chapter 20), before anything runs. --real calls Anthropic's API and needs a credential the SDK can
+find, such as ANTHROPIC_API_KEY. --demo injected --real would show a real model the injected
+ticket. Every --real call is billed, and without --real nothing here calls a model. Each run uses a
+fresh in-memory copy of the sample data unless --db names a file, so by default nothing is saved.
+The assistant acts for one member of staff, and its tools show only what that person may see
+(chapter 11). Its tools that change things only file proposals, which python -m helpdesk.approvals
+decides (chapter 19); they need --db to outlast the run. After an answer, every citation in it is
+checked against the passages the run's searches returned (chapter 9), and a problem makes the exit
+code 1.
 """
 
 from __future__ import annotations
@@ -26,13 +30,15 @@ import json
 import sys
 from pathlib import Path
 
-from agent_policy import AGENTS, POLICY, load
+from agent_policy import AGENTS, MODELS, POLICY, load, today
 from agent_policy.rules import check
 from helpdesk.assistant.agent import TurnLimitReached, run_agent
 from helpdesk.assistant.proposing import assistant_tools
 from helpdesk.assistant.tools import Toolbox, passages_given
 from helpdesk.data.db import connect, init_schema
 from helpdesk.data.seed import is_seeded, seed
+from helpdesk.injections import TASK as INJECTED_TASK
+from helpdesk.injections import file_case, load_cases, obeying_script
 from helpdesk.model.mock import MockModel
 from helpdesk.model.stops import IncompleteResponse
 from helpdesk.model.types import Message, ModelClient, ModelResponse, ToolCall
@@ -201,7 +207,9 @@ def main() -> int:
     parser.add_argument("--max-turns", type=int, help="this run's turn limit (default: the definition's)")
     parser.add_argument("--agent", type=Path, default=AGENTS / "triage.toml", help="the definition to run")
     parser.add_argument("--as", dest="person", default="sam", help="the member of staff to act for")
-    parser.add_argument("--demo", choices=DEMOS, default="reply", help="which scripted run the mock plays")
+    parser.add_argument(
+        "--demo", choices=[*DEMOS, "injected"], default="reply", help="which scripted run the mock plays"
+    )
     parser.add_argument("--db", help="a helpdesk database file to work in (default: a fresh copy in memory)")
     args = parser.parse_args()
     if args.task and not args.real:
@@ -211,7 +219,7 @@ def main() -> int:
     agent = load(args.agent)
     if args.max_turns is not None:
         agent["max_turns"] = args.max_turns
-    violations = check(agent, load(POLICY))
+    violations = check(agent, load(POLICY), load(MODELS), today())
     if violations:
         for violation in violations:
             print(f"{violation.path}: {violation.reason}", file=sys.stderr)
@@ -232,14 +240,20 @@ def main() -> int:
         conn.close()
         print(e, file=sys.stderr)
         return 2
+    demos = dict(DEMOS)
+    if args.demo == "injected":
+        # Chapter 20: a customer files a ticket whose text gives the assistant orders, as anyone who
+        # can open a ticket could, and the mock plays a model that obeys it (helpdesk/injections.py).
+        ticket_id = file_case(conn, load_cases()[0])
+        demos["injected"] = (INJECTED_TASK.format(ticket=ticket_id), obeying_script(ticket_id))
     model: ModelClient
     if args.real:
         from helpdesk.model.anthropic_client import AnthropicModel
 
         model = AnthropicModel(model=agent["model"], max_tokens=agent["max_tokens"])
-        task, label = args.task or DEMOS[args.demo][0], f"Anthropic API ({agent['model']})"
+        task, label = args.task or demos[args.demo][0], f"Anthropic API ({agent['model']})"
     else:
-        task, script = DEMOS[args.demo]
+        task, script = demos[args.demo]
         model, label = MockModel(script), "mock, scripted"
 
     print(f"Task: {task}\nModel: {label}\nActing for: {person.label}\n")

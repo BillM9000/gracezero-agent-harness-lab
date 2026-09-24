@@ -27,7 +27,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from agent_policy import AGENTS, POLICY, load
+from agent_policy import AGENTS, MODELS, POLICY, load, today
 from agent_policy.rules import check
 from helpdesk.assistant.agent import AgentRun, run_agent
 from helpdesk.assistant.proposing import WRITERS
@@ -189,12 +189,12 @@ TICKET_BY_TICKET = [
 
 def definitions() -> tuple[dict[str, Any], dict[str, Any], list[str]]:
     """The orchestrator's and the workers' definitions, and every way either breaks the policy."""
-    policy = load(POLICY)
+    policy, models = load(POLICY), load(MODELS)
     orchestrator, worker = load(AGENTS / "orchestrator.toml"), load(AGENTS / "triage.toml")
     found = [
         f"{name}.toml: {v.path}: {v.reason}"
         for name, d in (("orchestrator", orchestrator), ("triage", worker))
-        for v in check(d, policy)
+        for v in check(d, policy, models, today())
     ]
     missing = [t for t in WORKER_TOOLS if t not in worker["tools"]]
     if missing:

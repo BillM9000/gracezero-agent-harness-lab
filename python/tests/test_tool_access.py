@@ -32,7 +32,7 @@ def test_a_ticket_assigned_to_someone_else_is_refused_inside_the_tool(conn):
 
     shown = run(conn, "dana", "get_ticket", ticket_id=4)
     assert not shown.is_error
-    assert shown.content.startswith("Ticket 4 [closed, normal priority]: App crashes on login")
+    assert shown.content.startswith('Ticket 4 [closed, normal priority]: "App crashes on login"')
 
 
 def test_a_missing_ticket_and_one_you_cannot_see_get_the_same_answer(conn):
@@ -64,9 +64,9 @@ def test_the_customers_other_tickets_are_trimmed_too(conn):
     # Ada's ticket 4 is Dana's, so it's missing from what Sam is told about Ada, and present for Dana.
     assert run(conn, "sam", "get_ticket", ticket_id=1).content.endswith(
         "Ada Park's other tickets that Sam Rivera can see: "
-        "#11 [open] Notifications too frequent (2026-09-07)."
+        '#11 [open] "Notifications too frequent" (2026-09-07).'
     )
-    assert "#4 [closed] App crashes on login" in run(conn, "dana", "get_ticket", ticket_id=1).content
+    assert '#4 [closed] "App crashes on login"' in run(conn, "dana", "get_ticket", ticket_id=1).content
 
 
 def test_the_model_cannot_choose_whose_permissions_to_use(conn):

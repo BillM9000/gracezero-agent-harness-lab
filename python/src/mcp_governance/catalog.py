@@ -10,12 +10,15 @@ use is in catalog/policy.toml, and tests/catalog_fixtures/ shows what they accep
 Two more things read the catalog. allowlist turns it into the list a host enforces (Claude Code's
 managed settings, for one), naming each server by its address or exact command, never by name.
 offered_differs compares what a running server offers with its entry, so a server whose tools have
-changed since it was approved refuses to start.
+changed since it was approved refuses to start. definitions_digest (chapter 20) does the same for
+what the model reads: a tool's description is text in every request, so a changed description is a
+changed instruction, and an entry pins the digest of the definitions that were reviewed.
 """
 
 from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -38,6 +41,8 @@ RULES = {
     "tools": "a tool list that's empty, repeated or not names",
     "date": "an approval date that isn't a date",
     "duplicate": "a server listed twice",
+    # Chapter 20.
+    "definitions": "a definitions digest that isn't sha256: and 64 hexadecimal digits",
 }
 
 
@@ -63,9 +68,13 @@ FIELDS: dict[str, tuple[type, str]] = {
     "tools": (list, "List exactly the tools it was approved with."),
     "approved": (str, "Give the date it was approved, as YYYY-MM-DD."),
     "approved_by": (str, "Name who approved it."),
+    "definitions": (str, "Give the digest of the tool definitions that were reviewed, as sha256:<hex>."),
 }
 COMMON = ["name", "owner", "transport", "tools", "approved", "approved_by"]
 BY_TRANSPORT = {"http": ["url", "scopes"], "stdio": ["command"]}
+# Fields any entry may have, and none must.
+OPTIONAL = ["definitions"]
+DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 TYPE_NAMES = {str: "text", list: "a list"}
 # Claude Code accepts only these characters in the name of a server it's given through managed
 # settings, and in an allowlist's name entries.
@@ -120,7 +129,7 @@ def check_server(at: str, server: dict[str, Any], policy: dict[str, Any]) -> lis
             found.append(
                 Violation(f"{at}.{key}", "unknown-field", f"{key} isn't a field of a server. {hint}")
             )
-        elif key not in expected and transport in BY_TRANSPORT:
+        elif key not in expected and key not in OPTIONAL and transport in BY_TRANSPORT:
             other = "stdio" if transport == "http" else "http"
             reason = (
                 f"{key} is for {other} servers, and this one is {transport}. An http server is reached "
@@ -195,7 +204,24 @@ def check_server(at: str, server: dict[str, Any], policy: dict[str, Any]) -> lis
         except ValueError:
             reason = f"{shown(approved)} isn't a date. Write the day it was approved as YYYY-MM-DD."
             found.append(Violation(f"{at}.approved", "date", reason))
+
+    definitions = server.get("definitions")
+    if definitions is not None and not (is_a(definitions, str) and DIGEST.match(definitions)):
+        reason = (
+            f"{shown(definitions)} isn't a digest. Write sha256: and the 64 hexadecimal digits of the "
+            "definitions that were reviewed, as the server's own refusal prints them."
+        )
+        found.append(Violation(f"{at}.definitions", "definitions", reason))
     return found
+
+
+def definitions_digest(tools: list[dict[str, Any]]) -> str:
+    """The sha256 of the tool definitions a server offers, as the model reads them (chapter 20): each
+    tool's name, description and input schema, in name order, as canonical JSON. Changing a word of
+    a description changes it."""
+    ordered = sorted(tools, key=lambda tool: tool["name"])
+    canonical = json.dumps(ordered, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def url_problem(url: str, local_hosts: list[str]) -> str | None:

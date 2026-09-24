@@ -9,14 +9,16 @@ code it describes, and that the triage assistant refuses to run a definition tha
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 import pytest
 
-from agent_policy import AGENTS, POLICY, load
+from agent_policy import AGENTS, MODELS, POLICY, TODAY_VARIABLE, load
 from agent_policy.__main__ import main
 from agent_policy.rules import RULES, check
 from helpdesk.assistant.proposing import WRITERS, assistant_tools, proposing_tools
@@ -29,6 +31,9 @@ from helpdesk.services.access import APPROVERS, Person
 FIXTURES_DIR = Path(__file__).parent / "policy_fixtures"
 FIXTURES = sorted(FIXTURES_DIR.glob("*.toml"))
 POLICY_DATA = load(POLICY)
+MODELS_DATA = load(MODELS)
+# The day the fixtures are checked as of, the same as conftest.py sets for the programs tests run.
+TODAY = date(2026, 9, 24)
 
 
 def expected(path: Path) -> tuple[str, set[str]]:
@@ -47,7 +52,7 @@ def test_there_are_fixtures_to_run():
 @pytest.mark.parametrize("path", FIXTURES, ids=lambda path: path.stem)
 def test_each_fixture_gets_exactly_the_verdict_it_names(path):
     verdict, reasons = expected(path)
-    flagged = {violation.path for violation in check(load(path), POLICY_DATA)}
+    flagged = {violation.path for violation in check(load(path), POLICY_DATA, MODELS_DATA, TODAY)}
     if verdict == "pass":
         assert flagged == set()
     else:
@@ -56,12 +61,18 @@ def test_each_fixture_gets_exactly_the_verdict_it_names(path):
 
 
 def test_every_rule_is_shown_failing_by_some_fixture():
-    shown = {violation.rule for path in FIXTURES for violation in check(load(path), POLICY_DATA)}
+    shown = {
+        violation.rule
+        for path in FIXTURES
+        for violation in check(load(path), POLICY_DATA, MODELS_DATA, TODAY)
+    }
     assert shown == set(RULES)
 
 
 def test_a_violation_names_the_field_the_reason_and_the_fix():
-    [violation] = check(load(FIXTURES_DIR / "fail-too-many-tokens-for-the-model.toml"), POLICY_DATA)
+    [violation] = check(
+        load(FIXTURES_DIR / "fail-too-many-tokens-for-the-model.toml"), POLICY_DATA, MODELS_DATA, TODAY
+    )
     assert violation.path == "max_tokens"
     assert violation.reason == (
         "32,000 output tokens from claude-opus-5-5 could cost $0.64 a call, and the policy allows $0.32. "
@@ -114,7 +125,9 @@ def test_the_policy_names_exactly_the_tools_that_write_and_the_approvals_the_cod
 
 
 def test_a_writer_left_out_of_approval_is_named_with_the_least_it_needs():
-    [violation] = check(load(FIXTURES_DIR / "fail-writer-without-approval.toml"), POLICY_DATA)
+    [violation] = check(
+        load(FIXTURES_DIR / "fail-writer-without-approval.toml"), POLICY_DATA, MODELS_DATA, TODAY
+    )
     assert violation.path == "approval.close_ticket"
     assert violation.reason == (
         "missing. close_ticket changes things, so the definition must say whose approval a change needs "
@@ -163,3 +176,99 @@ def test_the_triage_assistant_checks_the_turn_limit_it_is_given_too():
 def test_the_real_definitions_live_in_the_agents_folder():
     assert (AGENTS / "triage.toml").exists()
     assert (AGENTS / "orchestrator.toml").exists()
+
+
+# Chapter 20: models are components with a retirement date, kept in agents/models.toml.
+
+READ = "(agents/models.toml, from Anthropic's model deprecations page, read 2026-09-24)"
+
+
+def test_an_unapproved_model_is_named_as_unapproved():
+    [violation] = check(load(FIXTURES_DIR / "fail-model-not-approved.toml"), POLICY_DATA, MODELS_DATA, TODAY)
+    assert (violation.rule, violation.reason) == (
+        "model",
+        '"claude-opus-4-1" isn\'t an approved model. Use one of "claude-opus-5-5", "claude-sonnet-5", or ask '
+        "the platform team to approve it in agents/policy.toml.",
+    )
+
+
+def test_a_retired_model_fails_with_its_date_and_what_to_move_to():
+    violations = check(load(FIXTURES_DIR / "fail-model-retired.toml"), POLICY_DATA, MODELS_DATA, TODAY)
+    retired = [v for v in violations if v.rule == "retired"]
+    assert [v.rule for v in violations] == ["model", "retired"]
+    assert retired[0].reason == (
+        f"claude-opus-4-1-20250805 retired on 2026-08-05, and requests to it fail {READ}. Anthropic "
+        'recommends claude-opus-4-8 in its place, which isn\'t approved here: use one of "claude-opus-5-5", '
+        '"claude-sonnet-5", or ask the platform team to approve it in agents/policy.toml.'
+    )
+
+
+def test_an_approved_model_fails_the_day_its_earliest_retirement_is_within_the_notice():
+    # claude-opus-5-5 may retire as soon as 2027-09-22, and the policy moves agents 90 days before.
+    triage_definition = load(AGENTS / "triage.toml")
+    assert check(triage_definition, POLICY_DATA, MODELS_DATA, date(2027, 6, 23)) == []
+    [violation] = check(triage_definition, POLICY_DATA, MODELS_DATA, date(2027, 6, 24))
+    assert (violation.path, violation.rule) == ("model", "retiring")
+    assert violation.reason == (
+        "claude-opus-5-5 may retire as soon as 2027-09-22, in 90 days, and the policy moves agents 90 days "
+        f"before {READ}. No approved model retires later: ask the platform team to approve a newer one."
+    )
+
+
+def test_a_model_that_retires_later_is_suggested_by_name():
+    # On 2027-04-01 claude-sonnet-5 (2027-06-30) is inside the notice, and claude-opus-5-5 isn't.
+    definition = {**load(AGENTS / "triage.toml"), "model": "claude-sonnet-5", "max_tokens": 16000}
+    [violation] = check(definition, POLICY_DATA, MODELS_DATA, date(2027, 4, 1))
+    assert violation.reason.endswith('Move to an approved model that retires later: "claude-opus-5-5".')
+
+
+def test_the_policy_command_checks_as_of_the_day_it_is_given(capsys):
+    assert main(["--today", "2027-07-01"]) == 1
+    out = capsys.readouterr().out
+    assert "agents/triage.toml: model: claude-opus-5-5 may retire as soon as 2027-09-22, in 83 days" in out
+    assert out.rstrip().endswith("as of 2027-07-01: 2 problem(s).")
+
+
+def test_every_approved_model_is_in_the_registry_active_and_every_replacement_is_known():
+    registry = MODELS_DATA["models"]
+    for model in POLICY_DATA["models"]:
+        assert registry[model]["state"] == "active", model
+    states = {"active", "legacy", "deprecated", "retired"}
+    for model, entry in registry.items():
+        assert entry["state"] in states, model
+        assert set(entry) <= {"state", "retires", "deprecated", "replacement"}, model
+        if entry["state"] in ("retired", "active"):
+            assert isinstance(entry["retires"], date), model
+        if "replacement" in entry:
+            assert entry["replacement"] in registry, model
+    assert isinstance(MODELS_DATA["read"], date)
+
+
+def test_a_deprecated_model_fails_even_before_its_retirement_date_is_announced():
+    violations = check(load(FIXTURES_DIR / "fail-model-deprecated.toml"), POLICY_DATA, MODELS_DATA, TODAY)
+    assert [v.rule for v in violations] == ["model", "retiring"]
+    assert violations[1].reason.startswith(
+        f"claude-mythos-preview is deprecated, and its retirement date isn't announced yet {READ}. "
+    )
+
+
+def test_an_approved_model_nobody_tracks_fails_closed():
+    untracked = {
+        **MODELS_DATA,
+        "models": {k: v for k, v in MODELS_DATA["models"].items() if k != "claude-opus-5-5"},
+    }
+    [violation] = check(load(AGENTS / "triage.toml"), POLICY_DATA, untracked, TODAY)
+    assert (violation.rule, violation.reason) == (
+        "model",
+        '"claude-opus-5-5" is approved but isn\'t in agents/models.toml, so nothing tracks when it retires. '
+        "Add it from Anthropic's model deprecations page.",
+    )
+
+
+def test_the_triage_assistant_refuses_a_model_near_retirement_before_anything_runs():
+    # conftest.py fixes the day for every program a test starts; here the day is moved on.
+    env = {**os.environ, TODAY_VARIABLE: "2027-07-01"}
+    run = subprocess.run([sys.executable, "-m", "helpdesk.triage"], capture_output=True, text=True, env=env)
+    assert run.returncode == 2
+    assert "model: claude-opus-5-5 may retire as soon as 2027-09-22, in 83 days" in run.stderr
+    assert run.stdout == ""

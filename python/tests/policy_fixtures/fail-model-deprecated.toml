@@ -1,0 +1,10 @@
+# expect: fail
+# reasons: model
+# Deprecated, with its retirement date still to be announced (agents/models.toml).
+name = "triage"
+owner = "support-tools"
+model = "claude-mythos-preview"
+max_tokens = 16000
+max_turns = 6
+tools = ["get_ticket", "search_kb"]
+system = "Triage helpdesk tickets and draft replies for staff to review."

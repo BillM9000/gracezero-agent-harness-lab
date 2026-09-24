@@ -111,7 +111,7 @@ def test_the_tools_act_for_the_person_in_the_servers_environment(sam, dana):
     assert text(refused).startswith("Sam Rivera can't see ticket 4:")
     shown = call(dana, "get_ticket", ticket_id=4)
     assert shown["result"]["isError"] is False
-    assert text(shown).startswith(f"Ticket 4 [closed, normal priority]: {HIDDEN}")
+    assert text(shown).startswith(f'Ticket 4 [closed, normal priority]: "{HIDDEN}"')
     assert "Tickets Sam Rivera can see (any status, any assignee): 9," in text(
         call(sam, "find_tickets", status="any")
     )
@@ -218,7 +218,7 @@ def test_the_prompt_holds_only_a_ticket_the_person_may_see(sam, dana):
     ]
     message = prompt(sam, "2")["result"]["messages"][0]
     assert message["role"] == "user"
-    assert "Ticket 2 [open, normal priority]: Invoice shows the wrong plan" in message["content"]["text"]
+    assert 'Ticket 2 [open, normal priority]: "Invoice shows the wrong plan"' in message["content"]["text"]
     refused = prompt(sam, "4")["error"]
     assert refused["code"] == -32602
     assert refused["message"].startswith("Sam Rivera can't see ticket 4:")

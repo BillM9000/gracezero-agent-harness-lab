@@ -1,0 +1,114 @@
+# The models the platform knows, as components with a lifecycle (chapter 20). Every row is copied
+# from the "Model status" table of Anthropic's "Model deprecations" page, with the replacements
+# from the same page's deprecation history, as read on the date below. Copy what the page says;
+# never estimate a date. Re-read the page before relying on this file: dates move, and new
+# deprecations are announced there.
+#
+# state: "active", "legacy", "deprecated" or "retired", as the page defines them.
+# retires: for a deprecated or retired model, its retirement date. For an active one, the page's
+#   "not sooner than" date: the earliest it may retire, not a date it will. Left out where the page
+#   says "to be announced".
+# deprecated: the date the page gives for a deprecation.
+# replacement: the model the page recommends instead, where it names one.
+#
+# python -m agent_policy reads this with agents/policy.toml (src/agent_policy/rules.py): a definition
+# naming a model that has retired, is deprecated, or may retire within the policy's notice fails,
+# with the date and what to move to. A test keeps every approved model here and active.
+source = "https://platform.claude.com/docs/en/about-claude/model-deprecations"
+read = 2026-09-24
+
+[models.claude-fable-5-1]
+state = "active"
+retires = 2027-09-01
+
+[models.claude-mythos-5-1]
+state = "active"
+retires = 2027-09-01
+
+[models.claude-fable-5]
+state = "active"
+retires = 2027-06-09
+
+[models.claude-mythos-5]
+state = "active"
+retires = 2027-06-09
+
+[models.claude-mythos-preview]
+state = "deprecated"
+deprecated = 2026-06-09
+
+[models.claude-opus-5-5]
+state = "active"
+retires = 2027-09-22
+
+[models.claude-opus-5]
+state = "active"
+retires = 2027-07-24
+
+[models.claude-opus-4-8]
+state = "active"
+retires = 2027-05-28
+
+[models.claude-opus-4-7]
+state = "active"
+retires = 2027-04-16
+
+[models.claude-opus-4-6]
+state = "active"
+retires = 2027-02-05
+
+[models.claude-opus-4-5-20251101]
+state = "active"
+retires = 2026-11-24
+
+[models.claude-opus-4-1-20250805]
+state = "retired"
+deprecated = 2026-06-05
+retires = 2026-08-05
+replacement = "claude-opus-4-8"
+
+[models.claude-opus-4-20250514]
+state = "retired"
+deprecated = 2026-04-14
+retires = 2026-06-15
+replacement = "claude-opus-4-8"
+
+[models.claude-sonnet-5]
+state = "active"
+retires = 2027-06-30
+
+[models.claude-sonnet-4-6]
+state = "active"
+retires = 2027-02-17
+
+[models.claude-sonnet-4-5-20250929]
+state = "active"
+retires = 2026-09-29
+
+[models.claude-sonnet-4-20250514]
+state = "retired"
+deprecated = 2026-04-14
+retires = 2026-06-15
+replacement = "claude-sonnet-4-6"
+
+[models.claude-3-7-sonnet-20250219]
+state = "retired"
+deprecated = 2025-10-28
+retires = 2026-02-19
+replacement = "claude-sonnet-4-6"
+
+[models.claude-haiku-4-5-20251001]
+state = "active"
+retires = 2026-10-15
+
+[models.claude-3-5-haiku-20241022]
+state = "retired"
+deprecated = 2025-12-19
+retires = 2026-02-19
+replacement = "claude-haiku-4-5-20251001"
+
+[models.claude-3-haiku-20240307]
+state = "retired"
+deprecated = 2026-02-19
+retires = 2026-04-20
+replacement = "claude-haiku-4-5-20251001"

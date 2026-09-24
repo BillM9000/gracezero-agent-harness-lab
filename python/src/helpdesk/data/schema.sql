@@ -59,6 +59,16 @@ CREATE TABLE IF NOT EXISTS proposals (
   decided_at   TEXT
 );
 
+-- Chapter 20: instruction-shaped text the agent had read, written by someone outside the company,
+-- before it filed a proposal. A flag for the person deciding, never a verdict. A table of its own,
+-- so a database made before chapter 20 gains it without a change to proposals.
+CREATE TABLE IF NOT EXISTS proposal_flags (
+  id          INTEGER PRIMARY KEY,
+  proposal_id INTEGER NOT NULL REFERENCES proposals(id),
+  source      TEXT NOT NULL,
+  phrase      TEXT NOT NULL
+);
+
 -- Every step of the approval queue, refusals included, in the order it happened (chapter 19).
 -- staff_id is the person the agent acted for when an agent filed or was refused, and the person who
 -- decided otherwise. ticket_id has no foreign key: a refusal can name a ticket that doesn't exist.

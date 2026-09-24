@@ -1,0 +1,100 @@
+"""Fitness function: nothing the triage assistant can reach can send anything outside the helpdesk
+(chapter 20).
+
+An injected ticket can tell the model to send data somewhere, and the model may try. What stops it
+is that no tool can: the assistant's tools, and the services and data layer they call, import
+nothing that reaches another machine or starts another program. This walks every module in those
+three packages and fails on such an import, or on os.system and its kind, naming the file, the line
+and what to do. The model client (helpdesk.model), the MCP server and the web service reach the
+network on purpose; each sits outside these packages, behind a composition root.
+
+It's a tripwire for code, not a network boundary: a deployed service needs egress rules too.
+"""
+
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+SRC = Path(__file__).resolve().parents[2] / "src" / "helpdesk"
+# The packages the assistant's tools run: its tools, the services they call and the data layer.
+REACHABLE = ("assistant", "services", "data")
+# Modules that can reach another machine, or start a program that can.
+OUTSIDE = {
+    "aiohttp",
+    "anthropic",
+    "asyncio",
+    "ctypes",
+    "ftplib",
+    "http",
+    "httpcore",
+    "httpcore2",
+    "httpx",
+    "httpx2",
+    "imaplib",
+    "mcp",
+    "multiprocessing",
+    "poplib",
+    "requests",
+    "smtplib",
+    "socket",
+    "ssl",
+    "subprocess",
+    "telnetlib",
+    "urllib",
+    "urllib3",
+    "webbrowser",
+    "websockets",
+    "xmlrpc",
+}
+# Functions of os that start another program.
+OS_RUNNERS = {"system", "popen", "startfile"}
+OS_PREFIXES = ("exec", "spawn", "posix_spawn")
+
+
+def ways_out(source: str) -> list[str]:
+    """Each import or call in the source that could send something outside, with its line."""
+    found = []
+    for node in ast.walk(ast.parse(source)):
+        names: list[str] = []
+        if isinstance(node, ast.Import):
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            names = [node.module]
+        for name in names:
+            if name.split(".")[0] in OUTSIDE:
+                found.append(f"line {node.lineno}: imports {name}")
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "os"
+            and (node.func.attr in OS_RUNNERS or node.func.attr.startswith(OS_PREFIXES))
+        ):
+            found.append(f"line {node.lineno}: calls os.{node.func.attr}")
+    return found
+
+
+def test_the_check_finds_every_way_out_it_claims_to():
+    planted = "import os\nimport urllib.request\nfrom httpx import post\nos.system('curl x')\n"
+    assert ways_out(planted) == [
+        "line 2: imports urllib.request",
+        "line 3: imports httpx",
+        "line 4: calls os.system",
+    ]
+    assert ways_out("import json\nimport sqlite3\nfrom helpdesk.services import access\n") == []
+
+
+def test_nothing_the_assistant_can_reach_sends_anything_outside():
+    modules = [path for package in REACHABLE for path in sorted((SRC / package).rglob("*.py"))]
+    assert len(modules) >= 15, "the packages moved: point REACHABLE at the assistant's code again"
+    problems = [
+        f"{path.relative_to(SRC.parents[1]).as_posix()}, {way}"
+        for path in modules
+        for way in ways_out(path.read_text(encoding="utf-8"))
+    ]
+    assert not problems, (
+        "The assistant's tools and the code they call must not reach another machine: an injected "
+        "ticket could make the model use it (chapter 20). Put the call behind a composition root, and "
+        "give the assistant a tool that files a proposal for a person instead:\n  " + "\n  ".join(problems)
+    )

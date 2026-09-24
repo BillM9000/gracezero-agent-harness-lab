@@ -18,6 +18,7 @@ from helpdesk.assistant.tools import Tool, Toolbox, triage_tools
 from helpdesk.model.types import ToolSpec
 from helpdesk.services import proposals
 from helpdesk.services.access import NEEDS, Person
+from helpdesk.services.untrusted import Exposure
 
 # The tools that write, and the kind of proposal each files.
 WRITERS = {"draft_reply": "reply", "close_ticket": "close"}
@@ -91,20 +92,26 @@ def filed(proposal: dict[str, Any], person: Person) -> str:
 
 
 def proposing_tools(
-    conn: sqlite3.Connection, person: Person, agent: str, approval: Mapping[str, str]
+    conn: sqlite3.Connection,
+    person: Person,
+    agent: str,
+    approval: Mapping[str, str],
+    exposure: Exposure | None = None,
 ) -> Toolbox:
     """A writer for each tool in approval, filing proposals for this agent and person, each needing
-    the approval named for it."""
+    the approval named for it. Each proposal carries the flags on what the run had read by then
+    (chapter 20), from the exposure the reading tools share."""
+    seen = exposure if exposure is not None else Exposure()
 
     def draft_reply(ticket_id: int, reply_text: str) -> str:
         proposal = proposals.propose(
-            conn, person, agent, "reply", ticket_id, reply_text, approval["draft_reply"]
+            conn, person, agent, "reply", ticket_id, reply_text, approval["draft_reply"], flags=seen.flags
         )
         return filed(proposal, person)
 
     def close_ticket(ticket_id: int, reason: str) -> str:
         proposal = proposals.propose(
-            conn, person, agent, "close", ticket_id, reason, approval["close_ticket"]
+            conn, person, agent, "close", ticket_id, reason, approval["close_ticket"], flags=seen.flags
         )
         return filed(proposal, person)
 
@@ -125,7 +132,9 @@ def assistant_tools(conn: sqlite3.Connection, person: Person, definition: Mappin
             "whose approval they need. Add them under [approval]; python -m agent_policy says the least "
             "each may have."
         )
+    # One exposure for the run: what the readers see that customers wrote, the writers report.
+    exposure = Exposure()
     writers = proposing_tools(
-        conn, person, definition["name"], {n: approval[n] for n in names if n in WRITERS}
+        conn, person, definition["name"], {n: approval[n] for n in names if n in WRITERS}, exposure
     )
-    return triage_tools(conn, person).plus(*writers.tools).only(names)
+    return triage_tools(conn, person, exposure).plus(*writers.tools).only(names)

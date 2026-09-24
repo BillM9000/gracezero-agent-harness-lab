@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 19, 24, 25
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 20, 24, 25
 // and 30 are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and
 // chapter 1's tally's check for missing fields; the guards from earlier chapters were broken by
 // hand when they were built (CHANGELOG.md records each time) and are the next candidates to add.
@@ -58,6 +58,12 @@ const PROPOSALS = "python/src/helpdesk/services/proposals.py";
 const PROPOSING = "python/src/helpdesk/assistant/proposing.py";
 const GUARD_RULES = "tools/hooks/guard-rules.mjs";
 const GUARD_TESTS = "tools/hooks/destructive-guard.test.mjs";
+const INJECTIONS = "tests/test_injections.py";
+const UNTRUSTED = "python/src/helpdesk/services/untrusted.py";
+const LOCKFILES = "tools/lockfiles.mjs";
+const LOCK_TESTS = "tools/lockfiles.test.mjs";
+const injections = (name) => pytest(`${INJECTIONS}::${name}`);
+const lockTest = (name) => nodeTest(LOCK_TESTS, name);
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -66,6 +72,8 @@ const FAKE_FITNESS = "python/tests/fitness/test_tests_fake_the_model_client.py";
 const FAKE_FITNESS_TEST = "tests/fitness/test_tests_fake_the_model_client.py";
 const PROGRESS = "tools/progress.mjs";
 const progressTest = (name) => nodeTest("tools/progress.test.mjs", name);
+// The real lock check, on this repository as setup left it.
+const LOCK_CHECK = { node: [LOCKFILES] };
 const approvals = (name) => pytest(`${APPROVALS}::${name}`);
 const guardTest = (name) => nodeTest(GUARD_TESTS, name);
 // The git runner the script tests build their repositories with, proved by tools/git-run.test.mjs.
@@ -426,7 +434,7 @@ export const MUTATIONS = [
   {
     guard: "agent policy: the cost depends on the model",
     file: AGENT_RULES,
-    find: 'price = Decimal(str(models[model]["output_usd_per_million"]))',
+    find: 'price = Decimal(str(approved[model]["output_usd_per_million"]))',
     replace: 'price = Decimal("20.0")',
     run: fixture("pass-cheaper-model-more-tokens"),
   },
@@ -454,9 +462,10 @@ export const MUTATIONS = [
   {
     guard: "agent policy: only approved models",
     file: AGENT_RULES,
-    find: "    if model is not None and model not in models:",
+    find: "    if model is not None and model not in approved:",
     replace: "    if False:",
-    run: fixture("fail-model-not-approved"),
+    // The approved-but-untracked check would still flag the field, so the test reads the reason.
+    run: pytest(`${POLICY}::test_an_unapproved_model_is_named_as_unapproved`),
   },
   {
     guard: "agent policy: every problem is reported, not only the first",
@@ -510,15 +519,15 @@ export const MUTATIONS = [
   {
     guard: "agent policy: the triage assistant checks before it runs",
     file: "python/src/helpdesk/triage.py",
-    find: "    violations = check(agent, load(POLICY))",
+    find: "    violations = check(agent, load(POLICY), load(MODELS), today())",
     replace: "    violations = []",
     run: pytest(`${POLICY}::test_the_triage_assistant_refuses_a_definition_that_breaks_the_policy`),
   },
   {
     guard: "agent policy: the check sees this run's --max-turns",
     file: "python/src/helpdesk/triage.py",
-    find: '    if args.max_turns is not None:\n        agent["max_turns"] = args.max_turns\n    violations = check(agent, load(POLICY))',
-    replace: '    violations = check(agent, load(POLICY))\n    if args.max_turns is not None:\n        agent["max_turns"] = args.max_turns',
+    find: '    if args.max_turns is not None:\n        agent["max_turns"] = args.max_turns\n    violations = check(agent, load(POLICY), load(MODELS), today())',
+    replace: '    violations = check(agent, load(POLICY), load(MODELS), today())\n    if args.max_turns is not None:\n        agent["max_turns"] = args.max_turns',
     run: pytest(`${POLICY}::test_the_triage_assistant_checks_the_turn_limit_it_is_given_too`),
   },
   {
@@ -1424,7 +1433,7 @@ export const MUTATIONS = [
   {
     guard: "catalog: a field of the other transport is refused",
     file: CATALOG,
-    find: "        elif key not in expected and transport in BY_TRANSPORT:",
+    find: "        elif key not in expected and key not in OPTIONAL and transport in BY_TRANSPORT:",
     replace: "        elif False:",
     run: catalogFixture("fail-command-on-http"),
   },
@@ -1615,7 +1624,7 @@ export const MUTATIONS = [
   {
     guard: "patterns: nothing runs when a definition breaks the policy",
     file: "python/src/helpdesk/patterns.py",
-    find: "        for v in check(d, policy)",
+    find: "        for v in check(d, policy, models, today())",
     replace: "        for v in []",
     run: pytest("tests/test_patterns_compare.py::test_nothing_runs_when_a_definition_breaks_the_policy"),
   },
@@ -1921,6 +1930,206 @@ export const MUTATIONS = [
     find: ',\n      "Edit(/.claude/**)"\n',
     replace: "\n",
     run: guardTest("the configured guard starts"),
+  },
+  // Chapter 20: text the helpdesk didn't write is marked as data, and flagged for the approver.
+  {
+    guard: "untrusted: a ticket's text reaches the model as a JSON string",
+    file: TOOLS,
+    find: "            f\"The customer wrote: {quoted(ticket['body'])}\",",
+    replace: "            f\"The customer wrote: {ticket['body']}\",",
+    run: injections("test_what_a_customer_wrote_reaches_the_model_as_a_json_string_it_cannot_break_out_of"),
+  },
+  {
+    guard: "untrusted: the marking escapes what could end it",
+    file: UNTRUSTED,
+    find: "    return json.dumps(text, ensure_ascii=False)",
+    replace: "    return f'\"{text}\"'",
+    run: injections("test_what_a_customer_wrote_reaches_the_model_as_a_json_string_it_cannot_break_out_of"),
+  },
+  {
+    guard: "untrusted: a customer's reply is marked too",
+    file: TOOLS,
+    find: '                + (quoted(r["body"]) if r["author_kind"] == "customer" else r["body"])',
+    replace: '                + r["body"]',
+    run: pytest("tests/test_triage_tools.py::test_get_ticket_reads_the_ticket_in_context"),
+  },
+  {
+    guard: "untrusted: a subject in a list is marked",
+    file: TOOLS,
+    find: "                f\"#{t['id']} [{t['status']}, {t['priority']}] {quoted(t['subject'])} ({t['customer_name']}; \"",
+    replace: "                f\"#{t['id']} [{t['status']}, {t['priority']}] {t['subject']} ({t['customer_name']}; \"",
+    run: pytest("tests/test_triage_tools.py::test_find_tickets_lists_in_the_order_to_handle_them"),
+  },
+  {
+    guard: "untrusted: the flag reads the text",
+    file: UNTRUSTED,
+    find: "        for match in pattern.finditer(text):",
+    replace: "        for match in []:",
+    run: injections("test_the_flag_gives_each_case_the_verdict_the_red_team_file_records"),
+  },
+  {
+    guard: "untrusted: reading a ticket records what the customer wrote",
+    file: TOOLS,
+    find: "        seen.read(f\"ticket {ticket['id']}, written by the customer\", *customer_wrote)",
+    replace: "        customer_wrote.clear()",
+    run: injections("test_every_proposal_filed_after_reading_the_ticket_carries_its_flags"),
+  },
+  {
+    guard: "proposing: the readers and the writers share one run's exposure",
+    file: PROPOSING,
+    find: "    return triage_tools(conn, person, exposure).plus(*writers.tools).only(names)",
+    replace: "    return triage_tools(conn, person).plus(*writers.tools).only(names)",
+    run: injections("test_every_proposal_filed_after_reading_the_ticket_carries_its_flags"),
+  },
+  {
+    guard: "proposals: the flags are filed with the proposal",
+    file: PROPOSALS,
+    find: "    for flag in flags:",
+    replace: "    for flag in []:",
+    run: injections("test_every_proposal_filed_after_reading_the_ticket_carries_its_flags"),
+  },
+  {
+    guard: "approvals: the person deciding sees the flags",
+    file: "python/src/helpdesk/approvals.py",
+    find: "    for flagged in flag_lines(proposal):",
+    replace: "    for flagged in []:",
+    run: injections("test_the_approver_sees_the_flags_and_where_a_leaked_reply_would_go"),
+  },
+  {
+    guard: "fitness: nothing the assistant reaches imports a way out",
+    file: "python/tests/fitness/test_nothing_sends_outside.py",
+    find: '            if name.split(".")[0] in OUTSIDE:',
+    replace: "            if False:",
+    run: pytest("tests/fitness/test_nothing_sends_outside.py::test_the_check_finds_every_way_out_it_claims_to"),
+  },
+  // Chapter 20: models are components with a retirement date.
+  {
+    guard: "fitness: every model named is pinned and tracked",
+    file: "python/tests/fitness/test_model_ids_are_pinned.py",
+    find: "        if found not in known",
+    replace: "        if False",
+    run: pytest("tests/fitness/test_model_ids_are_pinned.py::test_the_check_finds_an_alias"),
+  },
+  {
+    guard: "agent policy: a retired model fails with its date",
+    file: AGENT_RULES,
+    find: '    if state == "retired" or (state == "deprecated" and retires is not None and retires <= today):',
+    replace: "    if False:",
+    run: pytest(`${POLICY}::test_a_retired_model_fails_with_its_date_and_what_to_move_to`),
+  },
+  {
+    guard: "agent policy: a deprecated model fails",
+    file: AGENT_RULES,
+    find: '    if state == "deprecated":',
+    replace: "    if False:",
+    run: pytest(`${POLICY}::test_a_deprecated_model_fails_even_before_its_retirement_date_is_announced`),
+  },
+  {
+    guard: "agent policy: a model within the notice fails",
+    file: AGENT_RULES,
+    find: "    if retires is not None and (retires - today).days <= notice:",
+    replace: "    if False:",
+    run: pytest(`${POLICY}::test_an_approved_model_fails_the_day_its_earliest_retirement_is_within_the_notice`),
+  },
+  {
+    guard: "agent policy: the notice counts the last day",
+    file: AGENT_RULES,
+    find: "    if retires is not None and (retires - today).days <= notice:",
+    replace: "    if retires is not None and (retires - today).days < notice:",
+    run: pytest(`${POLICY}::test_an_approved_model_fails_the_day_its_earliest_retirement_is_within_the_notice`),
+  },
+  {
+    guard: "agent policy: an approved model nobody tracks fails",
+    file: AGENT_RULES,
+    find: '    elif model is not None and model not in models["models"]:',
+    replace: "    elif False:",
+    run: pytest(`${POLICY}::test_an_approved_model_nobody_tracks_fails_closed`),
+  },
+  // Chapter 20: MCP servers are dependencies, and their definitions are text the model reads.
+  {
+    guard: "mcp server: changed definitions are refused",
+    file: MCP_SERVER,
+    find: "    elif pinned != digest:",
+    replace: "    elif False:",
+    run: pytest(`${HTTP_TESTS}::test_a_changed_tool_description_is_refused_until_it_is_reviewed`),
+  },
+  {
+    guard: "mcp server: an entry must pin its definitions",
+    file: MCP_SERVER,
+    find: "    if pinned is None:",
+    replace: "    if False:",
+    run: pytest(`${HTTP_TESTS}::test_a_changed_tool_description_is_refused_until_it_is_reviewed`),
+  },
+  {
+    guard: "mcp server: the digest covers the descriptions",
+    file: MCP_SERVER,
+    find: '        [{"name": s.name, "description": s.description, "input_schema": s.input_schema} for s in specs]',
+    replace: '        [{"name": s.name, "input_schema": s.input_schema} for s in specs]',
+    run: pytest(`${HTTP_TESTS}::test_the_definitions_command_prints_the_digest_the_catalog_pins`),
+  },
+  {
+    guard: "catalog: a definitions digest must be a digest",
+    file: CATALOG,
+    find: "    if definitions is not None and not (is_a(definitions, str) and DIGEST.match(definitions)):",
+    replace: "    if False:",
+    run: catalogFixture("fail-definitions-not-a-digest"),
+  },
+  // Chapter 20: every download checked against a hash in a lock file.
+  {
+    guard: "setup: the lock is installed with --require-hashes",
+    file: "setup.mjs",
+    find: '"--require-hashes", ',
+    replace: "",
+    run: LOCK_CHECK,
+  },
+  {
+    guard: "setup: the helpdesk builds without fetching a backend",
+    file: "setup.mjs",
+    find: '"--no-build-isolation", ',
+    replace: "",
+    run: LOCK_CHECK,
+  },
+  {
+    guard: "lock: every pin carries its hashes",
+    file: "python/requirements-lock.txt",
+    find: "anthropic==1.8.0 \\\n    --hash=sha256:79a4516a21e64fd7b15be1a49ebf544bd6376c96a971a77365358823a2717bc6 \\\n    --hash=sha256:9c1783ed90f409617749a61c5ab98e20624a572626f2e0a15cea03ed8e1401e5\n",
+    replace: "anthropic==1.8.0\n",
+    run: LOCK_CHECK,
+  },
+  {
+    guard: "lockfiles: a pin without a hash fails",
+    file: LOCKFILES,
+    find: "    if (r.hashes.length === 0) {",
+    replace: "    if (false) {",
+    run: lockTest("a pin without a hash"),
+  },
+  {
+    guard: "lockfiles: nothing is installed that the lock doesn't name",
+    file: LOCKFILES,
+    find: "    if (!wanted.has(key) && !PYTHON_EXTRAS.has(key)) {",
+    replace: "    if (false) {",
+    run: lockTest("installed Python packages must be"),
+  },
+  {
+    guard: "lockfiles: every npm package has a sha512 integrity",
+    file: LOCKFILES,
+    find: '    if (!/^sha512-[A-Za-z0-9+/=]+$/.test(entry.integrity ?? "")) {',
+    replace: "    if (false) {",
+    run: lockTest("an npm package without integrity"),
+  },
+  {
+    guard: "lockfiles: every npm package comes from the registry",
+    file: LOCKFILES,
+    find: '    if (!(entry.resolved ?? "").startsWith(NPM_REGISTRY)) {',
+    replace: "    if (false) {",
+    run: lockTest("an npm package without integrity"),
+  },
+  {
+    guard: "lockfiles: installed npm packages are the lock's versions",
+    file: LOCKFILES,
+    find: "    if (version !== entry.version) {",
+    replace: "    if (false) {",
+    run: lockTest("installed npm packages must be"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

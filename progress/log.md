@@ -6,6 +6,20 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
 
+## 2026-09-24: chapter 20, the agent attack surface
+
+- What a customer writes reaches the assistant as a JSON string, labeled (`helpdesk/services/untrusted.py`); `flag()` marks instruction-shaped text, and proposals filed after reading it carry the flags to `python -m helpdesk.approvals`.
+- `python -m helpdesk.injections run` files the red-team tickets in `python/evals/injections.json` and runs the assistant on each as Sam and as Dana, with the mock obeying: nothing changes, flagged or not. `python -m helpdesk.triage --demo injected` runs the first.
+- `tests/fitness/test_nothing_sends_outside.py`: nothing the assistant reaches imports a way to another machine.
+- `python/requirements-lock.txt` carries every file's sha256; `setup.mjs` installs with `--require-hashes` and builds with `--no-build-isolation` (setuptools 84.0.0 is pinned now). `node tools/lockfiles.mjs` is the 20th check.
+- `python/agents/models.toml` and the policy's retirement rules; `python -m agent_policy --today`; the tests fix the day with `AGENT_POLICY_TODAY`. `tests/fitness/test_model_ids_are_pinned.py` found an alias in `helpdesk/model/cost.py`, fixed.
+- The MCP catalog pins the digest of the server's tool definitions (`python -m helpdesk.mcp_server --definitions`).
+- 37 new Python tests (386 in all), 11 new script tests; 28 new entries in `tools/mutations.mjs` (234 in all), six updated.
+- Work list: `injected-text-changes-nothing`, `hash-checked-installs`, `model-retirement` and `mcp-definitions-pinned` added as done, each with its proof.
+- Checked with: `node check.mjs` (all 20 checks passed) and `node tools/progress.mjs .` (no problems).
+- From 2027-06-24, `python -m agent_policy` fails here by design: claude-opus-5-5 may retire as soon as 2027-09-22. Move the definitions, then update `agents/models.toml` from Anthropic's page.
+- Next: `golden-set`, the first item still to do.
+
 ## 2026-09-24: chapter 19, permissions and human approval
 
 - `draft_reply` and `close_ticket` (`helpdesk/assistant/proposing.py`) check what the person may change and file a proposal; `python -m helpdesk.approvals` is where a person approves or rejects it (`helpdesk/services/decisions.py`, which only that command may import). Approving re-checks everything and commits the decision, the change and its record together; a rejection's reason shows on the ticket for the assistant; closing needs a lead; every step is in `approval_log`.

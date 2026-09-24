@@ -152,6 +152,30 @@
       "proof": "python/tests/test_team.py::test_a_worker_that_stops_without_drafts_is_counted_as_failed_whatever_the_summary_says"
     },
     {
+      "id": "injected-text-changes-nothing",
+      "description": "What a customer writes reaches the assistant as data, instruction-shaped text is flagged for the person who approves, and a model that obeys an injected ticket changes nothing, flagged or not: its tools act for one person, a change waits for approval, and nothing it can reach sends anything outside (chapter 20).",
+      "status": "done",
+      "proof": "python/tests/test_injections.py::test_the_outcome_is_the_same_when_the_flag_misses_everything"
+    },
+    {
+      "id": "hash-checked-installs",
+      "description": "Every Python and npm download is checked against a hash recorded in a lock file, the helpdesk builds without fetching anything unchecked, and what is installed matches the locks (chapter 20).",
+      "status": "done",
+      "proof": "tools/lockfiles.test.mjs::setup.mjs must require hashes and build without fetching"
+    },
+    {
+      "id": "model-retirement",
+      "description": "Models are components with retirement dates (agents/models.toml): a definition naming a model that has retired, is deprecated or may retire within the policy's notice fails, with the date and what to move to, and every model the code names is a pinned ID (chapter 20).",
+      "status": "done",
+      "proof": "python/tests/test_agent_policy.py::test_an_approved_model_fails_the_day_its_earliest_retirement_is_within_the_notice"
+    },
+    {
+      "id": "mcp-definitions-pinned",
+      "description": "The catalog pins a digest of the tool definitions an MCP server was approved with, and the server refuses to start when a description has changed since (chapter 20).",
+      "status": "done",
+      "proof": "python/tests/test_mcp_http.py::test_a_changed_tool_description_is_refused_until_it_is_reviewed"
+    },
+    {
       "id": "golden-set",
       "description": "A golden set of tickets with known good answers, for evaluating the assistant (chapter 21).",
       "status": "todo",

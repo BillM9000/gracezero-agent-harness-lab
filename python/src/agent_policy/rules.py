@@ -1,9 +1,11 @@
-"""The policy for agent definitions (chapter 18), as one pure function: check(definition, policy).
+"""The policy for agent definitions (chapter 18), as one pure function:
+check(definition, policy, models, today).
 
-It takes a parsed definition and the parsed policy, and returns every violation it finds, each
-naming the field and giving the reason and the fix, so a definition with three problems gets three
-messages in one run. It reads no files, calls nothing and keeps no state, which is what lets the
-fixtures in tests/policy_fixtures/ pin exactly what it accepts and what it refuses.
+It takes a parsed definition, the parsed policy, the models' lifecycle (agents/models.toml, chapter
+20) and the day to check as of, and returns every violation it finds, each naming the field and
+giving the reason and the fix, so a definition with three problems gets three messages in one run.
+It reads no files and no clock, calls nothing and keeps no state, which is what lets the fixtures in
+tests/policy_fixtures/ pin exactly what it accepts and what it refuses, on any day.
 """
 
 from __future__ import annotations
@@ -11,6 +13,7 @@ from __future__ import annotations
 import difflib
 import json
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -30,6 +33,9 @@ RULES = {
     "approver": "an approval the platform doesn't know",
     "approval-level": "an approval below the least the platform requires for that tool",
     "approval-extra": "an approval for a tool that only reads, or that the agent doesn't have",
+    # Chapter 20: models as components with a retirement date.
+    "retired": "a model that has retired, so requests to it fail",
+    "retiring": "a model that is deprecated, or may retire within the policy's notice",
 }
 
 
@@ -72,7 +78,70 @@ def is_a(value: Any, kind: type) -> bool:
     return isinstance(value, kind) and not isinstance(value, bool)
 
 
-def check(definition: dict[str, Any], policy: dict[str, Any]) -> list[Violation]:
+def lifecycle(model: str, policy: dict[str, Any], models: dict[str, Any], today: date) -> Violation | None:
+    """Chapter 20: a model that has retired, is deprecated, or may retire within the policy's notice,
+    with the date and what to move to. None for a model that's fine, or that the registry doesn't
+    know (check reports that separately for an approved model)."""
+    entry = models["models"].get(model)
+    if entry is None:
+        return None
+    state, retires = entry["state"], entry.get("retires")
+    approved: dict[str, Any] = policy["models"]
+    notice: int = policy["retirement_notice_days"]
+    replacement = entry.get("replacement")
+    if replacement is not None:
+        move = f"Anthropic recommends {replacement} in its place"
+        move += (
+            ", which is approved: change model to it."
+            if replacement in approved
+            else f", which isn't approved here: use one of {', '.join(map(shown, approved))}, or ask the "
+            "platform team to approve it in agents/policy.toml."
+        )
+    else:
+        # The approved models that may retire later than this one, and aren't retiring themselves.
+        def later(other: str) -> bool:
+            theirs = models["models"].get(other, {})
+            when = theirs.get("retires")
+            return (
+                theirs.get("state") == "active"
+                and when is not None
+                and (retires is None or when > retires)
+                and (when - today).days > notice
+            )
+
+        better = [m for m in approved if m != model and later(m)]
+        move = (
+            f"Move to an approved model that retires later: {', '.join(map(shown, better))}."
+            if better
+            else "No approved model retires later: ask the platform team to approve a newer one."
+        )
+    read = f"(agents/models.toml, from Anthropic's model deprecations page, read {models['read']})"
+    if state == "retired" or (state == "deprecated" and retires is not None and retires <= today):
+        when = f" on {retires.isoformat()}" if retires is not None else ""
+        return Violation("model", "retired", f"{model} retired{when}, and requests to it fail {read}. {move}")
+    if state == "deprecated":
+        if retires is None:
+            reason = f"{model} is deprecated, and its retirement date isn't announced yet {read}. {move}"
+        else:
+            days = (retires - today).days
+            reason = (
+                f"{model} is deprecated and retires on {retires.isoformat()}, in {days} days {read}. {move}"
+            )
+        return Violation("model", "retiring", reason)
+    if retires is not None and (retires - today).days <= notice:
+        days = (retires - today).days
+        soon = f"in {days} days" if days >= 0 else f"{-days} days ago"
+        reason = (
+            f"{model} may retire as soon as {retires.isoformat()}, {soon}, and the policy moves agents "
+            f"{notice} days before {read}. {move}"
+        )
+        return Violation("model", "retiring", reason)
+    return None
+
+
+def check(
+    definition: dict[str, Any], policy: dict[str, Any], models: dict[str, Any], today: date
+) -> list[Violation]:
     found: list[Violation] = []
 
     known = [*FIELDS, *OPTIONAL]
@@ -95,24 +164,38 @@ def check(definition: dict[str, Any], policy: dict[str, Any]) -> list[Violation]
         else:
             usable[key] = definition[key]
 
-    models: dict[str, dict[str, float]] = policy["models"]
+    approved: dict[str, dict[str, float]] = policy["models"]
     model = usable.get("model")
-    if model is not None and model not in models:
+    if model is not None and model not in approved:
         found.append(
             Violation(
                 "model",
                 "model",
-                f"{shown(model)} isn't an approved model. Use one of {', '.join(map(shown, models))}, or ask "
-                "the platform team to approve it in agents/policy.toml.",
+                f"{shown(model)} isn't an approved model. Use one of {', '.join(map(shown, approved))}, or "
+                "ask the platform team to approve it in agents/policy.toml.",
             )
         )
+    elif model is not None and model not in models["models"]:
+        # Approved, but nobody tracks when it retires. Fail closed.
+        found.append(
+            Violation(
+                "model",
+                "model",
+                f"{shown(model)} is approved but isn't in agents/models.toml, so nothing tracks when it "
+                "retires. Add it from Anthropic's model deprecations page.",
+            )
+        )
+    if model is not None:
+        retiring = lifecycle(model, policy, models, today)
+        if retiring is not None:
+            found.append(retiring)
 
     max_tokens = usable.get("max_tokens")
     if max_tokens is not None and max_tokens < 1:
         found.append(Violation("max_tokens", "range", f"must be at least 1, not {max_tokens}."))
-    elif max_tokens is not None and model in models:
+    elif max_tokens is not None and model in approved:
         # A rule across two fields: what a call may cost depends on the model's price.
-        price = Decimal(str(models[model]["output_usd_per_million"]))
+        price = Decimal(str(approved[model]["output_usd_per_million"]))
         cap = Decimal(str(policy["max_call_output_usd"]))
         cost = price * max_tokens / 1_000_000
         if cost > cap:

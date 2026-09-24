@@ -48,11 +48,11 @@ def test_a_result_over_the_limit_is_cut_at_a_line_and_says_how_to_ask_for_less(c
     content = toolbox.run(ToolCall("c1", "find_tickets", {})).content
     lines = content.splitlines()
     assert lines[-1] == (
-        "[Cut: this result was 601 characters, and only the first 269 are shown. Use the status or assignee "
+        "[Cut: this result was 611 characters, and only the first 273 are shown. Use the status or assignee "
         "filters to ask for fewer tickets.]"
     )
     assert lines[-2].startswith("#12 [open, high]")  # whole lines only
-    assert len("\n".join(lines[:-1])) == 269
+    assert len("\n".join(lines[:-1])) == 273
 
 
 def test_a_result_under_the_limit_is_untouched(conn):

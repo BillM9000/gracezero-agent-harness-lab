@@ -15,5 +15,9 @@ url = "http://127.0.0.1:8765/mcp"
 scopes = ["kb:read", "tickets:read"]
 # Exactly the tools it was approved with. A tool added later needs a new review before it can run.
 tools = ["get_ticket", "find_tickets", "search_kb"]
+# The digest of those tools' definitions as they were reviewed: the names, descriptions and schemas
+# a model reads (chapter 20). A changed description needs a new review too.
+# python -m helpdesk.mcp_server --definitions prints the digest of the ones it offers.
+definitions = "sha256:700131a60351a1d564af63d1d9b23b9e6b064fda9f966e3e16a640c0a060ede2"
 approved = "2026-09-23"
 approved_by = "platform-security"

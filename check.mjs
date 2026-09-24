@@ -3,7 +3,8 @@
 // Runs the Python lint, format, import-rule, model-text-rule, agent-policy, MCP-catalog, retrieval
 // and test checks, a check that the API contract and the TypeScript types generated from it are
 // current, the TypeScript type-check, import rules and tests, the Node script tests, a check that setup.mjs's
-// Windows path limit still fits the installed packages, a budget for the instruction files, a check
+// Windows path limit still fits the installed packages, a check that every pinned package has its
+// hashes and that what's installed matches the lock files, a budget for the instruction files, a check
 // of what the documentation claims, and a check that the work list's done items name real tests,
 // then prints one line per check. Exits 1 if any fails, after printing the end of that check's
 // output. CI runs this same command.
@@ -56,6 +57,7 @@ const CHECKS = [
       "postings/tally.test.mjs",
       "tools/harness-inventory.test.mjs",
       "tools/install-paths.test.mjs",
+      "tools/lockfiles.test.mjs",
       "tools/instruction-files.test.mjs",
       "tools/doc-claims.test.mjs",
       "tools/progress.test.mjs",
@@ -72,6 +74,8 @@ const CHECKS = [
     SUITE,
   ],
   ["Setup's path limit (tools/install-paths.mjs)", process.execPath, ["tools/install-paths.mjs"], { cwd: ROOT }],
+  // Every pin has its hashes, setup requires them, and what's installed is what the locks say (chapter 20).
+  ["Lock files (tools/lockfiles.mjs)", process.execPath, ["tools/lockfiles.mjs"], { cwd: ROOT }],
   // The lab's own budget for what its instruction files load: 200 lines, Claude Code's documented
   // target, and 4,000 estimated tokens, so long lines can't hide inside the line count.
   ["Instruction files (tools/instruction-files.mjs)", process.execPath, ["tools/instruction-files.mjs", ".", "--max-tokens", "4000"], { cwd: ROOT }],

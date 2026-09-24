@@ -15,6 +15,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - 30 new Python tests (349 in all), 6 new script tests; 36 new entries in `tools/mutations.mjs` (206 in all).
 - Work list: `draft-reply` and `approval-before-sending` marked done; `writers-declare-approval` and `destructive-command-guard` added as done; each with its proof.
 - Checked with: `node check.mjs` (all 19 checks passed) and `node tools/progress.mjs .` (no problems).
+- Then `node tools/mutate.mjs` on the committed tree at `e12933f`: all 206 caught in 8.8 minutes, and the tree unchanged.
 - Next: `golden-set`, the first item still to do.
 
 ## 2026-09-24: chapter 14, multi-agent patterns

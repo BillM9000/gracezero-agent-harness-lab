@@ -13,7 +13,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - `python -m helpdesk.mcp_client --url` speaks HTTP with a token from the lab's issuer (`--as`, `--scope`, `--audience`).
 - 64 new Python tests (290 in all); 22 new entries in `tools/mutations.mjs` (154 in all).
 - Work list: `mcp-governance` added as done, with its proof.
-- Checked with: `node check.mjs` (all 19 checks passed) and `node tools/progress.mjs .` (no problems). `node tools/mutate.mjs` runs next, on the committed tree.
+- Checked with: `node check.mjs` (all 19 checks passed), `node tools/mutate.mjs` (all 154 caught in 7.8 minutes, on the committed tree at `f9104e1`, which it left unchanged) and `node tools/progress.mjs .` (no problems).
 - Next: `draft-reply`, still the first item to do.
 
 ## 2026-09-23: chapter 12, an MCP server

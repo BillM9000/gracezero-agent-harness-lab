@@ -1310,6 +1310,13 @@ export const MUTATIONS = [
     run: pytest(`${HTTP_TESTS}::test_the_server_offers_exactly_what_the_catalog_approved`),
   },
   {
+    guard: "mcp http: Ctrl+C stops the server cleanly",
+    file: MCP_SERVER,
+    find: "        except KeyboardInterrupt:\n            pass\n",
+    replace: "",
+    run: pytest(`${HTTP_TESTS}::test_the_server_stops_cleanly_when_interrupted`),
+  },
+  {
     guard: "catalog: a tool the catalog didn't approve is found",
     file: CATALOG,
     find: "        for extra in [x for x in offered if x not in approved]:",

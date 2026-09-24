@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -402,6 +403,27 @@ def test_the_command_serves_the_lab_client_over_http(running):
     assert metadata["resource"] == url
     outcomes = [r["outcome"] for r in read(Path(folder) / "audit.jsonl")]
     assert outcomes == ["ok", "ok", "ok", "refused 403: needs tickets:read"]
+
+
+def test_the_server_stops_cleanly_when_interrupted(tmp_path):
+    # Ctrl+C in the server's terminal. On Windows a script can't press it for another process, so the
+    # test sends Ctrl+Break, which uvicorn and the server handle the same way.
+    env = {k: v for k, v in os.environ.items() if k != STAFF_VARIABLE}
+    env["HELPDESK_RUN_DIR"] = str(tmp_path)
+    windows = sys.platform == "win32"
+    server = subprocess.Popen(
+        [sys.executable, "-m", "helpdesk.mcp_server", "--http", "--port", "0"],
+        stderr=subprocess.PIPE,
+        env=env,
+        encoding="utf-8",
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0,
+    )
+    assert server.stderr is not None
+    assert server.stderr.readline().startswith("helpdesk MCP server: http://127.0.0.1:")
+    server.send_signal(signal.CTRL_BREAK_EVENT if windows else signal.SIGINT)
+    assert server.wait(timeout=30) == 0
+    assert server.stderr.read().strip().endswith("helpdesk MCP server: stopped.")
+    server.stderr.close()
 
 
 def test_the_sdks_own_client_can_use_it_with_a_token(running):

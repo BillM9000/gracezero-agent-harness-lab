@@ -36,6 +36,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import socket
 import sqlite3
 import sys
@@ -99,6 +100,7 @@ SCOPES_SUPPORTED = sorted({*TOOL_SCOPES.values(), *PROMPT_SCOPES.values(), *RESO
 HTTP_HOST = "127.0.0.1"  # the specification asks a server running locally to listen on localhost only
 HTTP_PORT = 8765
 CATALOG_NAME = "helpdesk"  # this server's entry in the catalog of approved servers
+STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM) + ((signal.SIGBREAK,) if sys.platform == "win32" else ())
 # The code the revisions with the initialize handshake (2024-11-05 to 2025-11-25) give a resource that
 # doesn't exist. 2026-07-28 uses -32602 (Invalid Params) instead, and the SDK names only that one.
 RESOURCE_NOT_FOUND = -32002
@@ -313,6 +315,10 @@ def shown(path: Path) -> str:
         return path.as_posix()
 
 
+def interrupted(number: int, frame: Any) -> None:
+    raise KeyboardInterrupt
+
+
 def serve_http(port: int, catalog: Path) -> int:
     if os.environ.get(STAFF_VARIABLE, "").strip():
         print(
@@ -345,6 +351,10 @@ def serve_http(port: int, catalog: Path) -> int:
         verifier = Verifier(public_key_at(folder), issuer=ISSUER, audience=resource)
         audit = AuditLog(folder / "audit.jsonl")
         app = build_http_app(conn, resource=resource, verifier=verifier, audit=audit)
+        # Ctrl+C (Ctrl+Break too, on Windows) stops it, at any moment. While it serves, uvicorn takes
+        # the signal, shuts down cleanly, then raises it again here, where it ends the run quietly.
+        for stop in STOP_SIGNALS:
+            signal.signal(stop, interrupted)
         print(
             f"helpdesk MCP server: {resource}, over Streamable HTTP, for the person each request's token "
             f"names. It accepts tokens from {ISSUER} issued for that address; audit log {shown(audit.path)}.",
@@ -353,8 +363,11 @@ def serve_http(port: int, catalog: Path) -> int:
         )
         try:
             uvicorn.Server(uvicorn.Config(app, log_level="warning")).run(sockets=[listener])
+        except KeyboardInterrupt:
+            pass
         finally:
             audit.close()
+        print("helpdesk MCP server: stopped.", file=sys.stderr)
         return 0
     finally:
         conn.close()

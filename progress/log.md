@@ -14,6 +14,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - 64 new Python tests (290 in all); 22 new entries in `tools/mutations.mjs` (154 in all).
 - Work list: `mcp-governance` added as done, with its proof.
 - Checked with: `node check.mjs` (all 19 checks passed), `node tools/mutate.mjs` (all 154 caught in 7.8 minutes, on the committed tree at `f9104e1`, which it left unchanged) and `node tools/progress.mjs .` (no problems).
+- Follow-up: Ctrl+C (Ctrl+Break on Windows) now stops the HTTP server with exit code 0 and `helpdesk MCP server: stopped.`, where Ctrl+Break had ended it with exit code 3; a new test and a new mutation (291 tests, 155 mutations). Checked with `node check.mjs` (all 19 checks passed); `node tools/mutate.mjs` runs next, on the committed tree.
 - Next: `draft-reply`, still the first item to do.
 
 ## 2026-09-23: chapter 12, an MCP server

@@ -6,6 +6,16 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
 
+## 2026-09-23: chapter 11, designing tools for agents
+
+- The triage assistant acts for one member of staff (`--as`, default sam), and its tools show only what that person may see: `helpdesk/services/access.py` holds the rule, and every tool applies it to every ticket it reads, lists or counts. A hidden ticket and a missing one get the same message. The sample data grew to 12 tickets, 5 customers, 3 staff and 4 replies, so the rule and the pages have something to act on.
+- Tools: `get_ticket` now returns the ticket in context (names, replies, the customer's other tickets); new `find_tickets` lists in handling order, five to a page; `search_kb` unchanged. Every schema is strict and closed to extra arguments, and the toolbox checks the whole schema before a tool runs, reporting every problem at once. Unexpected exceptions come back as results that say not to retry, and results over 6,000 characters are cut with a note. The Anthropic adapter sends `strict: true` and leaves out the keywords strict mode refuses.
+- `python -m helpdesk.tools` (`list`, `schema`, `call`, `compare`) is a new composition root; `compare` measures two tasks against a narrow set with one tool per table (`helpdesk/assistant/narrow.py`).
+- 42 new Python tests (205 in all); 28 new entries in `tools/mutations.mjs` (121 in all), and one existing entry updated for the policy's new tool list.
+- Work list: `tools-act-for-a-person` added as done, with its proof. The description of `triage-tools-read-only` said "exactly two tools"; it was reworded to what the item guards, read-only, because the count changed and the property didn't.
+- Checked with: `node check.mjs` (all 18 checks passed), `node tools/mutate.mjs` and `node tools/progress.mjs .` (results in the chapter 11 commit's CHANGELOG entry).
+- Next: `draft-reply`, still the first item to do.
+
 ## 2026-09-23: chapter 9, retrieval over the knowledge base
 
 - `search_kb` returns ranked passages (keyword and vector rankings fused by rank) with ids to cite, and the triage assistant's answers have their citations checked against what the run was given. `python -m helpdesk.kb eval` measures recall at 3 on `python/evals/kb_questions.json` and is the 18th check. 39 new Python tests.

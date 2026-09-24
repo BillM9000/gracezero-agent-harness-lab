@@ -14,7 +14,7 @@ max_turns = 10
 
 # The tools an agent may be given. A test checks that they're exactly the tools the code provides
 # (src/helpdesk/assistant/tools.py).
-tools = ["get_ticket", "search_kb"]
+tools = ["get_ticket", "find_tickets", "search_kb"]
 
 # The models an agent may use, with each one's output price per million tokens. A test checks the
 # prices against src/helpdesk/model/cost.py.

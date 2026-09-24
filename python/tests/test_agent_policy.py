@@ -22,6 +22,7 @@ from agent_policy.rules import RULES, check
 from helpdesk.assistant.tools import triage_tools
 from helpdesk.data.db import connect, init_schema
 from helpdesk.model.cost import PRICES
+from helpdesk.services.access import Person
 
 FIXTURES_DIR = Path(__file__).parent / "policy_fixtures"
 FIXTURES = sorted(FIXTURES_DIR.glob("*.toml"))
@@ -85,7 +86,8 @@ def test_the_policy_tools_are_the_tools_the_code_provides():
     conn = connect(":memory:")
     init_schema(conn)
     try:
-        provided = sorted(spec.name for spec in triage_tools(conn).specs)
+        # Which tools exist doesn't depend on who the assistant acts for.
+        provided = sorted(spec.name for spec in triage_tools(conn, Person(1, "Any One", "support")).specs)
     finally:
         conn.close()
     assert sorted(POLICY_DATA["tools"]) == provided

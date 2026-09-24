@@ -21,7 +21,7 @@
     },
     {
       "id": "triage-tools-read-only",
-      "description": "The triage assistant has exactly two tools, and both only read.",
+      "description": "The triage assistant's tools only read (two until chapter 11 added a third).",
       "status": "done",
       "proof": "python/tests/test_triage_tools.py::test_the_assistants_tools_only_read"
     },
@@ -102,6 +102,12 @@
       "description": "The assistant searches the knowledge base with keyword and vector rankings fused by rank, measured by recall at 3 on a golden set that fails below its floor, and every citation in its answer is checked against the passages it was given.",
       "status": "done",
       "proof": "python/tests/test_kb_cli.py::test_the_eval_fails_when_retrieval_loses_a_question_and_names_it"
+    },
+    {
+      "id": "tools-act-for-a-person",
+      "description": "The triage assistant's tools act for one member of staff and refuse what that person can't see, check every argument against a strict schema before running, answer a bad call with what to do next, and return long lists a page at a time.",
+      "status": "done",
+      "proof": "python/tests/test_tool_access.py::test_a_ticket_assigned_to_someone_else_is_refused_inside_the_tool"
     },
     {
       "id": "draft-reply",

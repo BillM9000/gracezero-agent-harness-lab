@@ -11,14 +11,14 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | Path | What it is |
 |---|---|
 | `python/src/helpdesk/api/` | HTTP routes (FastAPI) and the request and response models, the one place the API's shapes are written. Calls services only. |
-| `python/src/helpdesk/services/` | Business rules, and knowledge-base retrieval and citation checks (chapter 9). Calls the data layer. |
+| `python/src/helpdesk/services/` | Business rules, including what each member of staff may see (`access.py`, chapter 11), and retrieval and citation checks (chapter 9). Calls the data layer. |
 | `python/src/helpdesk/data/` | SQL and the SQLite connection. |
-| `python/src/helpdesk/assistant/` | The triage assistant: an agent loop (`agent.py`) and the tools it may use (`tools.py`). Sits beside the API routes; calls services, never the data layer. |
+| `python/src/helpdesk/assistant/` | The triage assistant: an agent loop (`agent.py`), its tools (`tools.py`), and a narrow set kept only to compare against (`narrow.py`). A tool acts for the person it was built for, never one named in its arguments. Calls services, never the data layer. |
 | `python/src/helpdesk/model/` | The model interface, a deterministic mock, the Anthropic client (`anthropic_client.py`), stop-reason handling (`stops.py`) and cost arithmetic (`cost.py`). Imports nothing else from the helpdesk. |
-| `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. Teaching code, not part of the helpdesk. |
+| `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. |
 | `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
 | `python/agents/` | Agent definitions (`triage.toml`) and the platform's policy for them (`policy.toml`), checked by `python/src/agent_policy/` (chapter 18). |
-| `python/src/helpdesk/main.py`, `triage.py`, `kb.py` | Composition roots: the web service, the triage assistant, the knowledge base's command line. |
+| `python/src/helpdesk/main.py`, `triage.py`, `kb.py`, `tools.py` | Composition roots: the web service, the triage assistant, and the knowledge base's and tools' command lines. |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to; `tests/fitness/` checks properties of the code as a whole (chapter 15). |
 | `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
 | `ts/` | TypeScript client and command-line tool for the API. `src/api-types.ts` is generated from the contract. Import rules: `eslint.config.js` and `.dependency-cruiser.cjs`. |
@@ -57,6 +57,7 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Chapter 2 demos: `python -m toymodel tokens|next <text>`, `python -m helpdesk.model.cost`
 - The triage assistant: `python -m helpdesk.triage` (mock model, scripted); `python -m helpdesk.triage --real "..."` calls Anthropic's API and needs a credential such as `ANTHROPIC_API_KEY`
 - Knowledge base: `python -m helpdesk.kb eval` checks retrieval against `python/evals/kb_questions.json`; also `query`, `cite`, `chunks`, `size`
+- Tools: `python -m helpdesk.tools list`, `schema`, `call` (one call, `--as` a member of staff) and `compare`
 
 TypeScript, from `ts/`:
 
@@ -71,18 +72,18 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 - `node postings/tally.mjs postings/sample-2026-09-22.json` counts chapter 1's postings sample. The sample is a dated record: never edit its codes; code a new sample in a new file instead.
 - `node tools/harness-inventory.mjs <path>` lists the evidence a repository's files give for each part of a harness (chapter 4).
 - `node tools/install-paths.mjs` checks setup's Windows path limit against the installed packages (chapter 5).
-- `node tools/instruction-files.mjs <path> [--max-lines N] [--max-tokens N]` reports what each instruction file loads, and when (chapter 6).
-- `node tools/doc-claims.mjs [path]` checks that paths named in `README.md`, `AGENTS.md` and `CLAUDE.md` exist, and that each number marked `<!-- claim: NAME -->` still matches the repository (chapter 8).
-- `node tools/progress.mjs [path]` shows the work list and the last session's log entry, and fails if a done item names no test that exists, or if more than one item is in progress (chapter 10).
+- `node tools/instruction-files.mjs <path>` reports what each instruction file loads, and when (chapter 6).
+- `node tools/doc-claims.mjs [path]` checks the paths and marked numbers in these documents (chapter 8).
+- `node tools/progress.mjs [path]` shows the work list and the last log entry, and fails if a done item's test doesn't exist (chapter 10).
 - `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it; when you add a guard, add its entry (chapter 24).
-- `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command until they pass, at most three times, and stops early if nothing changes or the agent changes the checks; `node tools/stand-in-agent.mjs` stands in for an agent (chapter 25).
+- `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command, at most three times, and stops if nothing changes or the checks do; `node tools/stand-in-agent.mjs` stands in for an agent (chapter 25).
 - `node tools/rework.mjs [path]` shows where fixes landed on recent agent work, from git history alone; `node tools/rework-demo.mjs <folder>` builds a history to try it on (chapter 31).
 
 ## Rules
 
 1. Layers run api and assistant (siblings that never import each other), then services, then data. Neither routes nor the assistant import `helpdesk.data`: move the query into a service and call that. `lint-imports` enforces this, and its failure message says how to fix it. In `ts/`, the CLI uses the client and the client uses the types; only `src/cli.ts` uses Node's built-in modules, and only `src/types.ts` imports `src/api-types.ts`. `npm run lint` and `npm run deps` enforce this.
 2. `helpdesk.model` imports nothing from the helpdesk, and nothing else imports the `anthropic` SDK. Pass the model what it needs as arguments, and pass code that needs a model a `ModelClient`.
-3. Only the composition roots, `main.py`, `triage.py` and `kb.py` in `helpdesk/`, wire the layers together.
+3. Only the composition roots (see Layout) wire the layers together.
 4. Tests use the mock model and never call a real model or the network.
 5. Code that wants a model's text calls `helpdesk.model.stops.final_text`, never `response.text` directly, so a refusal or a cut-off answer can't pass as a finished one. `python -m helpdesk_lint` enforces this; a line with a real reason to read the text says so in a `# HDK101: <why>` comment.
 6. Warnings fail the Python test run. Fix the cause instead of silencing it; the one exception, raised inside Starlette, is listed in `pyproject.toml`.

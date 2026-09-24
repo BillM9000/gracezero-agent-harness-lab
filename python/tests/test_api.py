@@ -12,7 +12,7 @@ def test_health(client):
 def test_list_tickets(client):
     response = client.get("/tickets")
     assert response.status_code == 200
-    assert len(response.json()) == 4
+    assert len(response.json()) == 12
 
 
 def test_create_ticket_returns_201(client):
@@ -72,6 +72,6 @@ def test_build_app_seeds_a_fresh_database_once(tmp_path):
     # pytest turns an unclosed connection's ResourceWarning into a failure, so a leak fails here.
     db = str(tmp_path / "helpdesk.db")
     with TestClient(build_app(db)) as client:
-        assert len(client.get("/tickets").json()) == 4
+        assert len(client.get("/tickets").json()) == 12
     with TestClient(build_app(db)) as client:
-        assert len(client.get("/tickets").json()) == 4
+        assert len(client.get("/tickets").json()) == 12

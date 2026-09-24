@@ -1,9 +1,9 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 16 to 18, 24, 25 and 31 are
-// here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter 1's
-// tally's check for missing fields; the guards from earlier chapters were broken by hand when they
-// were built (CHANGELOG.md records each time) and are the next candidates to add.
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11, 16 to 18, 24, 25 and 31
+// are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter
+// 1's tally's check for missing fields; the guards from earlier chapters were broken by hand when
+// they were built (CHANGELOG.md records each time) and are the next candidates to add.
 
 const pytest = (...tests) => ({ cwd: "python", python: ["-m", "pytest", "-q", "-p", "no:cacheprovider", ...tests] });
 const vitest = (file, name) => ({ cwd: "ts", vitest: [file, "-t", name] });
@@ -30,6 +30,15 @@ const KB_CLI = "python/src/helpdesk/kb.py";
 const KB_CLI_TESTS = "tests/test_kb_cli.py";
 const CITATIONS = "python/src/helpdesk/services/citations.py";
 const CITATIONS_TESTS = "tests/test_citations.py";
+const ACCESS = "python/src/helpdesk/services/access.py";
+const TICKETS = "python/src/helpdesk/services/tickets.py";
+const TOOLS = "python/src/helpdesk/assistant/tools.py";
+const ADAPTER = "python/src/helpdesk/model/anthropic_client.py";
+const TOOL_ACCESS = "tests/test_tool_access.py";
+const TOOL_ARGS = "tests/test_tool_arguments.py";
+const TOOL_RESULTS = "tests/test_tool_results.py";
+const TOOL_DEFS = "tests/fitness/test_tool_definitions.py";
+const ADAPTER_TESTS = "tests/test_anthropic_client.py";
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -494,8 +503,8 @@ export const MUTATIONS = [
   {
     guard: "agent policy: its tools match the code",
     file: "python/agents/policy.toml",
-    find: 'tools = ["get_ticket", "search_kb"]',
-    replace: 'tools = ["get_ticket", "search_kb", "send_email"]',
+    find: 'tools = ["get_ticket", "find_tickets", "search_kb"]',
+    replace: 'tools = ["get_ticket", "find_tickets", "search_kb", "send_email"]',
     run: pytest(`${POLICY}::test_the_policy_tools_are_the_tools_the_code_provides`),
   },
   {
@@ -863,6 +872,205 @@ export const MUTATIONS = [
     find: "    return report.ok\n",
     replace: "    return True\n",
     run: pytest("tests/test_triage_cli.py::test_a_draft_that_changes_what_its_passage_says_is_stopped"),
+  },
+
+  // Chapter 11: tools that act for a person, check their arguments, and size their results.
+  {
+    guard: "access: support staff see their own tickets and the queue, no others",
+    file: ACCESS,
+    find: 'return ticket["assignee_id"] in (None, person.id)',
+    replace: "return True",
+    run: pytest(`${TOOL_ACCESS}::test_a_ticket_assigned_to_someone_else_is_refused_inside_the_tool`),
+  },
+  {
+    guard: "access: a role the rule doesn't know sees nothing",
+    file: ACCESS,
+    find: "    return False  # a role this rule doesn't know sees nothing: it fails closed",
+    replace: "    return True",
+    run: pytest(`${TOOL_ACCESS}::test_a_role_the_rule_does_not_know_sees_nothing`),
+  },
+  {
+    guard: "access: a hidden ticket gets the same answer as a missing one",
+    file: TICKETS,
+    find: "    if ticket is None or not access.can_see(person, ticket):\n        raise NotFound(access.cannot_see(person, ticket_id))",
+    replace:
+      '    if ticket is None:\n        raise NotFound(access.cannot_see(person, ticket_id))\n    if not access.can_see(person, ticket):\n        raise NotFound(f"Ticket {ticket_id} is assigned to someone else.")',
+    run: pytest(`${TOOL_ACCESS}::test_a_missing_ticket_and_one_you_cannot_see_get_the_same_answer`),
+  },
+  {
+    guard: "access: lists and counts hold only what the person can see",
+    file: TICKETS,
+    find: "return [t for t in list_tickets(conn, status) if access.can_see(person, t)]",
+    replace: "return list_tickets(conn, status)",
+    run: pytest(`${TOOL_ACCESS}::test_lists_and_counts_hold_only_what_the_person_can_see`),
+  },
+  {
+    guard: "access: a customer's other tickets are trimmed to what the person can see",
+    file: TICKETS,
+    find: 'if other["id"] != ticket_id and access.can_see(person, other)',
+    replace: 'if other["id"] != ticket_id',
+    run: pytest(`${TOOL_ACCESS}::test_the_customers_other_tickets_are_trimmed_too`),
+  },
+  {
+    guard: "access: the narrow set's customer lookups are trimmed too",
+    file: TICKETS,
+    find: "return [t for t in rows if access.can_see(person, t)]",
+    replace: "return rows",
+    run: pytest(`${TOOL_ACCESS}::test_the_narrow_set_keeps_the_same_rule`),
+  },
+  {
+    guard: "triage: the tools act for the person the assistant was started for",
+    file: "python/src/helpdesk/triage.py",
+    find: 'tools = triage_tools(conn, person).only(agent["tools"])',
+    replace: 'tools = triage_tools(conn, access.find_person(conn, "sam")).only(agent["tools"])',
+    run: pytest("tests/test_triage_cli.py::test_the_demo_says_who_the_assistant_acts_for_and_its_tools_act_for_them"),
+  },
+  {
+    guard: "arguments: an argument the schema doesn't have is refused",
+    file: TOOLS,
+    find: "        if name not in properties\n",
+    replace: "        if False\n",
+    run: pytest(`${TOOL_ACCESS}::test_the_model_cannot_choose_whose_permissions_to_use`),
+  },
+  {
+    guard: "arguments: a value outside an enum is refused, naming the values allowed",
+    file: TOOLS,
+    find: "        if not same:\n",
+    replace: "        if False:\n",
+    run: pytest(`${TOOL_ARGS}::test_every_problem_is_reported_at_once`),
+  },
+  {
+    guard: "arguments: an enum value in another case is taken as the schema's own",
+    file: TOOLS,
+    find: "        value = same[0]\n",
+    replace: "        value = value\n",
+    run: pytest(`${TOOL_ARGS}::test_an_enum_value_in_another_case_is_taken_as_the_schemas_own`),
+  },
+  {
+    guard: "arguments: a number below the minimum is refused",
+    file: TOOLS,
+    find: '    if "minimum" in rules and value < rules["minimum"]:',
+    replace: "    if False:",
+    run: pytest(`${TOOL_ARGS}::test_a_number_below_the_minimum_is_refused`),
+  },
+  {
+    guard: "arguments: text that is only spaces is refused",
+    file: TOOLS,
+    find: 'if "minLength" in rules and len(value.strip()) < rules["minLength"]:',
+    replace: 'if "minLength" in rules and len(value) < rules["minLength"]:',
+    run: pytest(`${TOOL_ARGS}::test_empty_text_is_refused`),
+  },
+  {
+    guard: "arguments: every problem is reported at once",
+    file: TOOLS,
+    find: "    return fixed, problems\n",
+    replace: "    return fixed, problems[:1]\n",
+    run: pytest(`${TOOL_ARGS}::test_every_problem_is_reported_at_once`),
+  },
+  {
+    guard: "arguments: nothing runs when the arguments are wrong",
+    file: TOOLS,
+    find: "        if problems:\n",
+    replace: "        if False:\n",
+    run: pytest(`${TOOL_ARGS}::test_nothing_runs_when_the_arguments_are_wrong`),
+  },
+  {
+    guard: "results: a result over the limit is cut, and says how to ask for less",
+    file: TOOLS,
+    find: "        if len(content) <= self.max_result_chars:\n",
+    replace: "        if True:\n",
+    run: pytest(`${TOOL_RESULTS}::test_a_result_over_the_limit_is_cut_at_a_line_and_says_how_to_ask_for_less`),
+  },
+  {
+    guard: "results: a cut ends at a whole line",
+    file: TOOLS,
+    find: '            cut = cut[: cut.rindex("\\n")]\n',
+    replace: "            cut = cut\n",
+    run: pytest(`${TOOL_RESULTS}::test_a_result_over_the_limit_is_cut_at_a_line_and_says_how_to_ask_for_less`),
+  },
+  {
+    guard: "results: a page that isn't the last says how to get the next",
+    file: TOOLS,
+    find: '            lines.append(f"More on page {n}: call find_tickets again with the same filters and page {n}.")\n',
+    replace: "            pass\n",
+    run: pytest(`${TOOL_RESULTS}::test_a_page_says_how_many_match_and_how_to_get_the_next`),
+  },
+  {
+    guard: "results: a page past the end is refused, naming the last page",
+    file: TICKETS,
+    find: "    if page > pages:\n",
+    replace: "    if False:\n",
+    run: pytest(`${TOOL_RESULTS}::test_a_page_past_the_end_names_the_last_page`),
+  },
+  {
+    guard: "results: an unexpected failure comes back as a result that says not to retry",
+    file: TOOLS,
+    find: "        except Exception as e:\n",
+    replace: "        except ZeroDivisionError as e:\n",
+    run: pytest(`${TOOL_RESULTS}::test_an_unexpected_failure_says_not_to_retry_and_logs_the_traceback`),
+  },
+  {
+    guard: "strict: a strict tool goes out marked strict",
+    file: ADAPTER,
+    find: 'return {"name": tool.name, "description": tool.description, "input_schema": schema, "strict": True}',
+    replace: 'return {"name": tool.name, "description": tool.description, "input_schema": schema}',
+    run: pytest(`${ADAPTER_TESTS}::test_a_strict_tool_goes_out_marked_strict_without_the_keywords_strict_mode_refuses`),
+  },
+  {
+    guard: "strict: the keywords strict mode refuses are left out of what is sent",
+    file: ADAPTER,
+    find: '        if key in STRICT_UNSUPPORTED or (key == "minItems" and value not in (0, 1)):\n',
+    replace: "        if False:\n",
+    run: pytest(`${ADAPTER_TESTS}::test_a_strict_tool_goes_out_marked_strict_without_the_keywords_strict_mode_refuses`),
+  },
+  {
+    guard: "strict: an object open to extra arguments is refused before anything is sent",
+    file: ADAPTER,
+    find: '    if schema.get("type") == "object" and schema.get("additionalProperties") is not False:\n',
+    replace: "    if False:\n",
+    run: pytest(`${ADAPTER_TESTS}::test_a_strict_object_that_allows_extra_properties_is_refused_before_sending`),
+  },
+  {
+    guard: "strict: no more strict tools in one request than the provider allows",
+    file: ADAPTER,
+    find: "            if len(strict) > MAX_STRICT_TOOLS:\n",
+    replace: "            if False:\n",
+    run: pytest(`${ADAPTER_TESTS}::test_more_strict_tools_than_one_request_may_carry_are_refused_before_sending`),
+  },
+  {
+    guard: "tool definitions: a parameter without a description fails the build",
+    file: TOOLS,
+    find: '"description": "What to look for, in words."',
+    replace: '"description": ""',
+    run: pytest(`${TOOL_DEFS}::test_every_tool_is_described_well_enough_to_reason_from`),
+  },
+  {
+    guard: "tool definitions: a tool that isn't strict fails the build",
+    file: "python/src/helpdesk/assistant/narrow.py",
+    find: "return ToolSpec(name, description, schema, strict=True)",
+    replace: "return ToolSpec(name, description, schema)",
+    run: pytest(`${TOOL_DEFS}::test_every_tool_is_described_well_enough_to_reason_from`),
+  },
+  {
+    guard: "tool definitions: a description under three sentences is caught",
+    file: `python/${TOOL_DEFS}`,
+    find: "    if sentences(spec.description) < MIN_SENTENCES:\n",
+    replace: "    if False:\n",
+    run: pytest(`${TOOL_DEFS}::test_a_thin_definition_is_caught_with_each_problem_named`),
+  },
+  {
+    guard: "tool definitions: an ambiguous parameter name is caught",
+    file: `python/${TOOL_DEFS}`,
+    find: "        if name in AMBIGUOUS:\n",
+    replace: "        if False:\n",
+    run: pytest(`${TOOL_DEFS}::test_a_thin_definition_is_caught_with_each_problem_named`),
+  },
+  {
+    guard: "compare: both tool sets must gather the facts each task needs",
+    file: "python/src/helpdesk/tools.py",
+    find: '                    ("list_customer_tickets", {"customer_id": 2}),\n',
+    replace: "",
+    run: pytest("tests/test_tools_cli.py::test_both_sets_see_the_facts_each_task_needs"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

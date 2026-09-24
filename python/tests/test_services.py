@@ -29,8 +29,8 @@ def test_blank_subject_is_invalid(conn):
 
 
 def test_list_filters_by_status(conn):
-    assert [t["id"] for t in tickets.list_tickets(conn, "open")] == [1, 2]
-    assert [t["id"] for t in tickets.list_tickets(conn)] == [1, 2, 3, 4]
+    assert [t["id"] for t in tickets.list_tickets(conn, "open")] == [1, 2, 6, 7, 8, 10, 11, 12]
+    assert [t["id"] for t in tickets.list_tickets(conn)] == list(range(1, 13))
 
 
 def test_unknown_status_is_invalid(conn):

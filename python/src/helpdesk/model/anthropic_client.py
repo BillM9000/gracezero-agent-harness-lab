@@ -16,6 +16,24 @@ from helpdesk.model.types import Message, ModelResponse, ToolCall, ToolSpec
 # The model Anthropic's models page suggested starting with on 2026-09-22.
 DEFAULT_MODEL = "claude-opus-5-5"
 
+# Strict tool use (chapter 11), as Anthropic's structured-outputs page described it on 2026-09-23.
+# It supports part of JSON Schema: not numerical constraints, string lengths, or array lengths
+# beyond a minItems of 0 or 1, and a request that uses them is refused. The lab's schemas keep
+# those keywords, because the toolbox enforces them before any tool runs, and they're left out of
+# what is sent. Every object must set additionalProperties to false, and one request may carry at
+# most 20 strict tools.
+STRICT_UNSUPPORTED = (
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "multipleOf",
+    "minLength",
+    "maxLength",
+    "maxItems",
+)
+MAX_STRICT_TOOLS = 20
+
 
 class AnthropicModel:
     def __init__(self, client: Any = None, model: str = DEFAULT_MODEL, max_tokens: int = 16000) -> None:
@@ -37,6 +55,13 @@ class AnthropicModel:
             "messages": [to_api(m) for m in messages],
         }
         if tools:
+            strict = [t.name for t in tools if t.strict]
+            if len(strict) > MAX_STRICT_TOOLS:
+                raise ValueError(
+                    f"{len(strict)} strict tools in one request, and strict tool use allows "
+                    f"{MAX_STRICT_TOOLS}. Give the agent fewer tools, or mark only the ones where a "
+                    "malformed argument does real harm as strict."
+                )
             request["tools"] = [tool_to_api(t) for t in tools]
         response = self._client.messages.create(**request)
         return ModelResponse(
@@ -52,7 +77,38 @@ class AnthropicModel:
 
 
 def tool_to_api(tool: ToolSpec) -> dict[str, Any]:
-    return {"name": tool.name, "description": tool.description, "input_schema": tool.input_schema}
+    if not tool.strict:
+        return {"name": tool.name, "description": tool.description, "input_schema": tool.input_schema}
+    schema = strict_schema(tool.input_schema, where=tool.name)
+    return {"name": tool.name, "description": tool.description, "input_schema": schema, "strict": True}
+
+
+def strict_schema(schema: Any, where: str = "schema") -> Any:
+    """The schema as strict tool use accepts it: the same shape, without the keywords strict mode
+    doesn't support. An object that doesn't set additionalProperties to false is an error, not
+    something to fix quietly: adding it here would make the model's arguments stricter than the
+    schema the toolbox checks them against."""
+    if isinstance(schema, list):
+        return [strict_schema(item, f"{where}[{i}]") for i, item in enumerate(schema)]
+    if not isinstance(schema, dict):
+        return schema
+    if schema.get("type") == "object" and schema.get("additionalProperties") is not False:
+        raise ValueError(
+            f"{where}: strict tool use needs additionalProperties set to false on every object. Add "
+            '"additionalProperties": False to it, so the toolbox refuses extra arguments too.'
+        )
+    kept = {}
+    for key, value in schema.items():
+        if key in STRICT_UNSUPPORTED or (key == "minItems" and value not in (0, 1)):
+            continue
+        # Property names are data, not keywords: a property called "minimum" is kept.
+        inside = f"{where}.{key}"
+        kept[key] = (
+            {name: strict_schema(sub, f"{inside}.{name}") for name, sub in value.items()}
+            if key == "properties"
+            else strict_schema(value, inside)
+        )
+    return kept
 
 
 def to_api(message: Message) -> dict[str, Any]:

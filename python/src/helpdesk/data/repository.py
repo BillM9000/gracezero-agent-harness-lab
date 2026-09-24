@@ -30,6 +30,20 @@ def staff_exists(conn: sqlite3.Connection, staff_id: int) -> bool:
     return conn.execute("SELECT 1 FROM staff WHERE id = ?", (staff_id,)).fetchone() is not None
 
 
+def list_staff(conn: sqlite3.Connection) -> list[Row]:
+    return [dict(r) for r in conn.execute("SELECT * FROM staff ORDER BY id").fetchall()]
+
+
+def customer_names(conn: sqlite3.Connection) -> dict[int, str]:
+    # Names only: the assistant's tools have no reason to read a customer's email address.
+    return {row["id"]: row["name"] for row in conn.execute("SELECT id, name FROM customers").fetchall()}
+
+
+def list_tickets_for_customer(conn: sqlite3.Connection, customer_id: int) -> list[Row]:
+    rows = conn.execute("SELECT * FROM tickets WHERE customer_id = ? ORDER BY id", (customer_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def insert_ticket(
     conn: sqlite3.Connection, customer_id: int, subject: str, body: str, priority: str, created_at: str
 ) -> int:

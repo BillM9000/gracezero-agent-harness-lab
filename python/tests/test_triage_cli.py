@@ -10,7 +10,7 @@ from helpdesk.assistant.agent import run_agent
 from helpdesk.assistant.tools import triage_tools
 from helpdesk.model.mock import MockModel
 from helpdesk.model.types import ModelResponse
-from helpdesk.services import kb
+from helpdesk.services import access, kb
 
 
 def triage(*args: str) -> subprocess.CompletedProcess[str]:
@@ -41,7 +41,8 @@ def test_a_draft_that_changes_what_its_passage_says_is_stopped(conn, capsys):
         *triage_cli.DEMO_SCRIPT[:2],
         ModelResponse("end_turn", text="Reset emails can take up to an hour [1#2]."),
     ]
-    run = run_agent(MockModel(script), triage_tools(conn), system="s", task=triage_cli.DEMO_TASK)
+    sam = access.find_person(conn, "sam")
+    run = run_agent(MockModel(script), triage_tools(conn, sam), system="s", task=triage_cli.DEMO_TASK)
     known = {chunk.id for chunk in kb.build_index(conn).chunks}
     assert not triage_cli.report_citations(run.answer, run.transcript, known)
     assert "[1#2] doesn't say: hour" in capsys.readouterr().out
@@ -51,6 +52,22 @@ def test_a_low_turn_limit_stops_the_demo_and_says_why():
     run = triage("--max-turns", "2")
     assert run.returncode == 1
     assert "Stopped: No answer after 2 turns" in run.stdout
+
+
+def test_the_demo_says_who_the_assistant_acts_for_and_its_tools_act_for_them():
+    sam = triage().stdout
+    assert "Acting for: Sam Rivera (support)" in sam
+    assert "Ada Park's other tickets that Sam Rivera can see: #11 [open]" in sam
+    dana = triage("--as", "dana").stdout
+    assert "Acting for: Dana Whitfield (lead)" in dana
+    assert "Ada Park's other tickets that Dana Whitfield can see: #4 [closed]" in dana
+
+
+def test_an_unknown_person_is_refused_before_anything_runs():
+    run = triage("--as", "bob")
+    assert run.returncode == 2
+    assert "No member of staff called 'bob'. Choose one of: sam (Sam Rivera, support)" in run.stderr
+    assert "turn 1" not in run.stdout
 
 
 def test_the_mock_refuses_a_question_it_has_no_script_for():

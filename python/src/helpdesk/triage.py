@@ -4,11 +4,13 @@ python -m helpdesk.triage                  the scripted demo, with the mock mode
 python -m helpdesk.triage --max-turns 2    the same demo, stopped by the turn limit
 python -m helpdesk.triage --real "Ticket 3: what should we tell this customer?"
 python -m helpdesk.triage --agent FILE     run another agent definition instead of agents/triage.toml
+python -m helpdesk.triage --as dana        act for another member of staff (default: sam)
 
 The assistant is built from its definition, agents/triage.toml, which must pass the platform's
 policy (agents/policy.toml, chapter 18) before anything runs. --real calls Anthropic's API and
 needs a credential the SDK can find, such as ANTHROPIC_API_KEY. Each run uses a fresh in-memory
-copy of the sample data, so nothing is saved. After an answer, every citation in it is checked
+copy of the sample data, so nothing is saved. The assistant acts for one member of staff, and its
+tools show only what that person may see (chapter 11). After an answer, every citation in it is checked
 against the passages the run's searches returned (chapter 9), and a problem makes the exit code 1.
 """
 
@@ -28,7 +30,8 @@ from helpdesk.data.seed import seed
 from helpdesk.model.mock import MockModel
 from helpdesk.model.stops import IncompleteResponse
 from helpdesk.model.types import Message, ModelClient, ModelResponse, ToolCall
-from helpdesk.services import citations, kb
+from helpdesk.services import access, citations, kb
+from helpdesk.services.errors import Invalid
 
 DEMO_TASK = "Ticket 1: the customer says the reset email never arrives. Draft a reply."
 
@@ -98,6 +101,7 @@ def main() -> int:
     parser.add_argument("--real", action="store_true", help="use Anthropic's API instead of the mock")
     parser.add_argument("--max-turns", type=int, help="this run's turn limit (default: the definition's)")
     parser.add_argument("--agent", type=Path, default=AGENTS / "triage.toml", help="the definition to run")
+    parser.add_argument("--as", dest="person", default="sam", help="the member of staff to act for")
     args = parser.parse_args()
     if args.task and not args.real:
         parser.error("the mock only knows its demo script; add --real to ask your own question")
@@ -117,6 +121,13 @@ def main() -> int:
     conn = connect(":memory:")
     init_schema(conn)
     seed(conn)
+    # Who the assistant acts for comes from whoever starts it, never from the model (chapter 11).
+    try:
+        person = access.find_person(conn, args.person)
+    except Invalid as e:
+        conn.close()
+        print(e, file=sys.stderr)
+        return 2
     model: ModelClient
     if args.real:
         from helpdesk.model.anthropic_client import AnthropicModel
@@ -126,8 +137,8 @@ def main() -> int:
     else:
         model, task, label = MockModel(DEMO_SCRIPT), DEMO_TASK, "mock, scripted"
 
-    print(f"Task: {task}\nModel: {label}\n")
-    tools = triage_tools(conn).only(agent["tools"])
+    print(f"Task: {task}\nModel: {label}\nActing for: {person.label}\n")
+    tools = triage_tools(conn, person).only(agent["tools"])
     known = {chunk.id for chunk in kb.build_index(conn).chunks}
     try:
         run = run_agent(model, tools, system=agent["system"], task=task, max_turns=agent["max_turns"])

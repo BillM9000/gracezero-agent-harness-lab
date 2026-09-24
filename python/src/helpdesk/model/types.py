@@ -22,11 +22,18 @@ StopReason = Literal[
 
 @dataclass(frozen=True)
 class ToolSpec:
-    """A tool the model may ask to call. input_schema is JSON Schema."""
+    """A tool the model may ask to call. input_schema is JSON Schema.
+
+    strict asks the provider to constrain the model's arguments to the schema, where it offers that
+    (chapter 11). It never replaces checking the arguments before the tool runs: a provider's strict
+    mode supports only part of JSON Schema, and a well-formed argument can still name a ticket that
+    doesn't exist.
+    """
 
     name: str
     description: str
     input_schema: dict[str, Any] = field(default_factory=dict)
+    strict: bool = False
 
 
 @dataclass(frozen=True)

@@ -13,7 +13,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - A fifth import contract keeps the SDK in `helpdesk.mcp_server`.
 - 21 new Python tests (226 in all); 11 new entries in `tools/mutations.mjs` (132 in all).
 - Work list: `mcp-server` marked done, with its proof.
-- Checked with: `node check.mjs` (all 18 checks passed) and `node tools/progress.mjs .` (no problems). `node tools/mutate.mjs` needs a clean tree, so it runs after this commit.
+- Checked with: `node check.mjs` (all 18 checks passed), `node tools/mutate.mjs` (all 132 caught in 6.2 minutes, in the working copy at `6524d60`) and `node tools/progress.mjs .` (no problems).
 - Next: `draft-reply`, still the first item to do.
 
 ## 2026-09-23: chapter 11, designing tools for agents

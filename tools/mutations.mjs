@@ -2190,6 +2190,13 @@ export const MUTATIONS = [
     run: LOCK_CHECK,
   },
   {
+    guard: "setup: the lock installs wheels only",
+    file: "setup.mjs",
+    find: '"--only-binary", ":all:", ',
+    replace: "",
+    run: LOCK_CHECK,
+  },
+  {
     guard: "setup: the helpdesk builds without fetching a backend",
     file: "setup.mjs",
     find: '"--no-build-isolation", ',

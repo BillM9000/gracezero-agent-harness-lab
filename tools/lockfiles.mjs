@@ -5,9 +5,11 @@
 //
 // 1. python/requirements-lock.txt pins every package with == and gives each at least one
 //    --hash=sha256:. pip's hash-checking mode then refuses a download whose hash isn't listed.
-// 2. setup.mjs installs the lock with --require-hashes, and builds the helpdesk with
-//    --no-build-isolation. An isolated build fetches its build backend (setuptools) without a hash,
-//    so the backend is pinned in the lock instead, and the build uses that copy.
+// 2. setup.mjs installs the lock with --require-hashes and --only-binary :all:, and builds the
+//    helpdesk with --no-build-isolation. An isolated build fetches its build backend (setuptools)
+//    without a hash, so the backend is pinned in the lock instead, and the build uses that copy. And
+//    with source archives allowed, pip passes over a wheel whose hash is wrong for a source archive
+//    whose hash matches, and builds it: code runs, and build tools arrive unchecked.
 // 3. python/.venv holds exactly the lock's packages for this platform, at the lock's versions, plus
 //    pip, which comes with Python, and the helpdesk itself. pip checks a hash when it downloads a
 //    file, not afterwards: a package already installed is left alone. This is the check afterwards.
@@ -105,6 +107,12 @@ function setupProblems() {
   const lockLine = lines.find((line) => line.includes('"requirements-lock.txt"'));
   if (!lockLine?.includes('"--require-hashes"')) {
     problems.push('setup.mjs: install the lock with "--require-hashes", so a package without a hash is refused, not installed.');
+  }
+  if (!lockLine?.includes('"--only-binary", ":all:"')) {
+    problems.push(
+      'setup.mjs: install the lock with "--only-binary", ":all:": otherwise a wheel whose hash is wrong is passed over ' +
+        "for a source archive, and building that runs code and fetches build tools without a hash.",
+    );
   }
   const buildLine = lines.find((line) => line.includes('"-e", "."'));
   if (!buildLine?.includes('"--no-build-isolation"')) {

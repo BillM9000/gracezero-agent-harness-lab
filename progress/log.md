@@ -19,6 +19,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Checked with: `node check.mjs` (all 20 checks passed) and `node tools/progress.mjs .` (no problems).
 - From 2027-06-24, `python -m agent_policy` fails here by design: claude-opus-5-5 may retire as soon as 2027-09-22. Move the definitions, then update `agents/models.toml` from Anthropic's page.
 - Then `node tools/mutate.mjs` on the committed tree at `f6c0c13`: 233 of 234 in 9.7 minutes, and the tree unchanged. The one not counted is no survivor: the control run of chapter 13's Ctrl+C test (`test_the_server_stops_cleanly_when_interrupted`) failed on the unchanged code. Alone it passed 30 runs in a row; with other tests running beside it, it failed once in 8, the server exiting non-zero after Ctrl+Break. The cause isn't found yet; it's a flaky test to fix, recorded here so the next failure isn't a surprise.
+- Found verifying from a fresh clone: with one of `anthropic`'s hashes changed, `pip download --require-hashes` took the source archive, whose hash still matched, and built it. `setup.mjs` now adds `--only-binary :all:`, and `node tools/lockfiles.mjs` requires it. Checked with `node check.mjs` (all 20 checks passed) and the same download, now refused.
 - Next: `golden-set`, the first item still to do; and the flaky Ctrl+C test.
 
 ## 2026-09-24: chapter 19, permissions and human approval

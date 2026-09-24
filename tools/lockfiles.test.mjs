@@ -19,7 +19,7 @@ const WINDOWS = process.platform === "win32";
 const SITE = WINDOWS ? ["python", ".venv", "Lib", "site-packages"] : ["python", ".venv", "lib", "python3.14", "site-packages"];
 const HASH = (c) => c.repeat(64);
 const SETUP_OK =
-  'step("a", pip[0], [...pip[1], "--require-hashes", "-r", "requirements-lock.txt"]);\n' +
+  'step("a", pip[0], [...pip[1], "--require-hashes", "--only-binary", ":all:", "-r", "requirements-lock.txt"]);\n' +
   'step("b", pip[0], [...pip[1], "--no-build-isolation", "-e", ".", "--no-deps"]);\n';
 const LOCK_OK =
   "# a comment\n" +
@@ -100,6 +100,9 @@ test("setup.mjs must require hashes and build without fetching", () => {
   let { status, output } = check(repo({ setup: SETUP_OK.replace('"--require-hashes", ', "") }));
   assert.equal(status, 1);
   assert.match(output, /install the lock with "--require-hashes"/);
+  ({ status, output } = check(repo({ setup: SETUP_OK.replace('"--only-binary", ":all:", ', "") })));
+  assert.equal(status, 1);
+  assert.match(output, /a wheel whose hash is wrong is passed over for a source archive/);
   ({ status, output } = check(repo({ setup: SETUP_OK.replace('"--no-build-isolation", ', "") })));
   assert.equal(status, 1);
   assert.match(output, /an isolated build downloads setuptools without a hash/);

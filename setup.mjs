@@ -8,7 +8,10 @@
 // Every download is checked against a hash recorded in a lock file (chapter 20): pip's
 // --require-hashes refuses a Python package whose hash isn't in requirements-lock.txt, npm ci one
 // whose integrity differs from package-lock.json, and the helpdesk is built with the setuptools the
-// lock installed (--no-build-isolation), not one fetched unchecked. tools/lockfiles.mjs checks all this.
+// lock installed (--no-build-isolation), not one fetched unchecked. --only-binary :all: installs
+// wheels only: with source archives allowed, a wheel whose hash is wrong is passed over for the
+// package's source archive, if its hash matches, and building that runs its code and fetches build
+// tools without a hash. tools/lockfiles.mjs checks all this.
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -101,7 +104,7 @@ if (!existsSync(VENV_PYTHON)) {
 }
 
 const pip = [VENV_PYTHON, ["-m", "pip", "install", "--disable-pip-version-check", "-q"]];
-step("Install the pinned Python packages", pip[0], [...pip[1], "--require-hashes", "-r", "requirements-lock.txt"], { cwd: join(ROOT, "python") });
+step("Install the pinned Python packages", pip[0], [...pip[1], "--require-hashes", "--only-binary", ":all:", "-r", "requirements-lock.txt"], { cwd: join(ROOT, "python") });
 step("Install the helpdesk package", pip[0], [...pip[1], "--no-build-isolation", "-e", ".", "--no-deps"], { cwd: join(ROOT, "python") });
 // npm is a .cmd script on Windows, which Node only runs through a shell. The command is fixed text.
 step("Install the TypeScript packages", "npm ci", [], { cwd: join(ROOT, "ts"), shell: true });

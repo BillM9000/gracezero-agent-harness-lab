@@ -3,7 +3,7 @@
 # sha256 of every file PyPI publishes for that version, so any platform finds its own (chapter 20).
 # setuptools builds the helpdesk package; it's pinned here so the build doesn't fetch one unchecked.
 # pywin32 is for the MCP SDK on Windows only.
-# Install with: pip install --require-hashes -r requirements-lock.txt, then
+# Install with: pip install --require-hashes --only-binary :all: -r requirements-lock.txt, then
 # pip install --no-deps --no-build-isolation -e . (setup.mjs does both).
 # After changing a pin: node tools/lockfiles.mjs hashes, then node setup.mjs.
 annotated-doc==0.0.5 \

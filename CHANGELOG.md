@@ -90,6 +90,7 @@
 - **New pins** in `python/requirements-lock.txt`: `mcp` 2.2.0 and the 14 packages it brings (`mcp-types`, `attrs`, `cffi`, `cryptography`, `jsonschema`, `jsonschema-specifications`, `opentelemetry-api`, `pycparser`, `PyJWT`, `python-multipart`, `pywin32` on Windows only, `referencing`, `rpds-py`, `sse-starlette`). The longest installed file is still anthropic's 108 characters, so setup's Windows path limit is unchanged (`node tools/install-paths.mjs`).
 - `tests/test_mcp_server.py` starts the server as a subprocess and drives it over stdio: discovery and the legacy handshake, a request without its metadata (-32602) and an unknown version (-32022), the tools' whole schemas and read-only annotations, every tool, resource and prompt as two people, the refusals, standard output, shutdown when its input closes, and the SDK's own client against it. 21 new Python tests (226 in all), and 11 new entries in `tools/mutations.mjs` (132 in all), each caught: `node tools/mutate.mjs` caught 132 of 132 in 6.2 minutes.
 - `AGENTS.md`: four lines shortened, then one Layout entry and one command line added; 3,995 of its 4,000 estimated tokens.
+- Follow-up: the comment on the ticket resource said a record is "never kept". A time to live of 0 means a client should treat it as stale at once, which is what the comment now says. No change in behavior.
 
 ## 2026-09-23, chapter 11 lab
 

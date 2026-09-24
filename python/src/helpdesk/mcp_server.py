@@ -155,8 +155,8 @@ def build_server(conn: sqlite3.Connection, person: Person) -> Server[Any]:
             record = types.TextResourceContents(
                 uri=uri, mime_type="application/json", text=json.dumps(ticket, indent=2)
             )
-            # What this person may see, fetched now: never shared with anyone else's cache, never
-            # kept, because tickets change as people work on them.
+            # What this person may see: never shared with anyone else's cache, and stale as soon as it
+            # arrives (a time to live of 0), because tickets change as people work on them.
             return types.ReadResourceResult(contents=[record], ttl_ms=0, cache_scope="private")
         article = next((a for a in kb.articles(conn) if a["id"] == int(number)), None)
         if article is None:

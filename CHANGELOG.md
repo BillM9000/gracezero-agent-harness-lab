@@ -92,6 +92,7 @@
 - `passages_given` moved from `triage.py` to `helpdesk/assistant/tools.py`; `Toolbox.plus` adds tools and refuses a name used twice; `tickets.active_by_customer` groups a person's open and pending tickets by customer.
 - `tests/test_team.py` (15), `tests/test_revise.py` (8) and `tests/test_patterns_compare.py` (5): 28 new Python tests, 319 in all. The tool-definition fitness test now walks the orchestrator's tools too, and the policy test counts `delegate_customer`. 15 new entries in `tools/mutations.mjs` (170 in all).
 - `AGENTS.md`: four phrases cut, then the patterns added to the Layout and the commands; 3,993 of its 4,000 estimated tokens.
+- Follow-up, found by `node tools/mutate.mjs` on the committed tree at `dc45cfb`: 169 of 170 caught in 9.7 minutes, and one entry stale. The policy's tool list gained `delegate_customer`, so the text chapter 18's entry changes ("its tools match the code") was no longer in the file, and nothing short of the nightly run noticed. The entry now changes the new list. A new script test in `tools/mutate.test.mjs` requires every entry's text to be in its file exactly once, so a stale entry fails `node check.mjs` in seconds; it failed on the stale entry before the fix, naming it, and passes after.
 
 ## 2026-09-23, chapter 13 lab
 

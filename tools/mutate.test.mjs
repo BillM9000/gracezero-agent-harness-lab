@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { git as runGit } from "./git-run.mjs";
 
 const RUNNER = join(dirname(fileURLToPath(import.meta.url)), "mutate.mjs");
@@ -84,6 +84,19 @@ test("a test command that fails on the unchanged code proves nothing, and fails 
   assert.equal(code, 1);
   assert.match(output, /CONTROL {3}evenness: its test command doesn't pass on the unchanged code/);
   assert.equal(readFileSync(join(root, "guard.mjs"), "utf8"), GUARD);
+});
+
+// The runner finds a stale entry only when it runs, which CI does every night. This finds one in
+// seconds, in node check.mjs, so the list can't fall behind the code for a day. (Chapter 14's
+// policy change made one entry stale, and only the nightly run noticed.)
+test("every entry in the repository's own list changes text that is in its file exactly once", async () => {
+  const root = join(dirname(RUNNER), "..");
+  const { MUTATIONS } = await import(pathToFileURL(join(root, "tools", "mutations.mjs")).href);
+  const stale = MUTATIONS.filter((m) => {
+    const text = readFileSync(join(root, m.file), "utf8").replaceAll("\r\n", "\n");
+    return text.split(m.find).length !== 2;
+  }).map((m) => `${m.guard} (${m.file})`);
+  assert.deepEqual(stale, []);
 });
 
 test("it refuses to start with uncommitted changes, and leaves them alone", () => {

@@ -516,8 +516,8 @@ export const MUTATIONS = [
   {
     guard: "agent policy: its tools match the code",
     file: "python/agents/policy.toml",
-    find: 'tools = ["get_ticket", "find_tickets", "search_kb"]',
-    replace: 'tools = ["get_ticket", "find_tickets", "search_kb", "send_email"]',
+    find: 'tools = ["get_ticket", "find_tickets", "search_kb", "delegate_customer"]',
+    replace: 'tools = ["get_ticket", "find_tickets", "search_kb", "delegate_customer", "send_email"]',
     run: pytest(`${POLICY}::test_the_policy_tools_are_the_tools_the_code_provides`),
   },
   {

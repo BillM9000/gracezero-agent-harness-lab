@@ -16,6 +16,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Work list: `multi-agent-patterns` added as done, with its proof.
 - Checked with: `node check.mjs` (all 19 checks passed) and `node tools/progress.mjs .` (no problems).
 - Follow-up: `node tools/mutate.mjs` on the committed tree at `dc45cfb` caught 169 of 170 in 9.7 minutes; the other was stale, because the policy's tool list it changes had gained `delegate_customer`. Fixed, and a new test in `tools/mutate.test.mjs` fails `node check.mjs` when any entry's text isn't in its file exactly once (it failed on this entry before the fix). Checked with `node --test tools/mutate.test.mjs` (6 passed) and the entry run alone (caught).
+- Then `node tools/mutate.mjs` on the committed tree at `6deb3b5`: all 170 caught in 9.2 minutes, and the tree unchanged.
 - Next: `draft-reply`, still the first item to do.
 
 ## 2026-09-23: chapter 13, governing MCP servers

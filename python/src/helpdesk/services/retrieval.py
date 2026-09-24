@@ -261,6 +261,3 @@ class Index:
             Hit(self.chunks[i], score, {m: places[m][i] for m in rankings if i in places[m]})
             for i, score in reciprocal_rank_fusion(rankings)[:k]
         ]
-
-    def get(self, chunk_id: str) -> Chunk | None:
-        return next((c for c in self.chunks if c.id == chunk_id), None)

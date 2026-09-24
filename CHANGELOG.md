@@ -77,6 +77,7 @@
 - **Measured, not tuned:** hybrid finds 21 of 24, keyword and vector 20 each. Fusion loses one question keyword search had right (an error code), which a test pins as a known limit. On this set, RRF with k = 0 would find 22 and b = 0 would help keyword search; both stay as the sources give them, because one question in 24 is not evidence.
 - 39 new Python tests (163 in all), and 13 new entries in `tools/mutations.mjs` (93 in all).
 - `AGENTS.md`: the Python setup line (setup.mjs does it) went, and the composition roots share a row; now 3,986 of its 4,000 estimated tokens.
+- Follow-up: `helpdesk/kb.py` takes its method and split as the retrieval module's own types instead of silencing a type-checker the lab doesn't run, and an unused `Index.get` went. No change in behavior.
 
 ## 2026-09-23, chapter 31 lab
 

@@ -25,7 +25,7 @@ from typing import Any
 from helpdesk.data.db import connect, init_schema
 from helpdesk.data.seed import seed
 from helpdesk.services import citations, kb
-from helpdesk.services.retrieval import METHODS, SPLITS, VECTOR_FLOOR, Index
+from helpdesk.services.retrieval import METHODS, SPLITS, VECTOR_FLOOR, Index, Method, Split
 
 GOLDEN = Path(__file__).resolve().parents[2] / "evals" / "kb_questions.json"
 # Anthropic's models page gives about 2.5 characters per token for its current tokenizer. It's an
@@ -61,10 +61,10 @@ def answered(question: dict[str, Any], hits: Sequence[Any]) -> bool:
     return any(h.chunk.article_id == answer["article"] and says in h.chunk.text.lower() for h in hits)
 
 
-def evaluate(index: Index, questions: Sequence[dict[str, Any]], k: int, method: str) -> Result:
+def evaluate(index: Index, questions: Sequence[dict[str, Any]], k: int, method: Method) -> Result:
     result = Result(method)
     for q in questions:
-        hits = index.search(q["question"], k, method)  # type: ignore[arg-type]
+        hits = index.search(q["question"], k, method)
         result.words_sent += sum(len(h.chunk.indexed.split()) for h in hits)
         right = answered(q, hits)
         tally = result.by_kind.setdefault(q["kind"], [0, 0])
@@ -87,12 +87,13 @@ def evaluate(index: Index, questions: Sequence[dict[str, Any]], k: int, method: 
     return result
 
 
-def run_eval(conn: Any, golden_path: Path, k: int | None, split: str) -> int:
+def run_eval(conn: Any, golden_path: Path, k: int | None, split: Split) -> int:
     golden = json.loads(golden_path.read_text(encoding="utf-8"))
     k = k or golden["k"]
-    index = kb.build_index(conn, split=split)  # type: ignore[arg-type]
+    index = kb.build_index(conn, split=split)
     questions = golden["questions"]
-    results = {m: evaluate(index, questions, k, m) for m in ("bm25", "vector", "hybrid")}
+    methods: tuple[Method, ...] = ("bm25", "vector", "hybrid")
+    results = {m: evaluate(index, questions, k, m) for m in methods}
     print(f"Golden set: {golden_path.name}, {len(questions)} questions.")
     print(f"Passages: {len(index.chunks)}, split by {split}. Top {k} for each question.\n")
     print(f"{'':20}{'bm25':>8}{'vector':>8}{'hybrid':>8}")
@@ -129,8 +130,8 @@ def run_eval(conn: Any, golden_path: Path, k: int | None, split: str) -> int:
     return 1
 
 
-def run_query(conn: Any, question: str, k: int, method: str) -> int:
-    hits = kb.retrieve(conn, question, k, method)  # type: ignore[arg-type]
+def run_query(conn: Any, question: str, k: int, method: Method) -> int:
+    hits = kb.retrieve(conn, question, k, method)
     if not hits:
         print(f"Nothing clears the floors for: {question}")
         print(f"(bm25 needs a word in common; vector needs a cosine similarity of at least {VECTOR_FLOOR}.)")
@@ -159,8 +160,8 @@ def run_cite(conn: Any, question: str, answer: str) -> int:
     return 0 if report.ok else 1
 
 
-def run_chunks(conn: Any, article: int | None, split: str) -> int:
-    index = kb.build_index(conn, split=split)  # type: ignore[arg-type]
+def run_chunks(conn: Any, article: int | None, split: Split) -> int:
+    index = kb.build_index(conn, split=split)
     shown = [c for c in index.chunks if article is None or c.article_id == article]
     if not shown:
         print(f"No article {article}. Articles are numbered 1 to {max(c.article_id for c in index.chunks)}.")

@@ -13,7 +13,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - `python -m helpdesk.tools` (`list`, `schema`, `call`, `compare`) is a new composition root; `compare` measures two tasks against a narrow set with one tool per table (`helpdesk/assistant/narrow.py`).
 - 42 new Python tests (205 in all); 28 new entries in `tools/mutations.mjs` (121 in all), and one existing entry updated for the policy's new tool list.
 - Work list: `tools-act-for-a-person` added as done, with its proof. The description of `triage-tools-read-only` said "exactly two tools"; it was reworded to what the item guards, read-only, because the count changed and the property didn't.
-- Checked with: `node check.mjs` (all 18 checks passed), `node tools/mutate.mjs` and `node tools/progress.mjs .` (results in the chapter 11 commit's CHANGELOG entry).
+- Checked with: `node check.mjs` (all 18 checks passed), `node tools/mutate.mjs` (all 121 caught in 5.5 minutes, in the working copy at `f5c7df2`) and `node tools/progress.mjs .` (no problems).
 - Next: `draft-reply`, still the first item to do.
 
 ## 2026-09-23: chapter 9, retrieval over the knowledge base

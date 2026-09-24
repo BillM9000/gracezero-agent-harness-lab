@@ -83,7 +83,7 @@
 - **`python -m helpdesk.tools`**, a new composition root: `list` shows the tools as the model sees them and what the definitions cost, `schema` shows one as the adapter sends it, `call` runs one call as a member of staff, and `compare` runs two scripted tasks with the triage set and with `helpdesk/assistant/narrow.py`, a narrow set with one tool per table kept only to measure against. A test checks that both sets' runs gathered the facts each answer rests on.
 - **The sample data grew** to 12 tickets, 5 customers, 3 staff (Priya Nair, support, is new) and 4 replies, all invented. The API and service tests that counted tickets were updated.
 - `tests/fitness/test_tool_definitions.py`: every tool the code defines has a description of at least three sentences, a description for every parameter, no ambiguous parameter names, a closed schema and strict marked.
-- 42 new Python tests (205 in all), and 28 new entries in `tools/mutations.mjs` (121 in all). The policy's tool list and its mutation now include `find_tickets`.
+- 42 new Python tests (205 in all), and 28 new entries in `tools/mutations.mjs` (121 in all), each caught: `node tools/mutate.mjs` caught 121 of 121 in 5.5 minutes. The policy's tool list and its mutation now include `find_tickets`.
 - `AGENTS.md`: four lines shortened to make room for the tools' command line and the new modules; now 3,980 of its 4,000 estimated tokens.
 
 ## 2026-09-23, chapter 9 lab

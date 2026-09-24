@@ -64,7 +64,7 @@ def test_malformed_payload_is_422(client):
 
 def test_kb_search(client):
     response = client.get("/kb/search", params={"q": "export"})
-    assert [a["id"] for a in response.json()] == [3]
+    assert [a["id"] for a in response.json()] == [3, 8, 14]
 
 
 def test_build_app_seeds_a_fresh_database_once(tmp_path):

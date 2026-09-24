@@ -17,7 +17,7 @@ dev = ["pytest>=9.1", "httpx2>=2.13", "import-linter>=2.15", "ruff>=0.16"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-helpdesk = ["data/schema.sql"]
+helpdesk = ["data/schema.sql", "data/kb/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

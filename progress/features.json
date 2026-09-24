@@ -98,6 +98,12 @@
       "proof": "tools/rework.test.mjs::a fix to a file an agent changed days before is rework, counted in that file's folder"
     },
     {
+      "id": "kb-retrieval",
+      "description": "The assistant searches the knowledge base with keyword and vector rankings fused by rank, measured by recall at 3 on a golden set that fails below its floor, and every citation in its answer is checked against the passages it was given.",
+      "status": "done",
+      "proof": "python/tests/test_kb_cli.py::test_the_eval_fails_when_retrieval_loses_a_question_and_names_it"
+    },
+    {
       "id": "draft-reply",
       "description": "The assistant can draft a reply to a ticket, which a person reads before anything is sent.",
       "status": "todo",

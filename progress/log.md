@@ -6,6 +6,15 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
 
+## 2026-09-23: chapter 9, retrieval over the knowledge base
+
+- `search_kb` returns ranked passages (keyword and vector rankings fused by rank) with ids to cite, and the triage assistant's answers have their citations checked against what the run was given. `python -m helpdesk.kb eval` measures recall at 3 on `python/evals/kb_questions.json` and is the 18th check. 39 new Python tests.
+- Measured on the golden set: hybrid 21 of 24, keyword and vector 20 each; 3 of 3 questions with no answer got nothing.
+- Broke each new guard in turn (13 new entries in `tools/mutations.mjs`); a test failed each time.
+- Work list: `kb-retrieval` added as done, with its proof.
+- Checked with: `node check.mjs` (all 18 checks passed), `node tools/mutate.mjs` (all 93 caught, from a fresh clone) and `node tools/progress.mjs .` (no problems).
+- Next: `draft-reply`, still the first item to do.
+
 ## 2026-09-23: chapter 31, where agent work gets redone
 
 - `node tools/rework.mjs` counts, from git history alone, where fixes landed on recent agent work, by folder, with the median time to the fix; `node tools/rework-demo.mjs` builds a history to try it on. 10 new script tests.

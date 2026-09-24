@@ -1,0 +1,37 @@
+{
+  "about": "The golden set for knowledge-base retrieval (chapter 9): questions worded the way customers write them, each with the article that answers it and words the answering passage must contain. A question with \"answer\": null has no answer in the knowledge base, and retrieval should return nothing for it. python -m helpdesk.kb eval measures recall at k against this file and fails below the floor. Answers are named by article and words, not by passage id, because ids change when articles are split differently. These questions were written by the person who wrote the articles, which is this set's weakest point: questions from real users are better.",
+  "k": 3,
+  "floor": {
+    "recall": 0.85,
+    "no_answer_empty": 1.0
+  },
+  "questions": [
+    {"id": "q01", "kind": "same words", "question": "How do I reset my password?", "answer": {"article": 1, "says": "Forgot password link"}},
+    {"id": "q02", "kind": "same words", "question": "How long does a reset link last before it expires?", "answer": {"article": 1, "says": "expires 30 minutes"}},
+    {"id": "q03", "kind": "same words", "question": "Are refunds automatic when I downgrade?", "answer": {"article": 2, "says": "Refunds are not automatic"}},
+    {"id": "q04", "kind": "same words", "question": "How do I transfer ownership of the workspace?", "answer": {"article": 7, "says": "Make owner"}},
+    {"id": "q05", "kind": "same words", "question": "Can I turn off security emails?", "answer": {"article": 11, "says": "can't be turned off"}},
+    {"id": "q06", "kind": "same words", "question": "What is the rate limit for API tokens?", "answer": {"article": 13, "says": "100 requests a minute"}},
+    {"id": "q07", "kind": "different words", "question": "I never got the email to change my password", "answer": {"article": 1, "says": "ten minutes"}},
+    {"id": "q08", "kind": "different words", "question": "How do I download all my projects as a spreadsheet?", "answer": {"article": 3, "says": "CSV of every project"}},
+    {"id": "q09", "kind": "different words", "question": "Can I get my money back?", "answer": {"article": 2, "says": "within 14 days"}},
+    {"id": "q10", "kind": "different words", "question": "If I kick someone out of the workspace, do their tasks disappear?", "answer": {"article": 7, "says": "doesn't delete their work"}},
+    {"id": "q11", "kind": "different words", "question": "My phone app won't open", "answer": {"article": 12, "says": "clear the app's cache"}},
+    {"id": "q12", "kind": "different words", "question": "What happens if my card is declined?", "answer": {"article": 9, "says": "three times over 7 days"}},
+    {"id": "q13", "kind": "different words", "question": "Is my data stored in Europe?", "answer": {"article": 14, "says": "European Union"}},
+    {"id": "q14", "kind": "different words", "question": "How do I log in with my work account?", "answer": {"article": 5, "says": "company account"}},
+    {"id": "q15", "kind": "typo or word form", "question": "pasword reset email not arriving", "answer": {"article": 1, "says": "ten minutes"}},
+    {"id": "q16", "kind": "typo or word form", "question": "my invite link expired", "answer": {"article": 6, "says": "expires after 7 days"}},
+    {"id": "q17", "kind": "typo or word form", "question": "where do I find my invoices", "answer": {"article": 9, "says": "Billing, then History"}},
+    {"id": "q18", "kind": "typo or word form", "question": "exporting attachements", "answer": {"article": 3, "says": "Attachments are not included"}},
+    {"id": "q19", "kind": "typo or word form", "question": "2 step verification, lost phone", "answer": {"article": 4, "says": "backup codes"}},
+    {"id": "q20", "kind": "typo or word form", "question": "can i delete my acount and undo it later", "answer": {"article": 8, "says": "Restore my account"}},
+    {"id": "q21", "kind": "exact code", "question": "E-4012", "answer": {"article": 5, "says": "isn't linked"}},
+    {"id": "q22", "kind": "exact code", "question": "getting error 2231 when I sign in", "answer": {"article": 4, "says": "clock on your phone"}},
+    {"id": "q23", "kind": "exact code", "question": "E-3107 on import", "answer": {"article": 10, "says": "Rename the column"}},
+    {"id": "q24", "kind": "exact code", "question": "status 429", "answer": {"article": 13, "says": "100 requests a minute"}},
+    {"id": "q25", "kind": "no answer", "question": "What is the capital of France?", "answer": null},
+    {"id": "q26", "kind": "no answer", "question": "Tell me a joke about cats", "answer": null},
+    {"id": "q27", "kind": "no answer", "question": "Do you sell gift cards?", "answer": null}
+  ]
+}

@@ -1,7 +1,8 @@
 """The tools the triage assistant may use, and the code that runs them.
 
 Chapter 3's tools only read. Tools that change things, such as drafting a reply or closing a
-ticket, arrive with the chapters on tool design and human approval.
+ticket, arrive with the chapters on tool design and human approval. Since chapter 9, search_kb
+returns ranked passages with ids the answer cites, instead of whole articles matching a keyword.
 """
 
 from __future__ import annotations
@@ -85,10 +86,11 @@ def triage_tools(conn: sqlite3.Connection) -> Toolbox:
         return "\n".join(lines)
 
     def search_kb(query: str) -> str:
-        articles = kb.search(conn, query)
-        if not articles:
-            return f"No knowledge-base article matches {query!r}. Try one shorter keyword."
-        return "\n".join(f"Article {a['id']}, {a['title']}: {a['body']}" for a in articles)
+        # Each passage on its own line, id first, which is how citations.passages_in reads it back.
+        hits = kb.retrieve(conn, query)
+        if not hits:
+            return f"Nothing in the knowledge base matches {query!r}. Say so in the reply; don't guess."
+        return "\n".join(f"[{hit.chunk.id}] {hit.chunk.indexed}" for hit in hits)
 
     return Toolbox(
         [
@@ -107,11 +109,12 @@ def triage_tools(conn: sqlite3.Connection) -> Toolbox:
             Tool(
                 ToolSpec(
                     "search_kb",
-                    "Search the knowledge base for articles containing a keyword. Short keywords work best.",
+                    "Search the knowledge base in plain words, such as the customer's question. Returns up "
+                    "to three passages, each starting with an id in square brackets to cite, such as [1#2].",
                     {
                         "type": "object",
                         "properties": {
-                            "query": {"type": "string", "description": "One keyword, such as password."}
+                            "query": {"type": "string", "description": "What to look for, in plain words."}
                         },
                         "required": ["query"],
                     },

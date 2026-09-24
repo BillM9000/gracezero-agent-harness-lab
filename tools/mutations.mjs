@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 16 to 18, 24, 25 and 31 are
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 16 to 18, 24, 25 and 31 are
 // here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter 1's
 // tally's check for missing fields; the guards from earlier chapters were broken by hand when they
 // were built (CHANGELOG.md records each time) and are the next candidates to add.
@@ -24,6 +24,12 @@ const STOP_TESTS = "tools/hooks/stop-check.test.mjs";
 const LOOP_TESTS = "tools/fix-loop.test.mjs";
 const REWORK = "tools/rework.mjs";
 const REWORK_TESTS = "tools/rework.test.mjs";
+const RETRIEVAL = "python/src/helpdesk/services/retrieval.py";
+const RETRIEVAL_TESTS = "tests/test_retrieval.py";
+const KB_CLI = "python/src/helpdesk/kb.py";
+const KB_CLI_TESTS = "tests/test_kb_cli.py";
+const CITATIONS = "python/src/helpdesk/services/citations.py";
+const CITATIONS_TESTS = "tests/test_citations.py";
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -721,6 +727,104 @@ export const MUTATIONS = [
     find: 'parts.slice(0, depth).join("/")',
     replace: 'parts.slice(0, 1).join("/")',
     run: nodeTest(REWORK_TESTS, "folders are grouped"),
+  },
+
+  // Chapter 9: retrieval over the knowledge base, its golden-set check, and citation checking.
+  {
+    guard: "retrieval: every passage carries its article's title and heading",
+    file: RETRIEVAL,
+    find: 'return f"{self.title} > {self.heading}: {self.text}" if self.heading else f"{self.title}: {self.text}"',
+    replace: "return self.text",
+    run: pytest(`${RETRIEVAL_TESTS}::test_a_question_can_find_a_passage_through_its_heading`),
+  },
+  {
+    guard: "retrieval: BM25 marks down a longer passage",
+    file: RETRIEVAL,
+    find: "norm = K1 * (1 - B + B * length / self.average_length)",
+    replace: "norm = K1",
+    run: pytest(`${RETRIEVAL_TESTS}::test_bm25_marks_down_a_longer_passage_with_the_same_matches`),
+  },
+  {
+    guard: "retrieval: a word in most passages weighs nothing, never less",
+    file: RETRIEVAL,
+    find: "max(0.0, math.log((n - c + 0.5) / (c + 0.5)))",
+    replace: "math.log((n - c + 0.5) / (c + 0.5))",
+    run: pytest(`${RETRIEVAL_TESTS}::test_a_word_in_most_passages_adds_nothing_rather_than_counting_against_a_passage`),
+  },
+  {
+    guard: "retrieval: fusion's k = 60 lets agreement beat one ranker's first place",
+    file: RETRIEVAL,
+    find: "RRF_K = 60",
+    replace: "RRF_K = 0",
+    run: pytest(`${RETRIEVAL_TESTS}::test_fusion_puts_a_passage_both_rankers_like_above_one_only_a_single_ranker_puts_first`),
+  },
+  {
+    guard: "retrieval: keyword search returns only passages with a word in common",
+    file: RETRIEVAL,
+    find: "passing = [i for i, s in enumerate(scores) if s > 0]",
+    replace: "passing = list(range(len(scores)))",
+    run: pytest(`${RETRIEVAL_TESTS}::test_a_question_the_knowledge_base_cannot_answer_gets_nothing_back`),
+  },
+  {
+    guard: "retrieval: the vector ranker returns only passages above its floor",
+    file: RETRIEVAL,
+    find: "passing = [i for i, s in enumerate(scores) if s >= VECTOR_FLOOR]",
+    replace: "passing = list(range(len(scores)))",
+    run: pytest(`${RETRIEVAL_TESTS}::test_a_question_the_knowledge_base_cannot_answer_gets_nothing_back`),
+  },
+  {
+    guard: "retrieval eval: recall below the floor fails",
+    file: KB_CLI,
+    find: 'recall_ok = hybrid.recall >= floor["recall"]',
+    replace: "recall_ok = True",
+    run: pytest(`${KB_CLI_TESTS}::test_the_eval_fails_when_retrieval_loses_a_question_and_names_it`),
+  },
+  {
+    guard: "retrieval eval: passages for a question with no answer fail",
+    file: KB_CLI,
+    find: 'empty_ok = empty_share >= floor["no_answer_empty"]',
+    replace: "empty_ok = True",
+    run: pytest(`${KB_CLI_TESTS}::test_the_eval_fails_when_a_question_with_no_answer_gets_passages`),
+  },
+  {
+    guard: "retrieval eval: a hit must contain the answer, not just come from the right article",
+    file: KB_CLI,
+    find: 'return any(h.chunk.article_id == answer["article"] and says in h.chunk.text.lower() for h in hits)',
+    replace: 'return any(h.chunk.article_id == answer["article"] for h in hits)',
+    run: pytest(`${KB_CLI_TESTS}::test_a_passage_from_the_right_article_without_the_answer_is_a_miss`),
+  },
+  {
+    guard: "citations: a citation to a passage that doesn't exist is caught",
+    file: CITATIONS,
+    find: "if known is not None and citation not in known:",
+    replace: "if False:",
+    run: pytest(`${CITATIONS_TESTS}::test_a_citation_to_a_passage_that_does_not_exist_is_caught`),
+  },
+  {
+    guard: "citations: a citation to a passage the answer wasn't given is caught",
+    file: CITATIONS,
+    find: `            elif citation not in given:
+                reason = f"[{citation}] wasn't among the passages this answer was given"
+                problems.append(Problem(citation, sentence, f"{reason}, so it can't have come from it"))
+            else:
+                support |= _vocabulary(given[citation])`,
+    replace: `            else:
+                support |= _vocabulary(given.get(citation, ""))`,
+    run: pytest(`${CITATIONS_TESTS}::test_a_citation_to_a_real_passage_the_answer_was_not_given_is_caught`),
+  },
+  {
+    guard: "citations: a sentence its passage doesn't support is caught",
+    file: CITATIONS,
+    find: "if support and missing:",
+    replace: "if False:",
+    run: pytest(`${CITATIONS_TESTS}::test_a_changed_fact_is_caught_and_the_word_named`),
+  },
+  {
+    guard: "triage: a draft whose citations fail is reported as failing",
+    file: "python/src/helpdesk/triage.py",
+    find: "    return report.ok\n",
+    replace: "    return True\n",
+    run: pytest("tests/test_triage_cli.py::test_a_draft_that_changes_what_its_passage_says_is_stopped"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

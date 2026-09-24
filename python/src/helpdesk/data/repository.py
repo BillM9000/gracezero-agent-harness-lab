@@ -82,10 +82,15 @@ def close_ticket(conn: sqlite3.Connection, ticket_id: int, closed_at: str) -> No
 
 
 def search_kb(conn: sqlite3.Connection, query: str, limit: int) -> list[Row]:
-    # Deliberately naive keyword search. The retrieval chapter replaces it.
+    # An exact filter for people browsing: the articles whose text contains the query, as typed.
+    # The assistant's ranked search over passages is helpdesk.services.retrieval (chapter 9).
     pattern = f"%{query}%"
     rows = conn.execute(
         "SELECT * FROM kb_articles WHERE title LIKE ? OR body LIKE ? OR tags LIKE ? ORDER BY id LIMIT ?",
         (pattern, pattern, pattern, limit),
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+def list_kb_articles(conn: sqlite3.Connection) -> list[Row]:
+    return [dict(r) for r in conn.execute("SELECT * FROM kb_articles ORDER BY id").fetchall()]

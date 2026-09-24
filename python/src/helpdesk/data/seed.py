@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
+from importlib import resources
 
 CUSTOMERS = [
     (1, "Ada Park", "ada.park@example.com"),
@@ -37,25 +39,29 @@ TICKETS = [
     ),
 ]
 
-# id, title, body, tags
-KB_ARTICLES = [
-    (
-        1, "Resetting your password",
-        "Use the Forgot password link. Reset emails can take up to ten minutes; check spam.",
-        "account,password,login",
-    ),
-    (
-        2, "Changing your plan",
-        "Plan changes take effect at the next billing date. Refunds are not automatic.",
-        "billing,plan,invoice",
-    ),
-    (
-        3, "Exporting your data",
-        "Settings, then Export, produces a CSV of every project you own.",
-        "export,csv,data",
-    ),
-]
 # fmt: on
+
+# Knowledge-base articles live one per file in data/kb/, named NN-slug.md, where NN is the article's
+# id. Each starts with a "# Title" line and a "tags:" line; the rest is the body, whose "## "
+# headings split it into the passages the assistant searches (chapter 9).
+KB_FILE = re.compile(r"^(\d+)-[a-z0-9-]+\.md$")
+
+
+def kb_articles() -> list[tuple[int, str, str, str]]:
+    """Every article as (id, title, body, tags), read from data/kb/ in id order."""
+    articles = []
+    for entry in resources.files("helpdesk.data").joinpath("kb").iterdir():
+        match = KB_FILE.match(entry.name)
+        if match is None:
+            raise ValueError(
+                f"data/kb/{entry.name}: name knowledge-base files NN-slug.md, where NN is the id."
+            )
+        lines = entry.read_text(encoding="utf-8").splitlines()
+        if len(lines) < 3 or not lines[0].startswith("# ") or not lines[1].startswith("tags:"):
+            raise ValueError(f"data/kb/{entry.name}: start with a '# Title' line, then a 'tags: a, b' line.")
+        tags = ",".join(tag.strip() for tag in lines[1].removeprefix("tags:").split(","))
+        articles.append((int(match.group(1)), lines[0][2:].strip(), "\n".join(lines[2:]).strip(), tags))
+    return sorted(articles)
 
 
 def is_seeded(conn: sqlite3.Connection) -> bool:
@@ -71,5 +77,5 @@ def seed(conn: sqlite3.Connection) -> None:
         "created_at, closed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         TICKETS,
     )
-    conn.executemany("INSERT INTO kb_articles (id, title, body, tags) VALUES (?, ?, ?, ?)", KB_ARTICLES)
+    conn.executemany("INSERT INTO kb_articles (id, title, body, tags) VALUES (?, ?, ?, ?)", kb_articles())
     conn.commit()

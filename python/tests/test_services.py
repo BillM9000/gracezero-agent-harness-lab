@@ -70,9 +70,10 @@ def test_closing_twice_is_a_conflict(conn):
         tickets.close_ticket(conn, 4, staff_id=1)
 
 
-def test_kb_search_matches_title_body_and_tags(conn):
-    assert [a["id"] for a in kb.search(conn, "password")] == [1]
-    assert [a["id"] for a in kb.search(conn, "csv")] == [3]
+def test_kb_search_is_an_exact_filter_on_title_body_and_tags(conn):
+    assert [a["id"] for a in kb.search(conn, "password")] == [1, 5, 11]
+    assert [a["id"] for a in kb.search(conn, "csv")] == [3, 10]
+    assert [a["id"] for a in kb.search(conn, "E-4012")] == [5]
 
 
 def test_kb_search_rejects_empty_query_and_bad_limit(conn):

@@ -49,16 +49,25 @@ def test_a_ticket_number_too_big_for_sqlite_is_a_ticket_that_doesnt_exist(conn):
     assert not call(conn, "get_ticket", ticket_id=1).is_error
 
 
-def test_search_kb_finds_an_article(conn):
+def test_search_kb_returns_passages_each_with_an_id_to_cite(conn):
     result = call(conn, "search_kb", query="password")
     assert not result.is_error
-    assert result.content.startswith("Article 1, Resetting your password:")
+    assert result.content.splitlines()[0].startswith(
+        "[1#1] Resetting your password > Send yourself a reset link:"
+    )
+    assert len(result.content.splitlines()) == 3
 
 
-def test_search_kb_says_what_to_try_when_nothing_matches(conn):
+def test_search_kb_finds_a_question_the_keyword_filter_missed(conn):
+    # Until chapter 9, search_kb matched the whole query as one piece of text, so this found nothing.
     result = call(conn, "search_kb", query="password reset email")
+    assert result.content.startswith("[1#")
+
+
+def test_search_kb_says_what_to_do_when_nothing_matches(conn):
+    result = call(conn, "search_kb", query="What is the capital of France?")
     assert not result.is_error
-    assert "Try one shorter keyword" in result.content
+    assert "Say so in the reply; don't guess." in result.content
 
 
 def test_an_unknown_tool_names_the_tools_that_exist(conn):

@@ -15,6 +15,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Work list: `golden-set` done, proved by `tests/test_evals.py`.
 - Checked with: `node check.mjs` (all 21 checks passed) and `node tools/progress.mjs .` (no problems).
 - Not run: `--real`, for any command. Each measurement a real model would make (chapters 11, 14, 19 and 20) waits for a paid run; the chapter lists the commands.
+- Then `node tools/mutate.mjs` on the committed tree at `9a1ac04`: all 263 caught in 13.1 minutes, and the tree unchanged.
 - Next: `model-judge` (chapter 22).
 
 ## 2026-09-24: chapter 20, the agent attack surface

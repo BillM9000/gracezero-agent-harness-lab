@@ -121,6 +121,7 @@
 - **MCP definitions pinned.** The catalog entry for the helpdesk server pins `definitions`, the sha256 of its tools' names, descriptions and schemas; the HTTP server refuses to start when they differ, or when the entry pins none. `python -m helpdesk.mcp_server --definitions` prints the digest. A new catalog rule and two fixtures.
 - `tests/test_injections.py` (17), nine new tests in `tests/test_agent_policy.py` and three fixtures, two in `tests/test_mcp_http.py` and two catalog fixtures, two fitness files (4): 37 new Python tests, 386 in all. Ten existing tests updated for the quoted text, and the policy's tests for `check`'s new arguments. `tools/lockfiles.test.mjs` (11 script tests). 28 new entries in `tools/mutations.mjs` (234 in all), six existing ones updated.
 - `AGENTS.md`: six lines shortened and one dropped (chapter 2's demo commands, which their modules document), then the red-team command, the lock check, `models.toml` and `untrusted.py` added; 3,979 of its 4,000 estimated tokens. The README says what chapter 20 added.
+- `node tools/mutate.mjs` on the committed tree at `f6c0c13`: 233 of 234 caught in 9.7 minutes, and the tree unchanged afterwards. The other is not a survivor: the control run of chapter 13's Ctrl+C test failed on the unchanged code. Alone it passed 30 runs in a row; with other tests running beside it, it failed once in 8. A flaky test, cause not yet found, on the work list's next steps in `progress/log.md`.
 
 ## 2026-09-24, chapter 19 lab
 

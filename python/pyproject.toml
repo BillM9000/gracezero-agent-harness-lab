@@ -7,7 +7,7 @@ name = "helpdesk"
 version = "0.1.0"
 description = "A small helpdesk service, the companion lab for a book on AI platform engineering."
 requires-python = ">=3.12"
-dependencies = ["fastapi>=0.141", "uvicorn>=0.53", "anthropic>=1.8"]
+dependencies = ["fastapi>=0.141", "uvicorn>=0.53", "anthropic>=1.8", "mcp>=2.2"]
 
 # Exact versions this was last run against are in requirements-lock.txt.
 [project.optional-dependencies]
@@ -75,3 +75,12 @@ type = "protected"
 protected_modules = ["anthropic"]
 allowed_importers = ["helpdesk.model"]
 broken_contract_guidance = "Code outside helpdesk.model must not call the vendor directly. Take a ModelClient as an argument instead, so tests can pass the mock and refusals go through helpdesk.model.stops; if the model needs something new, add it to helpdesk.model."
+
+# The MCP server (chapter 12) is a way in to the same tools, not a new home for rules: the protocol
+# stays in one composition root, and everything it offers comes from the services and the toolbox.
+[[tool.importlinter.contracts]]
+name = "Only helpdesk.mcp_server imports the MCP SDK"
+type = "protected"
+protected_modules = ["mcp"]
+allowed_importers = ["helpdesk.mcp_server"]
+broken_contract_guidance = "Only helpdesk/mcp_server.py may use the MCP SDK. Put the rule in helpdesk.services or the toolbox, where every way in applies it, and have the server call that."

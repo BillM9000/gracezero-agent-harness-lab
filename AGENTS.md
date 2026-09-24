@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Instructions for any coding agent, and any person, working in this repository. `CLAUDE.md` imports this file, so Claude Code and every other tool read the same rules.
+Instructions for any coding agent or person working here. `CLAUDE.md` imports this file, so every tool reads the same rules.
 
 ## What this is
 
-The companion lab for a book on AI platform engineering: a small helpdesk service in Python, a TypeScript client, a deterministic mock model, and the guardrails the book teaches, each one running in CI.
+The companion lab for a book on AI platform engineering: a Python helpdesk, a TypeScript client, a mock model, and the book's guardrails, each run in CI.
 
 ## Layout
 
@@ -18,7 +18,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. |
 | `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
 | `python/agents/` | Agent definitions (`triage.toml`) and the platform's policy for them (`policy.toml`), checked by `python/src/agent_policy/` (chapter 18). |
-| `python/src/helpdesk/main.py`, `triage.py`, `kb.py`, `tools.py` | Composition roots: the web service, the triage assistant, and the knowledge base's and tools' command lines. |
+| `python/src/helpdesk/main.py`, `triage.py`, `kb.py`, `tools.py`, `mcp_server.py` | Composition roots: the web service, the triage assistant, the knowledge base's and tools' command lines, and the MCP server (chapter 12). |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to; `tests/fitness/` checks properties of the code as a whole (chapter 15). |
 | `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
 | `ts/` | TypeScript client and command-line tool for the API. `src/api-types.ts` is generated from the contract. Import rules: `eslint.config.js` and `.dependency-cruiser.cjs`. |
@@ -27,7 +27,7 @@ The companion lab for a book on AI platform engineering: a small helpdesk servic
 | `tools/` | Scripts the chapters build; each one that checks something has a test beside it. See Scripts below. |
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
 | `progress/` | The work list (`features.json`) and the session log (`log.md`). See Starting a session below. |
-| `.github/workflows/` | CI: `ci.yml` runs `node setup.mjs` and `node check.mjs`; `docs.yml` checks changes to Markdown alone; `nightly.yml` runs `node tools/mutate.mjs` (chapter 24). |
+| `.github/workflows/` | CI: `ci.yml` runs setup and every check, `docs.yml` checks Markdown-only changes, `nightly.yml` runs `node tools/mutate.mjs` (chapter 24). |
 | `.claude/settings.json` | Claude Code's hooks: when the agent stops, `tools/hooks/stop-check.mjs` runs `node check.mjs --fast` and sends any failure back (chapter 25). |
 
 ## Starting a session
@@ -55,9 +55,10 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Agent definitions: `python -m agent_policy` checks `agents/*.toml` against `agents/policy.toml`; `tests/policy_fixtures/` shows what each rule accepts and refuses
 - Run: `uvicorn --factory helpdesk.main:create_default_app` (`HELPDESK_DB` sets the database file)
 - Chapter 2 demos: `python -m toymodel tokens|next <text>`, `python -m helpdesk.model.cost`
-- The triage assistant: `python -m helpdesk.triage` (mock model, scripted); `python -m helpdesk.triage --real "..."` calls Anthropic's API and needs a credential such as `ANTHROPIC_API_KEY`
+- The triage assistant: `python -m helpdesk.triage` (the mock, scripted); `--real "..."` calls Anthropic's API, with a credential such as `ANTHROPIC_API_KEY`
 - Knowledge base: `python -m helpdesk.kb eval` checks retrieval against `python/evals/kb_questions.json`; also `query`, `cite`, `chunks`, `size`
 - Tools: `python -m helpdesk.tools list`, `schema`, `call` (one call, `--as` a member of staff) and `compare`
+- MCP: `python -m helpdesk.mcp_client --as sam tools` starts the server for Sam and asks it; also `call`, `read`, `prompt`, `--wire`
 
 TypeScript, from `ts/`:
 

@@ -54,7 +54,7 @@ def plant(workdir: Path, module: str, line: str) -> None:
 def test_clean_copy_keeps_every_contract(tmp_path):
     code, output = run_guardrail(copy_package(tmp_path))
     assert code == 0, output
-    assert "4 kept, 0 broken" in output
+    assert "5 kept, 0 broken" in output
 
 
 def test_data_layer_importing_a_service_is_caught(tmp_path):
@@ -130,3 +130,14 @@ def test_a_module_written_after_the_contract_is_covered_too(tmp_path):
     code, output = run_guardrail(workdir)
     assert code != 0, output
     assert "helpdesk.reports -> anthropic" in output
+
+
+def test_a_service_importing_the_mcp_sdk_is_caught_with_the_fix(tmp_path):
+    # The MCP server is one more way in to the tools (chapter 12). A rule written against the SDK,
+    # in a service, would hold for that way in and no other.
+    workdir = copy_package(tmp_path)
+    plant(workdir, "helpdesk.services.tickets", "from mcp.shared.exceptions import MCPError")
+    code, output = run_guardrail(workdir)
+    assert code != 0, output
+    assert "helpdesk.services.tickets -> mcp " in output
+    assert "Put the rule in helpdesk.services or the toolbox, where every way in applies it" in output

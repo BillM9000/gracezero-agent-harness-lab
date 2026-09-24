@@ -6,6 +6,16 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
 
+## 2026-09-23: chapter 12, an MCP server
+
+- `python -m helpdesk.mcp_server` offers the triage assistant's three tools, the help articles and each ticket as resources, and a `draft_reply` prompt over stdio, through the official MCP Python SDK (`mcp` 2.2.0, pinned with the 14 packages it brings). It acts for `HELPDESK_STAFF` and refuses to start without a known person; every tool, resource and prompt applies `helpdesk/services/access.py` for that person.
+- `python -m helpdesk.mcp_client` plays the host: starts the server, sets its environment, and speaks JSON-RPC a line at a time (`--wire` shows it, `--legacy` uses the 2025-11-25 handshake).
+- A fifth import contract keeps the SDK in `helpdesk.mcp_server`.
+- 21 new Python tests (226 in all); 11 new entries in `tools/mutations.mjs` (132 in all).
+- Work list: `mcp-server` marked done, with its proof.
+- Checked with: `node check.mjs` (all 18 checks passed) and `node tools/progress.mjs .` (no problems). `node tools/mutate.mjs` needs a clean tree, so it runs after this commit.
+- Next: `draft-reply`, still the first item to do.
+
 ## 2026-09-23: chapter 11, designing tools for agents
 
 - The triage assistant acts for one member of staff (`--as`, default sam), and its tools show only what that person may see: `helpdesk/services/access.py` holds the rule, and every tool applies it to every ticket it reads, lists or counts. A hidden ticket and a missing one get the same message. The sample data grew to 12 tickets, 5 customers, 3 staff and 4 replies, so the rule and the pages have something to act on.

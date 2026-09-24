@@ -124,8 +124,8 @@
     {
       "id": "mcp-server",
       "description": "An MCP server offers the helpdesk's read tools to any MCP client (chapter 12).",
-      "status": "todo",
-      "proof": null
+      "status": "done",
+      "proof": "python/tests/test_mcp_server.py::test_one_person_cannot_see_anothers_ticket_through_any_way_in"
     },
     {
       "id": "golden-set",

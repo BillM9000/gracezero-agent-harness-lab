@@ -1,9 +1,9 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11, 16 to 18, 24, 25 and 31
-// are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter
-// 1's tally's check for missing fields; the guards from earlier chapters were broken by hand when
-// they were built (CHANGELOG.md records each time) and are the next candidates to add.
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11, 12, 16 to 18, 24, 25 and
+// 30 are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and
+// chapter 1's tally's check for missing fields; the guards from earlier chapters were broken by
+// hand when they were built (CHANGELOG.md records each time) and are the next candidates to add.
 
 const pytest = (...tests) => ({ cwd: "python", python: ["-m", "pytest", "-q", "-p", "no:cacheprovider", ...tests] });
 const vitest = (file, name) => ({ cwd: "ts", vitest: [file, "-t", name] });
@@ -39,6 +39,8 @@ const TOOL_ARGS = "tests/test_tool_arguments.py";
 const TOOL_RESULTS = "tests/test_tool_results.py";
 const TOOL_DEFS = "tests/fitness/test_tool_definitions.py";
 const ADAPTER_TESTS = "tests/test_anthropic_client.py";
+const MCP_SERVER = "python/src/helpdesk/mcp_server.py";
+const MCP = "tests/test_mcp_server.py";
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -1106,6 +1108,85 @@ export const MUTATIONS = [
     find: '                    ("list_customer_tickets", {"customer_id": 2}),\n',
     replace: "",
     run: pytest("tests/test_tools_cli.py::test_both_sets_see_the_facts_each_task_needs"),
+  },
+
+  // Chapter 12: the MCP server, one more way in to the same tools, for the same person.
+  {
+    guard: "mcp: the server never chooses a person itself",
+    file: MCP_SERVER,
+    find: 'who = os.environ.get(STAFF_VARIABLE, "").strip()',
+    replace: 'who = os.environ.get(STAFF_VARIABLE, "dana").strip()',
+    run: pytest(`${MCP}::test_the_server_refuses_to_start_without_a_person_it_knows`),
+  },
+  {
+    guard: "mcp: the tools act for the person in the server's environment",
+    file: MCP_SERVER,
+    find: "toolbox: Toolbox = triage_tools(conn, person)",
+    replace: 'toolbox: Toolbox = triage_tools(conn, access.find_person(conn, "dana"))',
+    run: pytest(`${MCP}::test_the_tools_act_for_the_person_in_the_servers_environment`),
+  },
+  {
+    guard: "mcp: a ticket resource applies the same rule as the tools",
+    file: MCP_SERVER,
+    find: "ticket = tickets.visible_ticket(conn, person, int(number))",
+    replace: "ticket = tickets.get_ticket(conn, int(number))",
+    run: pytest(`${MCP}::test_one_person_cannot_see_anothers_ticket_through_any_way_in`),
+  },
+  {
+    guard: "mcp: a ticket record is never kept for anyone else",
+    file: MCP_SERVER,
+    find: 'return types.ReadResourceResult(contents=[record], ttl_ms=0, cache_scope="private")',
+    replace: 'return types.ReadResourceResult(contents=[record], ttl_ms=3_600_000, cache_scope="public")',
+    run: pytest(`${MCP}::test_a_ticket_record_is_never_kept_for_anyone_else`),
+  },
+  {
+    guard: "mcp: the prompt holds only a ticket the person may see",
+    file: MCP_SERVER,
+    find: "        if ticket.is_error:\n",
+    replace: "        if False:\n",
+    run: pytest(`${MCP}::test_one_person_cannot_see_anothers_ticket_through_any_way_in`),
+  },
+  {
+    guard: "mcp: a tool call's failure comes back marked isError",
+    file: MCP_SERVER,
+    find: "content=[types.TextContent(text=result.content)], is_error=result.is_error",
+    replace: "content=[types.TextContent(text=result.content)], is_error=False",
+    run: pytest(`${MCP}::test_bad_arguments_come_back_as_a_result_the_model_can_act_on`),
+  },
+  {
+    guard: "mcp: an unknown tool is a protocol error",
+    file: MCP_SERVER,
+    find: "        if params.name not in names:\n",
+    replace: "        if False:\n",
+    run: pytest(`${MCP}::test_an_unknown_tool_is_a_protocol_error_that_names_the_tools`),
+  },
+  {
+    guard: "mcp: a resource URI that names nothing is refused as not found",
+    file: MCP_SERVER,
+    find: "if not uri.startswith((TICKETS, ARTICLES)) or not number.isdigit():",
+    replace: "if False:",
+    run: pytest(`${MCP}::test_a_uri_that_names_nothing_is_refused`),
+  },
+  {
+    guard: "mcp: standard output carries only MCP messages",
+    file: MCP_SERVER,
+    find: 'print(f"helpdesk MCP server: acting for {person.label}, on stdio.", file=sys.stderr)',
+    replace: 'print(f"helpdesk MCP server: acting for {person.label}, on stdio.")',
+    run: pytest(`${MCP}::test_standard_output_carries_only_mcp_messages_and_the_server_exits_when_its_input_closes`),
+  },
+  {
+    guard: "import-linter: only helpdesk.mcp_server imports the MCP SDK",
+    file: "python/pyproject.toml",
+    find: 'allowed_importers = ["helpdesk.mcp_server"]',
+    replace: 'allowed_importers = ["helpdesk"]',
+    run: pytest(`${LAYERS}::test_a_service_importing_the_mcp_sdk_is_caught_with_the_fix`),
+  },
+  {
+    guard: "import-linter: the MCP contract says how to fix it",
+    file: "python/pyproject.toml",
+    find: 'broken_contract_guidance = "Only helpdesk/mcp_server.py may use the MCP SDK. Put the rule in helpdesk.services or the toolbox, where every way in applies it, and have the server call that."\n',
+    replace: "",
+    run: pytest(`${LAYERS}::test_a_service_importing_the_mcp_sdk_is_caught_with_the_fix`),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

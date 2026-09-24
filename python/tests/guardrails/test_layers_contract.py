@@ -12,6 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 PYTHON_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = PYTHON_ROOT / "src" / "helpdesk"
 PYPROJECT = PYTHON_ROOT / "pyproject.toml"
@@ -55,6 +57,19 @@ def test_clean_copy_keeps_every_contract(tmp_path):
     code, output = run_guardrail(copy_package(tmp_path))
     assert code == 0, output
     assert "7 kept, 0 broken" in output
+
+
+# What a shell might set PYTHONIOENCODING to, and unset. utf-16 fails on every platform if the test
+# ever stops choosing the encoding itself: lint-imports would write UTF-16 and the test read UTF-8.
+@pytest.mark.parametrize("shell_sets", [None, "utf-8", "cp1252", "utf-16"])
+def test_the_output_reads_the_same_whatever_encoding_the_shell_sets(tmp_path, monkeypatch, shell_sets):
+    if shell_sets is None:
+        monkeypatch.delenv("PYTHONIOENCODING", raising=False)
+    else:
+        monkeypatch.setenv("PYTHONIOENCODING", shell_sets)
+    code, output = run_guardrail(copy_package(tmp_path))
+    assert code == 0, output
+    assert "6 kept, 0 broken" in output
 
 
 def test_data_layer_importing_a_service_is_caught(tmp_path):

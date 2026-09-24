@@ -11,15 +11,15 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | Path | What it is |
 |---|---|
 | `python/src/helpdesk/api/` | HTTP routes (FastAPI) and the request and response models. Calls services only. |
-| `python/src/helpdesk/services/` | Business rules: what each member of staff may see (`access.py`, chapter 11), retrieval and citation checks (chapter 9). Calls the data layer. |
+| `python/src/helpdesk/services/` | Business rules: what each member of staff may see and change (`access.py`), retrieval and citations (chapter 9), the approval queue (`proposals.py`, `decisions.py`, chapter 19). Calls the data layer. |
 | `python/src/helpdesk/data/` | SQL and the SQLite connection. |
-| `python/src/helpdesk/assistant/` | The triage assistant: an agent loop (`agent.py`), its tools (`tools.py`), a set kept only to compare against (`narrow.py`), and chapter 14's patterns (`team.py`, `revise.py`). A tool acts for the person it was built for, never one in its arguments. Calls services. |
-| `python/src/helpdesk/model/` | The model interface, a deterministic mock, the Anthropic client (`anthropic_client.py`), stop-reason handling (`stops.py`) and cost arithmetic (`cost.py`). Imports nothing else from the helpdesk. |
+| `python/src/helpdesk/assistant/` | The triage assistant: an agent loop (`agent.py`), its tools (`tools.py`), a set kept only to compare against (`narrow.py`), and chapter 14's patterns (`team.py`, `revise.py`). A tool acts for the person it was built for, never one in its arguments; one that writes only files a proposal (`proposing.py`). Calls services. |
+| `python/src/helpdesk/model/` | The model interface, a deterministic mock, the Anthropic client, stop reasons (`stops.py`) and costs (`cost.py`). Imports nothing else from the helpdesk. |
 | `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. |
 | `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
 | `python/agents/` | Agent definitions and the platform's policy for them, checked by `python/src/agent_policy/` (chapter 18). |
 | `python/catalog/` | Approved MCP servers and their rules' data, checked by `python/src/mcp_governance/`, also home of the HTTP server's token checks and audit log (chapter 13). |
-| `python/src/helpdesk/main.py`, `triage.py`, `kb.py`, `tools.py`, `mcp_server.py`, `patterns.py` | Composition roots: the web service, the triage assistant, the knowledge base's and tools' command lines, the MCP server (chapters 12 and 13) and the patterns (chapter 14). |
+| `python/src/helpdesk/main.py`, `triage.py`, `kb.py`, `tools.py`, `mcp_server.py`, `patterns.py`, `approvals.py` | Composition roots: the web service, the triage assistant, the knowledge base's and tools' command lines, the MCP server, the patterns and the approval queue. |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to; `tests/fitness/` checks properties of the code as a whole (chapter 15). |
 | `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
 | `ts/` | TypeScript client and command-line tool for the API. `src/api-types.ts` is generated from the contract. Import rules: `eslint.config.js` and `.dependency-cruiser.cjs`. |
@@ -29,7 +29,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
 | `progress/` | The work list (`features.json`) and the session log (`log.md`). See Starting a session below. |
 | `.github/workflows/` | CI: `ci.yml` (every check), `docs.yml` (Markdown-only changes), `nightly.yml` (`node tools/mutate.mjs`, chapter 24). |
-| `.claude/settings.json` | Claude Code's hooks: when the agent stops, `tools/hooks/stop-check.mjs` runs the fast checks and sends failures back (chapter 25). |
+| `.claude/settings.json` | Claude Code's settings: deny rules, a guard before shell commands and a Stop hook, both in `tools/hooks/` (chapters 19 and 25). |
 
 ## Starting a session
 
@@ -42,7 +42,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 
 Everything, from the repository root:
 
-- Set up: `node setup.mjs` (creates `python/.venv`, installs the pinned packages, runs `npm ci`)
+- Set up: `node setup.mjs` (`python/.venv`, the pinned packages, `npm ci`)
 - Check: `node check.mjs` (all <!-- claim: checks -->19 checks; CI runs the same command)
 - Check quickly: `node check.mjs --fast` skips the three test suites; the full run is what counts
 - After changing `python/requirements-lock.txt`: run `node setup.mjs`, then `node tools/install-paths.mjs`.
@@ -60,6 +60,7 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Knowledge base: `python -m helpdesk.kb eval` checks retrieval against `python/evals/kb_questions.json`; also `query`, `cite`, `chunks`, `size`
 - Tools: `python -m helpdesk.tools list`, `schema`, `call` (one call, `--as` a member of staff) and `compare`
 - Patterns: `python -m helpdesk.patterns revise`, `batch` and `compare`
+- Approvals: `python -m helpdesk.approvals list --as sam`; also `show`, `approve`, `reject`, `log`
 - MCP: `python -m helpdesk.mcp_client --as sam tools` asks the stdio server as Sam; also `call`, `read`, `prompt`, `--wire`. Over HTTP: `python -m helpdesk.mcp_server --http`, and the client with `--url http://127.0.0.1:8765/mcp`
 
 TypeScript, from `ts/`:
@@ -85,14 +86,14 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 ## Rules
 
 1. Layers run api and assistant (siblings that never import each other), then services, then data. Neither routes nor the assistant import `helpdesk.data`: move the query into a service and call that. `lint-imports` enforces this. In `ts/`, the CLI uses the client and the client uses the types; only `src/cli.ts` uses Node's built-in modules, and only `src/types.ts` imports `src/api-types.ts`. `npm run lint` and `npm run deps` enforce this.
-2. `helpdesk.model` imports nothing from the helpdesk, and nothing else imports the `anthropic` SDK. Pass the model what it needs as arguments, and pass code that needs a model a `ModelClient`.
+2. `helpdesk.model` imports nothing from the helpdesk, and nothing else imports the `anthropic` SDK: pass code that needs a model a `ModelClient`.
 3. Only the composition roots (see Layout) wire the layers together.
 4. Tests use the mock model and never reach another machine; a server a test starts listens on 127.0.0.1.
 5. Code that wants a model's text calls `helpdesk.model.stops.final_text`, never `response.text` directly, so a refusal or a cut-off answer can't pass as a finished one. `python -m helpdesk_lint` enforces this; a line with a real reason to read the text says so in a `# HDK101: <why>` comment.
-6. Warnings fail the Python test run. Fix the cause instead of silencing it; the one exception, raised inside Starlette, is listed in `pyproject.toml`.
+6. Warnings fail the Python test run: fix the cause. The one exception, raised inside Starlette, is in `pyproject.toml`.
 7. A change is done when `node check.mjs` passes. Record it in `CHANGELOG.md` in the same commit.
 8. No secrets in the repository.
-9. Keep this file a map: under 200 lines and about 4,000 estimated tokens, which `node check.mjs` measures. Put detail only some tasks need where those tasks meet it (an error message, a test), and name any other file with a reason to read it.
+9. Keep this file a map, under 200 lines and about 4,000 estimated tokens (`node check.mjs` measures). Put detail where the tasks that need it meet it (an error message, a test).
 10. Never edit a generated file by hand. `contracts/openapi.json` and `ts/src/api-types.ts` come from the code: change their source and regenerate them. `node check.mjs` fails if either is out of date.
 11. A number in these documents that a script can count is marked `<!-- claim: NAME -->`, and `node check.mjs` checks it; a new kind of number needs a counter in `tools/doc-claims.mjs`. A claim about behavior, such as "read-only," needs a test instead, like the one in `python/tests/test_triage_tools.py`.
 12. When a check fails, fix what it reports. Never weaken, skip or delete a check, test or rule to get a pass; if a check is wrong, stop and say why.

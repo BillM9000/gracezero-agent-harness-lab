@@ -12,7 +12,8 @@ returns. Since chapter 11, every tool here:
 - returns a result sized for a context window: find_tickets pages, and the toolbox cuts any result
   longer than MAX_RESULT_CHARS and says so.
 
-Every tool here only reads. Tools that change a ticket arrive with human approval in chapter 19.
+Every tool here only reads. The tools that change things (chapter 19) are in proposing.py, and they
+only file a proposal for a person to approve.
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ from typing import Any
 
 from helpdesk.model.types import Message, ToolCall, ToolResult, ToolSpec
 from helpdesk.services import citations, kb, tickets
-from helpdesk.services.access import Person
+from helpdesk.services.access import NEEDS, Person
 from helpdesk.services.errors import ServiceError
 
 log = logging.getLogger(__name__)
@@ -57,6 +58,9 @@ class Tool:
     run: Callable[..., str]
     # What to do when a result is too long to send whole: how to ask for less.
     narrower: str = "Ask for less at a time."
+    # True for a tool that changes something (chapter 19). tests/test_triage_tools.py requires every
+    # other tool to change nothing, and agents/policy.toml to list every one that does.
+    writes: bool = False
 
 
 class Toolbox:
@@ -74,6 +78,15 @@ class Toolbox:
     @property
     def specs(self) -> tuple[ToolSpec, ...]:
         return tuple(t.spec for t in self._tools.values())
+
+    @property
+    def tools(self) -> tuple[Tool, ...]:
+        return tuple(self._tools.values())
+
+    @property
+    def writers(self) -> tuple[str, ...]:
+        """The names of the tools that change something."""
+        return tuple(name for name, tool in self._tools.items() if tool.writes)
 
     def only(self, names: Iterable[str]) -> Toolbox:
         """The named tools, in that order. A name this toolbox doesn't have is an error, never a skip."""
@@ -307,6 +320,16 @@ def search_kb_tool(conn: sqlite3.Connection) -> Tool:
     return Tool(SEARCH_KB, search_kb)
 
 
+def proposal_line(proposal: dict[str, Any]) -> str:
+    """One proposed change, as the assistant reads it back on its ticket (chapter 19)."""
+    what = f"#{proposal['id']} {proposal['kind']}"
+    if proposal["status"] == "pending":
+        return f"{what}: waiting for approval by {NEEDS[proposal['needs']]}."
+    if proposal["status"] == "approved":
+        return f"{what}: approved by {proposal['decided_by_name']}."
+    return f'{what}: rejected by {proposal["decided_by_name"]}, who said: "{proposal["reason"]}"'
+
+
 def triage_tools(conn: sqlite3.Connection, person: Person) -> Toolbox:
     """The triage assistant's tools, acting for one member of staff."""
 
@@ -332,6 +355,11 @@ def triage_tools(conn: sqlite3.Connection, person: Person) -> Toolbox:
         ]
         whose = f"{ticket['customer_name']}'s other tickets that {person.name} can see"
         lines.append(f"{whose}: {'; '.join(others) or 'none'}.")
+        if ticket["proposals"]:
+            # Chapter 19: what became of each change proposed here. A rejection's reason is the
+            # feedback, so it comes back word for word.
+            lines.append("Changes proposed on this ticket, oldest first:")
+            lines += [f"  {proposal_line(p)}" for p in ticket["proposals"]]
         return "\n".join(lines)
 
     def find_tickets(status: str | None = None, assignee: str = "anyone", page: int = 1) -> str:

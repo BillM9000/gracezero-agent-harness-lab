@@ -54,7 +54,7 @@ def plant(workdir: Path, module: str, line: str) -> None:
 def test_clean_copy_keeps_every_contract(tmp_path):
     code, output = run_guardrail(copy_package(tmp_path))
     assert code == 0, output
-    assert "5 kept, 0 broken" in output
+    assert "6 kept, 0 broken" in output
 
 
 def test_data_layer_importing_a_service_is_caught(tmp_path):
@@ -141,3 +141,24 @@ def test_a_service_importing_the_mcp_sdk_is_caught_with_the_fix(tmp_path):
     assert code != 0, output
     assert "helpdesk.services.tickets -> mcp " in output
     assert "Put the rule in helpdesk.services or the toolbox, where every way in applies it" in output
+
+
+def test_a_tool_that_imports_the_code_that_decides_is_caught_with_the_fix(tmp_path):
+    # Chapter 19: an agent proposes and a person decides. If a tool could import the decisions, a
+    # model could approve its own proposal by calling that tool.
+    workdir = copy_package(tmp_path)
+    plant(workdir, "helpdesk.assistant.proposing", "from helpdesk.services import decisions")
+    code, output = run_guardrail(workdir)
+    assert code != 0, output
+    assert "helpdesk.assistant.proposing -> helpdesk.services.decisions" in output
+    assert "An agent's tool files a proposal with helpdesk.services.proposals instead" in output
+
+
+def test_the_mcp_server_and_the_routes_cannot_decide_either(tmp_path):
+    workdir = copy_package(tmp_path)
+    plant(workdir, "helpdesk.mcp_server", "from helpdesk.services import decisions")
+    plant(workdir, "helpdesk.api.routes", "from helpdesk.services import decisions")
+    code, output = run_guardrail(workdir)
+    assert code != 0, output
+    assert "helpdesk.mcp_server -> helpdesk.services.decisions" in output
+    assert "helpdesk.api.routes -> helpdesk.services.decisions" in output

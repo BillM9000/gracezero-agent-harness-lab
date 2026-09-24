@@ -1,0 +1,14 @@
+# expect: fail
+# reasons: approval.draft_reply
+# Chapter 19: an approval the platform doesn't know. Nobody can give it, so nothing would ever be
+# approved, or worse, something would decide what it means.
+name = "triage"
+owner = "support-tools"
+model = "claude-opus-5-5"
+max_tokens = 16000
+max_turns = 6
+tools = ["get_ticket", "draft_reply"]
+system = "Triage helpdesk tickets and draft replies for staff to review."
+
+[approval]
+draft_reply = "manager"

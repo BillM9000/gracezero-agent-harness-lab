@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 
 from helpdesk.assistant.narrow import narrow_tools
+from helpdesk.assistant.proposing import WRITERS, proposing_tools
 from helpdesk.assistant.team import Team, orchestrator_tools
 from helpdesk.assistant.tools import triage_tools
 from helpdesk.model.mock import MockModel
@@ -28,7 +29,12 @@ def team_tools(conn, person):
     return orchestrator_tools(team, orchestrator["tools"])
 
 
-SETS = {"triage": triage_tools, "narrow": narrow_tools, "orchestrator": team_tools}
+def writing_tools(conn, person):
+    """Chapter 19's tools that propose changes, each needing a lead, so every one is built."""
+    return proposing_tools(conn, person, "any", {name: "lead" for name in WRITERS})
+
+
+SETS = {"triage": triage_tools, "narrow": narrow_tools, "orchestrator": team_tools, "writing": writing_tools}
 # Names that leave the model guessing what to pass: an id, a name, or the whole record?
 AMBIGUOUS = {"id", "user", "ticket", "customer", "staff", "person"}
 MIN_SENTENCES = 3

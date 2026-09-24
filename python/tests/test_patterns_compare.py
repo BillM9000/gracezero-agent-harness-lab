@@ -60,14 +60,14 @@ def test_the_comparison_prints_the_table_and_what_it_is_not():
 def test_nothing_runs_when_a_definition_breaks_the_policy(monkeypatch, tmp_path, capsys):
     # A policy that doesn't offer delegate_customer refuses the orchestrator, and nothing runs.
     policy = tmp_path / "policy.toml"
-    text = patterns.POLICY.read_text(encoding="utf-8").replace(', "delegate_customer"]', "]")
+    text = patterns.POLICY.read_text(encoding="utf-8").replace(' "delegate_customer",', "")
     assert text != patterns.POLICY.read_text(encoding="utf-8")
     policy.write_text(text, encoding="utf-8")
     monkeypatch.setattr(patterns, "POLICY", policy)
     _, _, violations = patterns.definitions()
     assert violations == [
         """orchestrator.toml: tools[1]: "delegate_customer" isn't a tool the platform provides. """
-        """The tools are "get_ticket", "find_tickets", "search_kb"."""
+        """The tools are "get_ticket", "find_tickets", "search_kb", "draft_reply", "close_ticket"."""
     ]
     monkeypatch.setattr(sys, "argv", ["helpdesk.patterns", "batch"])
     assert patterns.main() == 2

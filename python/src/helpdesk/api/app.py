@@ -10,9 +10,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from helpdesk.api.routes import router
-from helpdesk.services.errors import Conflict, Invalid, NotFound, ServiceError
+from helpdesk.services.errors import Conflict, Forbidden, Invalid, NotFound, ServiceError
 
-STATUS_FOR = {NotFound: 404, Invalid: 422, Conflict: 409}
+STATUS_FOR = {NotFound: 404, Invalid: 422, Conflict: 409, Forbidden: 403}
 
 
 def create_app(conn: sqlite3.Connection, on_shutdown: Callable[[], None] | None = None) -> FastAPI:

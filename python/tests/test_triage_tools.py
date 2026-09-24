@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from agent_policy import AGENTS, POLICY, load
+from helpdesk.assistant.proposing import assistant_tools
 from helpdesk.assistant.tools import triage_tools
 from helpdesk.model.types import ToolCall
 from helpdesk.services import access
+
+POLICY_WRITES = load(POLICY)["writes"]
 
 
 def call(conn, name, *, person="sam", **arguments):
@@ -12,19 +16,24 @@ def call(conn, name, *, person="sam", **arguments):
 
 
 def test_the_assistants_tools_only_read(conn):
-    # The README says the assistant's tools only read. A counter could check how many there are;
-    # only a test can check "read-only". A tool that changes anything needs a person's approval
-    # first (chapter 19), so adding one should fail here and be a decision, not a quiet change.
+    # The README says the assistant's reading tools only read. A counter could check how many there
+    # are; only a test can check "read-only". A tool that changes anything needs a person's approval
+    # first (chapter 19), so adding one should fail here and be a decision, not a quiet change. When
+    # chapter 19 gave the assistant draft_reply and close_ticket, the decision was recorded three
+    # times: each tool is marked as writing, agents/policy.toml names it with the least approval it
+    # needs, and the definition says whose approval it takes. Every tool not marked must still read.
     def snapshot():
         return [
             [tuple(row) for row in conn.execute(f"SELECT * FROM {table} ORDER BY id")]
-            for table in ("tickets", "replies", "kb_articles", "customers", "staff")
+            for table in ("tickets", "replies", "kb_articles", "customers", "staff", "proposals")
         ]
 
     before = snapshot()
     for person in ("sam", "dana"):
-        toolbox = triage_tools(conn, access.find_person(conn, person))
-        assert {spec.name for spec in toolbox.specs} == {"get_ticket", "find_tickets", "search_kb"}
+        toolbox = assistant_tools(conn, access.find_person(conn, person), load(AGENTS / "triage.toml"))
+        readers = {spec.name for spec in toolbox.specs if spec.name not in toolbox.writers}
+        assert readers == {"get_ticket", "find_tickets", "search_kb"}
+        assert set(toolbox.writers) == set(POLICY_WRITES)
         toolbox.run(ToolCall("c1", "get_ticket", {"ticket_id": 1}))
         toolbox.run(ToolCall("c2", "find_tickets", {"status": "any"}))
         toolbox.run(ToolCall("c3", "search_kb", {"query": "password"}))

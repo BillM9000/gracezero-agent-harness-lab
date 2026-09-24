@@ -1,0 +1,9 @@
+{
+  "session_id": "try-it",
+  "hook_event_name": "PreToolUse",
+  "permission_mode": "default",
+  "cwd": ".",
+  "tool_name": "Bash",
+  "tool_input": { "command": "git reset --hard HEAD~1", "description": "Undo the last commit" },
+  "tool_use_id": "toolu_try_it_1"
+}

@@ -1,0 +1,12 @@
+# expect: fail
+# reasons: approval
+# Chapter 19: approval is a table with a line for each tool that changes things, not one word for
+# them all.
+name = "triage"
+owner = "support-tools"
+model = "claude-opus-5-5"
+max_tokens = 16000
+max_turns = 6
+tools = ["get_ticket", "draft_reply"]
+system = "Triage helpdesk tickets and draft replies for staff to review."
+approval = "lead"

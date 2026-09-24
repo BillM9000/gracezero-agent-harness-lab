@@ -13,8 +13,20 @@ max_call_output_usd = 0.32
 max_turns = 10
 
 # The tools an agent may be given. A test checks that they're exactly the tools the code provides
-# (src/helpdesk/assistant/tools.py, and delegate_customer in team.py, chapter 14).
-tools = ["get_ticket", "find_tickets", "search_kb", "delegate_customer"]
+# (src/helpdesk/assistant/tools.py, delegate_customer in team.py, chapter 14, and the two in
+# proposing.py, chapter 19).
+tools = ["get_ticket", "find_tickets", "search_kb", "delegate_customer", "draft_reply", "close_ticket"]
+
+# Whose approval a change can need, least first: "staff" is anyone who may change the ticket, and
+# "lead" a lead (src/helpdesk/services/access.py, which a test keeps in step with this list).
+approvers = ["staff", "lead"]
+
+# Chapter 19: the tools that change something, each with the least approval it needs. A definition
+# that gives an agent one must name, under [approval], whose approval it needs, and no less than this.
+# A test checks these are exactly the tools the code marks as writing.
+[writes]
+draft_reply = "staff"
+close_ticket = "lead"
 
 # The models an agent may use, with each one's output price per million tokens. A test checks the
 # prices against src/helpdesk/model/cost.py.

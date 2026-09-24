@@ -1,0 +1,15 @@
+# expect: fail
+# reasons: approval.search_kb, approval.close_ticket
+# Chapter 19: an approval for a tool that only reads, and one for a tool the agent doesn't have. Both
+# suggest the author thinks the agent can do something it can't.
+name = "triage"
+owner = "support-tools"
+model = "claude-opus-5-5"
+max_tokens = 16000
+max_turns = 6
+tools = ["get_ticket", "search_kb"]
+system = "Triage helpdesk tickets and draft replies for staff to review."
+
+[approval]
+search_kb = "staff"
+close_ticket = "lead"

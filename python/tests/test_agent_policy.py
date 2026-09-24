@@ -19,11 +19,12 @@ import pytest
 from agent_policy import AGENTS, POLICY, load
 from agent_policy.__main__ import main
 from agent_policy.rules import RULES, check
+from helpdesk.assistant.proposing import WRITERS, assistant_tools, proposing_tools
 from helpdesk.assistant.team import DELEGATE
 from helpdesk.assistant.tools import triage_tools
 from helpdesk.data.db import connect, init_schema
 from helpdesk.model.cost import PRICES
-from helpdesk.services.access import Person
+from helpdesk.services.access import APPROVERS, Person
 
 FIXTURES_DIR = Path(__file__).parent / "policy_fixtures"
 FIXTURES = sorted(FIXTURES_DIR.glob("*.toml"))
@@ -91,8 +92,54 @@ def test_the_policy_tools_are_the_tools_the_code_provides():
         provided = [spec.name for spec in triage_tools(conn, Person(1, "Any One", "support")).specs]
     finally:
         conn.close()
-    # Chapter 14's orchestrator adds one tool of its own.
-    assert sorted(POLICY_DATA["tools"]) == sorted([*provided, DELEGATE.name])
+    # Chapter 14's orchestrator adds one tool of its own, and chapter 19 the two that write.
+    assert sorted(POLICY_DATA["tools"]) == sorted([*provided, DELEGATE.name, *WRITERS])
+
+
+def test_the_policy_names_exactly_the_tools_that_write_and_the_approvals_the_code_applies():
+    # Chapter 19: [writes] must list every tool the code marks as writing, and no other, or a new
+    # writer could be given to an agent without anyone naming whose approval it needs.
+    conn = connect(":memory:")
+    init_schema(conn)
+    try:
+        lead = Person(2, "Any One", "lead")
+        readers = triage_tools(conn, lead)
+        writers = proposing_tools(conn, lead, "any", {name: "lead" for name in WRITERS})
+    finally:
+        conn.close()
+    assert readers.writers == ()
+    assert sorted(writers.writers) == sorted(POLICY_DATA["writes"])
+    assert POLICY_DATA["approvers"] == list(APPROVERS)
+    assert set(POLICY_DATA["writes"].values()) <= set(APPROVERS)
+
+
+def test_a_writer_left_out_of_approval_is_named_with_the_least_it_needs():
+    [violation] = check(load(FIXTURES_DIR / "fail-writer-without-approval.toml"), POLICY_DATA)
+    assert violation.path == "approval.close_ticket"
+    assert violation.reason == (
+        "missing. close_ticket changes things, so the definition must say whose approval a change needs "
+        'before it happens: add close_ticket = "lead" under [approval], or a higher approval.'
+    )
+
+
+def test_the_triage_assistant_refuses_a_writer_without_an_approval_before_anything_runs():
+    run = triage("--agent", str(FIXTURES_DIR / "fail-writer-without-approval.toml"))
+    assert run.returncode == 2
+    assert "approval.close_ticket: missing." in run.stderr
+    assert run.stdout == ""
+
+
+def test_the_tools_themselves_refuse_to_build_a_writer_without_an_approval():
+    # The policy is checked before the assistant runs; the toolbox checks again, so code that skips
+    # the policy still can't give an agent a tool that writes without saying whose approval it needs.
+    conn = connect(":memory:")
+    init_schema(conn)
+    definition = load(FIXTURES_DIR / "fail-writer-without-approval.toml")
+    try:
+        with pytest.raises(ValueError, match="close_ticket change things"):
+            assistant_tools(conn, Person(1, "Any One", "support"), definition)
+    finally:
+        conn.close()
 
 
 def triage(*args: str) -> subprocess.CompletedProcess[str]:

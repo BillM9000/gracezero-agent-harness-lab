@@ -25,6 +25,11 @@ RULES = {
     "cost": "max_tokens that could cost more per call than the policy allows",
     "turns": "max_turns above the policy's limit",
     "tool": "a tool the platform doesn't provide",
+    # Chapter 19: tools that change things.
+    "approval": "a tool that changes things, given without saying whose approval it needs",
+    "approver": "an approval the platform doesn't know",
+    "approval-level": "an approval below the least the platform requires for that tool",
+    "approval-extra": "an approval for a tool that only reads, or that the agent doesn't have",
 }
 
 
@@ -49,7 +54,12 @@ FIELDS: dict[str, tuple[type, str]] = {
     "tools": (list, "List the tools the agent may use; an empty list means none."),
     "system": (str, "Give the agent its system prompt."),
 }
-TYPE_NAMES = {str: "text", int: "a whole number", list: "a list"}
+# Fields a definition may leave out. approval becomes required once the agent has a tool that
+# changes things (chapter 19): the rules below say which.
+OPTIONAL: dict[str, tuple[type, str]] = {
+    "approval": (dict, "Say whose approval each tool that changes things needs."),
+}
+TYPE_NAMES = {str: "text", int: "a whole number", list: "a list", dict: "a table, such as [approval]"}
 
 
 def shown(value: Any) -> str:
@@ -65,17 +75,19 @@ def is_a(value: Any, kind: type) -> bool:
 def check(definition: dict[str, Any], policy: dict[str, Any]) -> list[Violation]:
     found: list[Violation] = []
 
+    known = [*FIELDS, *OPTIONAL]
     for key in definition:
-        if key not in FIELDS:
-            close = difflib.get_close_matches(key, FIELDS, n=1)
-            hint = f"Did you mean {close[0]}?" if close else f"The fields are {', '.join(FIELDS)}."
+        if key not in known:
+            close = difflib.get_close_matches(key, known, n=1)
+            hint = f"Did you mean {close[0]}?" if close else f"The fields are {', '.join(known)}."
             reason = f"{key} isn't a field of an agent definition. {hint}"
             found.append(Violation(key, "unknown-field", reason))
 
     usable: dict[str, Any] = {}
-    for key, (kind, why) in FIELDS.items():
+    for key, (kind, why) in {**FIELDS, **OPTIONAL}.items():
         if key not in definition:
-            found.append(Violation(key, "missing", f"missing. {why}"))
+            if key in FIELDS:
+                found.append(Violation(key, "missing", f"missing. {why}"))
         elif not is_a(definition[key], kind):
             found.append(Violation(key, "type", f"must be {TYPE_NAMES[kind]}, not {shown(definition[key])}."))
         elif kind is str and not definition[key].strip():
@@ -142,5 +154,42 @@ def check(definition: dict[str, Any], policy: dict[str, Any]) -> list[Violation]
                     f"The tools are {', '.join(map(shown, policy['tools']))}.",
                 )
             )
+
+    # Chapter 19: a tool that changes things needs a named approval, at least the policy's.
+    writes: dict[str, str] = policy["writes"]
+    levels: list[str] = policy["approvers"]
+    tools = [tool for tool in usable.get("tools", []) if is_a(tool, str)]
+    approval = usable.get("approval")
+    if approval is None and "approval" in definition:
+        return found  # approval is there but isn't a table, which is reported above
+    approval = approval or {}
+    for tool in tools:
+        if tool in writes and tool not in approval:
+            least = shown(writes[tool])
+            reason = (
+                f"missing. {tool} changes things, so the definition must say whose approval a change "
+                f"needs before it happens: add {tool} = {least} under [approval], or a higher approval."
+            )
+            found.append(Violation(f"approval.{tool}", "approval", reason))
+    for tool, who in approval.items():
+        at = f"approval.{tool}"
+        if tool not in writes:
+            reason = f"{tool} doesn't change anything, so it needs no approval. Remove this line."
+            found.append(Violation(at, "approval-extra", reason))
+        elif tool not in tools:
+            reason = f"{tool} isn't one of this agent's tools. Remove this line, or add {tool} to tools."
+            found.append(Violation(at, "approval-extra", reason))
+        elif not is_a(who, str):
+            found.append(Violation(at, "type", f"must be text, one of {', '.join(map(shown, levels))}."))
+        elif who not in levels:
+            known_levels = ", ".join(map(shown, levels))
+            reason = f"{shown(who)} isn't an approval the platform knows. Use one of {known_levels}."
+            found.append(Violation(at, "approver", reason))
+        elif levels.index(who) < levels.index(writes[tool]):
+            reason = (
+                f"{shown(who)} is less than {tool} needs: the platform requires at least "
+                f"{shown(writes[tool])}. Raise it, or ask the platform team to change agents/policy.toml."
+            )
+            found.append(Violation(at, "approval-level", reason))
 
     return found

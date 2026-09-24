@@ -46,8 +46,9 @@ def customer_emails(conn) -> list[str]:
 def test_no_read_route_returns_a_customer_email(conn):
     leaks = routes_returning(create_app(conn), customer_emails(conn))
     assert not leaks, (
-        f"These routes return a customer's email address: {leaks}. Tickets name customers by id; if a "
-        "staff screen needs the email, give it a route that checks who is asking (chapter 19)."
+        f"These routes return a customer's email address: {leaks}. Tickets name customers by id. A "
+        "screen that needs the email must check who is asking first, as the approval queue does "
+        "(decisions.recipient, chapter 19); this API has no sign-in yet, so no route can."
     )
 
 

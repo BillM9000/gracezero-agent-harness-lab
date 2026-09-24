@@ -15,3 +15,7 @@ class Invalid(ServiceError):
 
 class Conflict(ServiceError):
     pass
+
+
+class Forbidden(ServiceError):
+    """The person may see this, but may not do it (chapter 19): change a ticket, or approve a change."""

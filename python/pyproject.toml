@@ -84,3 +84,13 @@ type = "protected"
 protected_modules = ["mcp"]
 allowed_importers = ["helpdesk.mcp_server"]
 broken_contract_guidance = "Only helpdesk/mcp_server.py may use the MCP SDK. Put the rule in helpdesk.services or the toolbox, where every way in applies it, and have the server call that."
+
+# Chapter 19: an agent proposes, a person decides. The code that approves or rejects a proposal is
+# reachable only from the command a person runs, so no tool, agent loop, MCP server or route can call
+# it, whatever a model asks for.
+[[tool.importlinter.contracts]]
+name = "Only helpdesk.approvals decides a proposal"
+type = "protected"
+protected_modules = ["helpdesk.services.decisions"]
+allowed_importers = ["helpdesk.approvals"]
+broken_contract_guidance = "Only python -m helpdesk.approvals, where a person decides, may import helpdesk.services.decisions. An agent's tool files a proposal with helpdesk.services.proposals instead. A route that decides needs a sign-in that proves who is asking first, which this API doesn't have."

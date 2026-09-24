@@ -1,0 +1,13 @@
+# expect: fail
+# reasons: approval.close_ticket
+# Chapter 19: closing a ticket needs at least a lead's approval, whatever the team would like.
+name = "triage"
+owner = "support-tools"
+model = "claude-opus-5-5"
+max_tokens = 16000
+max_turns = 6
+tools = ["get_ticket", "close_ticket"]
+system = "Triage helpdesk tickets and draft replies for staff to review."
+
+[approval]
+close_ticket = "staff"

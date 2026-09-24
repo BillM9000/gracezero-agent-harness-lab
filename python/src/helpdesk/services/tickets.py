@@ -146,6 +146,12 @@ def ticket_in_context(conn: sqlite3.Connection, person: Person, ticket_id: int) 
         for other in repository.list_tickets_for_customer(conn, ticket["customer_id"])
         if other["id"] != ticket_id and access.can_see(person, other)
     ]
+    # Chapter 19: what became of every change proposed on this ticket, so the assistant reads why a
+    # draft was rejected before it tries again. The rejection reason is its feedback.
+    ticket["proposals"] = [
+        {**p, "decided_by_name": staff.get(p["decided_by"])}
+        for p in repository.list_proposals_for_ticket(conn, ticket_id)
+    ]
     return ticket
 
 

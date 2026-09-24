@@ -112,14 +112,26 @@
     {
       "id": "draft-reply",
       "description": "The assistant can draft a reply to a ticket, which a person reads before anything is sent.",
-      "status": "todo",
-      "proof": null
+      "status": "done",
+      "proof": "python/tests/test_approvals.py::test_a_draft_reply_changes_nothing_until_a_person_approves_it"
     },
     {
       "id": "approval-before-sending",
       "description": "Sending a reply or closing a ticket waits for a person's approval (chapter 19).",
-      "status": "todo",
-      "proof": null
+      "status": "done",
+      "proof": "python/tests/test_approvals.py::test_closing_a_ticket_needs_a_lead_and_support_staff_are_refused"
+    },
+    {
+      "id": "writers-declare-approval",
+      "description": "An agent definition that gives its agent a tool that changes things must say whose approval each change needs, at least what the platform's policy requires, and the tool can't be built without it (chapter 19).",
+      "status": "done",
+      "proof": "python/tests/test_agent_policy.py::test_a_writer_left_out_of_approval_is_named_with_the_least_it_needs"
+    },
+    {
+      "id": "destructive-command-guard",
+      "description": "Before a coding agent runs a shell command that would destroy work no commit holds, a hook asks the person where Claude Code can show a prompt and denies where it can't, and fails closed; deny rules refuse force pushes in every mode (chapter 19).",
+      "status": "done",
+      "proof": "tools/hooks/destructive-guard.test.mjs::where a person can see a prompt the guard asks; where none can be shown it denies and says why"
     },
     {
       "id": "mcp-server",

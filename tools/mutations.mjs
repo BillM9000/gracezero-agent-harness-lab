@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 18, 24, 25
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 19, 24, 25
 // and 30 are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and
 // chapter 1's tally's check for missing fields; the guards from earlier chapters were broken by
 // hand when they were built (CHANGELOG.md records each time) and are the next candidates to add.
@@ -52,6 +52,12 @@ const REVISE = "python/src/helpdesk/assistant/revise.py";
 const TEAM = "python/src/helpdesk/assistant/team.py";
 const REVISE_TESTS = "tests/test_revise.py";
 const TEAM_TESTS = "tests/test_team.py";
+const APPROVALS = "tests/test_approvals.py";
+const DECISIONS = "python/src/helpdesk/services/decisions.py";
+const PROPOSALS = "python/src/helpdesk/services/proposals.py";
+const PROPOSING = "python/src/helpdesk/assistant/proposing.py";
+const GUARD_RULES = "tools/hooks/guard-rules.mjs";
+const GUARD_TESTS = "tools/hooks/destructive-guard.test.mjs";
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -60,6 +66,8 @@ const FAKE_FITNESS = "python/tests/fitness/test_tests_fake_the_model_client.py";
 const FAKE_FITNESS_TEST = "tests/fitness/test_tests_fake_the_model_client.py";
 const PROGRESS = "tools/progress.mjs";
 const progressTest = (name) => nodeTest("tools/progress.test.mjs", name);
+const approvals = (name) => pytest(`${APPROVALS}::${name}`);
+const guardTest = (name) => nodeTest(GUARD_TESTS, name);
 // The git runner the script tests build their repositories with, proved by tools/git-run.test.mjs.
 const GIT_RUN = "tools/git-run.mjs";
 const gitRunTest = (name) => nodeTest("tools/git-run.test.mjs", name);
@@ -418,7 +426,7 @@ export const MUTATIONS = [
   {
     guard: "agent policy: unknown fields are reported",
     file: AGENT_RULES,
-    find: "        if key not in FIELDS:",
+    find: "        if key not in known:",
     replace: "        if False:",
     run: fixture("fail-misspelled-field"),
   },
@@ -516,8 +524,8 @@ export const MUTATIONS = [
   {
     guard: "agent policy: its tools match the code",
     file: "python/agents/policy.toml",
-    find: 'tools = ["get_ticket", "find_tickets", "search_kb", "delegate_customer"]',
-    replace: 'tools = ["get_ticket", "find_tickets", "search_kb", "delegate_customer", "send_email"]',
+    find: 'tools = ["get_ticket", "find_tickets", "search_kb", "delegate_customer", "draft_reply", "close_ticket"]',
+    replace: 'tools = ["get_ticket", "find_tickets", "search_kb", "delegate_customer", "draft_reply", "close_ticket", "send_email"]',
     run: pytest(`${POLICY}::test_the_policy_tools_are_the_tools_the_code_provides`),
   },
   {
@@ -934,8 +942,8 @@ export const MUTATIONS = [
   {
     guard: "triage: the tools act for the person the assistant was started for",
     file: "python/src/helpdesk/triage.py",
-    find: 'tools = triage_tools(conn, person).only(agent["tools"])',
-    replace: 'tools = triage_tools(conn, access.find_person(conn, "sam")).only(agent["tools"])',
+    find: "    tools = assistant_tools(conn, person, agent)",
+    replace: '    tools = assistant_tools(conn, access.find_person(conn, "sam"), agent)',
     run: pytest("tests/test_triage_cli.py::test_the_demo_says_who_the_assistant_acts_for_and_its_tools_act_for_them"),
   },
   {
@@ -1603,6 +1611,260 @@ export const MUTATIONS = [
     find: "        for v in check(d, policy)",
     replace: "        for v in []",
     run: pytest("tests/test_patterns_compare.py::test_nothing_runs_when_a_definition_breaks_the_policy"),
+  },
+  // Chapter 19: product agents propose, a person decides, and every step is recorded.
+  {
+    guard: "access: support staff change only the tickets assigned to them",
+    file: ACCESS,
+    find: '        return ticket["assignee_id"] == person.id',
+    replace: '        return ticket["assignee_id"] in (None, person.id)',
+    run: approvals("test_support_staff_see_the_unassigned_queue_but_change_only_their_own_tickets"),
+  },
+  {
+    guard: "access: only a lead gives a lead's approval",
+    file: ACCESS,
+    find: '        return person.role == "lead"',
+    replace: "        return True",
+    run: approvals("test_closing_a_ticket_needs_a_lead_and_support_staff_are_refused"),
+  },
+  {
+    guard: "access: approving a change needs the right to make it",
+    file: ACCESS,
+    find: "    if not can_change(person, ticket):\n        return False\n    if needs",
+    replace: "    if needs",
+    run: approvals("test_support_staff_cannot_approve_a_change_to_a_ticket_that_isnt_theirs"),
+  },
+  {
+    guard: "proposals: a tool files nothing for a ticket its person may not change",
+    file: PROPOSALS,
+    find: "    elif not access.can_change(person, ticket):",
+    replace: "    elif False:",
+    run: approvals("test_support_staff_see_the_unassigned_queue_but_change_only_their_own_tickets"),
+  },
+  {
+    guard: "proposals: one change of a kind waits on a ticket at a time",
+    file: PROPOSALS,
+    find: "    elif waiting:",
+    replace: "    elif False:",
+    run: approvals("test_one_reply_at_a_time_waits_on_a_ticket"),
+  },
+  {
+    guard: "decisions: a person without the approval a change needs is refused",
+    file: DECISIONS,
+    find: '    elif not access.may_approve(person, proposal["needs"], ticket):',
+    replace: "    elif False:",
+    run: approvals("test_closing_a_ticket_needs_a_lead_and_support_staff_are_refused"),
+  },
+  {
+    guard: "decisions: a proposal is decided once",
+    file: DECISIONS,
+    find: '    if proposal["status"] != "pending":',
+    replace: "    if False:",
+    run: approvals("test_a_proposal_is_decided_once"),
+  },
+  {
+    guard: "repository: only a pending proposal is marked decided, even by two at once",
+    file: "python/src/helpdesk/data/repository.py",
+    find: `        "WHERE id = ? AND status = 'pending'",`,
+    replace: `        "WHERE id = ?",`,
+    run: approvals("test_a_decided_proposal_cannot_be_decided_again_even_by_two_at_once"),
+  },
+  {
+    guard: "decisions: approving checks again that the reply can still be sent",
+    file: DECISIONS,
+    find: '    elif proposal["kind"] == "reply" and ticket["status"] == "closed":',
+    replace: "    elif False:",
+    run: approvals("test_approving_checks_again_that_the_change_can_still_be_made"),
+  },
+  {
+    guard: "decisions: a failed approval leaves nothing behind",
+    file: DECISIONS,
+    find: "        conn.rollback()\n        raise",
+    replace: "        raise",
+    run: approvals("test_the_decision_the_change_and_its_record_commit_together"),
+  },
+  {
+    guard: "decisions: the reply is committed with its record, not before it",
+    file: DECISIONS,
+    find: 'proposal["text"], now, commit=False',
+    replace: 'proposal["text"], now',
+    run: approvals("test_the_decision_the_change_and_its_record_commit_together"),
+  },
+  {
+    guard: "decisions: a rejection needs a reason",
+    file: DECISIONS,
+    find: "    if not reason.strip():",
+    replace: "    if False:",
+    run: approvals("test_a_rejection_needs_a_reason_and_the_assistant_reads_it_on_the_ticket"),
+  },
+  {
+    guard: "decisions: only someone who may decide sees where a reply goes",
+    file: DECISIONS,
+    find: '    if not access.may_approve(person, proposal["needs"], ticket):\n        raise Forbidden(f"Only someone',
+    replace: '    if False:\n        raise Forbidden(f"Only someone',
+    run: approvals("test_only_someone_who_may_decide_sees_where_a_reply_goes"),
+  },
+  {
+    guard: "tickets: the assistant reads what became of the changes proposed on a ticket",
+    file: TICKETS,
+    find: "        for p in repository.list_proposals_for_ticket(conn, ticket_id)\n",
+    replace: "        for p in []\n",
+    run: approvals("test_a_rejection_needs_a_reason_and_the_assistant_reads_it_on_the_ticket"),
+  },
+  {
+    guard: "tools: a rejection's reason reaches the assistant word for word",
+    file: TOOLS,
+    find: `    return f'{what}: rejected by {proposal["decided_by_name"]}, who said: "{proposal["reason"]}"'`,
+    replace: `    return f"{what}: rejected by {proposal['decided_by_name']}."`,
+    run: approvals("test_a_rejection_needs_a_reason_and_the_assistant_reads_it_on_the_ticket"),
+  },
+  {
+    guard: "proposing: a tool that writes is marked as writing (chapter 8's read-only test)",
+    file: PROPOSING,
+    find: "Tool(DRAFT_REPLY, draft_reply, writes=True)",
+    replace: "Tool(DRAFT_REPLY, draft_reply)",
+    run: pytest("tests/test_triage_tools.py::test_the_assistants_tools_only_read"),
+  },
+  {
+    guard: "proposing: a change beyond the person goes to a lead, and the tool says so",
+    file: PROPOSING,
+    find: '    if proposal["needs"] == "lead" and person.role != "lead":',
+    replace: "    if False:",
+    run: approvals("test_closing_a_ticket_needs_a_lead_and_support_staff_are_refused"),
+  },
+  {
+    guard: "proposing: each writer needs the approval its definition names",
+    file: PROPOSING,
+    find: "{n: approval[n] for n in names if n in WRITERS}",
+    replace: '{n: "staff" for n in names if n in WRITERS}',
+    run: approvals("test_closing_a_ticket_needs_a_lead_and_support_staff_are_refused"),
+  },
+  {
+    guard: "proposing: a writer without an approval isn't built",
+    file: PROPOSING,
+    find: "    if unapproved:",
+    replace: "    if False:",
+    run: pytest(`${POLICY}::test_the_tools_themselves_refuse_to_build_a_writer_without_an_approval`),
+  },
+  {
+    guard: "agent policy: a tool that writes needs a named approval",
+    file: AGENT_RULES,
+    find: "        if tool in writes and tool not in approval:",
+    replace: "        if False:",
+    run: fixture("fail-writer-without-approval"),
+  },
+  {
+    guard: "agent policy: an approval the platform doesn't know is refused",
+    file: AGENT_RULES,
+    find: "        elif who not in levels:",
+    replace: "        elif False:",
+    run: fixture("fail-unknown-approver"),
+  },
+  {
+    guard: "agent policy: an approval below the policy's least is refused",
+    file: AGENT_RULES,
+    find: "        elif levels.index(who) < levels.index(writes[tool]):",
+    replace: "        elif False:",
+    run: fixture("fail-approval-below-the-policy"),
+  },
+  {
+    guard: "agent policy: an approval for a tool that only reads is refused",
+    file: AGENT_RULES,
+    find: "        if tool not in writes:\n",
+    replace: "        if False:\n",
+    run: fixture("fail-approval-for-a-reader"),
+  },
+  {
+    guard: "agent policy: its tools that write match the code",
+    file: "python/agents/policy.toml",
+    find: 'close_ticket = "lead"\n',
+    replace: "",
+    run: pytest(`${POLICY}::test_the_policy_names_exactly_the_tools_that_write_and_the_approvals_the_code_applies`),
+  },
+  {
+    guard: "import-linter: only the approval command decides a proposal",
+    file: "python/pyproject.toml",
+    find: 'allowed_importers = ["helpdesk.approvals"]',
+    replace: 'allowed_importers = ["helpdesk"]',
+    run: pytest(`${LAYERS}::test_a_tool_that_imports_the_code_that_decides_is_caught_with_the_fix`),
+  },
+  // Chapter 19: coding agents. The destructive-command guard.
+  {
+    guard: "guard: where no prompt can be shown, it denies",
+    file: GUARD_RULES,
+    find: 'export const ASK_MODES = new Set(["default", "acceptEdits", "plan", "auto"]);',
+    replace: 'export const ASK_MODES = new Set(["default", "acceptEdits", "plan", "auto", "bypassPermissions"]);',
+    run: guardTest("where a person can see a prompt"),
+  },
+  {
+    guard: "guard: a failure inside it denies",
+    file: "tools/hooks/destructive-guard.mjs",
+    find: "  out = failed(error);",
+    replace: "  out = null;",
+    run: guardTest("a failure inside the guard"),
+  },
+  {
+    guard: "guard: a quoted string is one word",
+    file: GUARD_RULES,
+    find: `    if (c === "'" || c === '"') {`,
+    replace: "    if (false) {",
+    run: guardTest("everyday commands pass"),
+  },
+  {
+    guard: "guard: text handed to a shell is read",
+    file: GUARD_RULES,
+    find: "      if (SHELLS.has(names[0].toLowerCase())) {",
+    replace: "      if (false) {",
+    run: guardTest("each destructive command is caught"),
+  },
+  {
+    guard: "guard: a heredoc is text for its command, not commands",
+    file: GUARD_RULES,
+    find: "    if (!heredoc) {",
+    replace: "    if (true) {",
+    run: guardTest("everyday commands pass"),
+  },
+  {
+    guard: "guard: git's own options are skipped",
+    file: GUARD_RULES,
+    find: '  while (i < w.length && w[i].startsWith("-")) i += ["-C", "-c"].includes(w[i]) ? 2 : 1;',
+    replace: "  void w;",
+    run: guardTest("each destructive command is caught"),
+  },
+  {
+    guard: "guard: a force push is caught in any word order",
+    file: GUARD_RULES,
+    find: '        has(rest, "--force", "--force-with-lease") ||',
+    replace: '        rest[0] === "--force" ||',
+    run: guardTest("each destructive command is caught"),
+  },
+  {
+    guard: "guard: a program is known by its name, not its path",
+    file: GUARD_RULES,
+    find: '.pop().replace(/\\.exe$/i, "");',
+    replace: '.pop() && text;',
+    run: guardTest("each destructive command is caught"),
+  },
+  {
+    guard: "guard: a DELETE with a WHERE isn't every row",
+    file: GUARD_RULES,
+    find: "!/\\bWHERE\\b/i.test(s)",
+    replace: "true",
+    run: guardTest("everyday commands pass"),
+  },
+  {
+    guard: "settings: the guard covers PowerShell as well as Bash",
+    file: ".claude/settings.json",
+    find: '"matcher": "Bash|PowerShell"',
+    replace: '"matcher": "Bash"',
+    run: guardTest("the configured guard starts"),
+  },
+  {
+    guard: "settings: force pushes are denied by Claude Code itself",
+    file: ".claude/settings.json",
+    find: '      "Bash(git push -f *)",\n',
+    replace: "",
+    run: guardTest("the configured guard starts"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

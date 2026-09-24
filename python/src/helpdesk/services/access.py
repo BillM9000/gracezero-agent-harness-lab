@@ -6,9 +6,9 @@ and check every ticket against them, in code, on every call. No tool takes the p
 argument, so nothing the model writes can change whose permissions it uses.
 
 The rule: a lead sees every ticket; support staff see the tickets assigned to them and the
-unassigned queue. Every tool here only reads. Tools that change a ticket arrive with human approval
-in chapter 19, and they take the same person: may this person do it at all is answered here, before
-anyone is asked to approve it.
+unassigned queue. Chapter 19 extends it to writes, for the tools that propose a change: a lead may
+change any ticket, support staff only their own. That answers "may this person do it at all?"
+before anyone is asked to approve it; may_approve answers "may this person approve it?".
 """
 
 from __future__ import annotations
@@ -65,6 +65,41 @@ def can_see(person: Person, ticket: dict[str, Any]) -> bool:
     if person.role == "support":
         return ticket["assignee_id"] in (None, person.id)
     return False  # a role this rule doesn't know sees nothing: it fails closed
+
+
+def can_change(person: Person, ticket: dict[str, Any]) -> bool:
+    """The rule for writes (chapter 19), stricter than can_see: support staff see the unassigned
+    queue, but change only the tickets assigned to them."""
+    if person.role == "lead":
+        return True
+    if person.role == "support":
+        return ticket["assignee_id"] == person.id
+    return False  # fails closed, like can_see
+
+
+# Whose approval a change can need, least first. An agent definition names one for each tool that
+# writes, and agents/policy.toml sets the least each tool may have (a test keeps the two in step).
+APPROVERS = ("staff", "lead")
+NEEDS = {"staff": "a member of staff who may change the ticket", "lead": "a lead"}
+
+
+def may_approve(person: Person, needs: str, ticket: dict[str, Any]) -> bool:
+    """May this person approve (or reject) a change that needs this approval, on this ticket?"""
+    if not can_change(person, ticket):
+        return False
+    if needs == "staff":
+        return True
+    if needs == "lead":
+        return person.role == "lead"
+    return False  # an approval this rule doesn't know: nobody may give it
+
+
+def cannot_change(person: Person, ticket: dict[str, Any]) -> str:
+    """What a tool says about a ticket the person may see but not change."""
+    return (
+        f"{person.name} can see ticket {ticket['id']} but can't change it: support staff change only the "
+        f"tickets assigned to them. Nothing was filed. Ask a lead to assign it to {person.first_name} first."
+    )
 
 
 def cannot_see(person: Person, ticket_id: int) -> str:

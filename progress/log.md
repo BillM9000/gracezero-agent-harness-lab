@@ -6,6 +6,17 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
 
+## 2026-09-24: chapter 19, permissions and human approval
+
+- `draft_reply` and `close_ticket` (`helpdesk/assistant/proposing.py`) check what the person may change and file a proposal; `python -m helpdesk.approvals` is where a person approves or rejects it (`helpdesk/services/decisions.py`, which only that command may import). Approving re-checks everything and commits the decision, the change and its record together; a rejection's reason shows on the ticket for the assistant; closing needs a lead; every step is in `approval_log`.
+- `python -m helpdesk.triage --demo propose|redraft --db FILE` runs the scripted flow.
+- The agent policy requires `[approval]` for every tool in `[writes]`, at least the policy's level.
+- `.claude/settings.json`: deny rules for force pushes and a PreToolUse guard for destructive shell commands (`tools/hooks/destructive-guard.mjs`): ask where a prompt can be shown, deny where it can't, deny on failure.
+- 30 new Python tests (349 in all), 6 new script tests; 36 new entries in `tools/mutations.mjs` (206 in all).
+- Work list: `draft-reply` and `approval-before-sending` marked done; `writers-declare-approval` and `destructive-command-guard` added as done; each with its proof.
+- Checked with: `node check.mjs` (all 19 checks passed) and `node tools/progress.mjs .` (no problems).
+- Next: `golden-set`, the first item still to do.
+
 ## 2026-09-24: chapter 14, multi-agent patterns
 
 - `python -m helpdesk.patterns batch`: an orchestrator (`agents/orchestrator.toml`, tools `find_tickets` and a new `delegate_customer`) hands each customer's open and pending tickets to a worker with its own context and only `get_ticket` and `search_kb` (`helpdesk/assistant/team.py`). Each worker's drafts are citation-checked against its own transcript, and the orchestrator gets a short report. After the run, the code counts every customer in the batch as drafted, failed or never delegated, whatever the orchestrator's summary says; `--fail ben` cuts one worker off to show it.

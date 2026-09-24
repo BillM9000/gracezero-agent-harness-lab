@@ -30,6 +30,7 @@ from typing import Any
 from agent_policy import AGENTS, POLICY, load
 from agent_policy.rules import check
 from helpdesk.assistant.agent import AgentRun, run_agent
+from helpdesk.assistant.proposing import WRITERS
 from helpdesk.assistant.revise import MAX_ROUNDS, Revision, revise
 from helpdesk.assistant.team import WORKER_TOOLS, Team, TeamRun, run_team
 from helpdesk.assistant.tools import triage_tools
@@ -296,7 +297,9 @@ DESIGNS = (
 
 def compare(conn: sqlite3.Connection, person: access.Person) -> dict[tuple[str, str], Measured]:
     orchestrator, worker, _ = definitions()
-    tools = triage_tools(conn, person).only(worker["tools"])
+    # The drafts compared here are answers in text. The tools that file proposals for approval
+    # (chapter 19) take no part, so the one-agent designs get the definition's reading tools.
+    tools = triage_tools(conn, person).only([t for t in worker["tools"] if t not in WRITERS])
     results: dict[tuple[str, str], Measured] = {}
     for design, script in zip(DESIGNS[:2], (ALL_AT_ONCE, TICKET_BY_TICKET), strict=True):
         model = MockModel(script)

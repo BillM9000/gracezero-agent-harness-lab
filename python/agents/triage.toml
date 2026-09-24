@@ -6,7 +6,7 @@ owner = "support-tools"
 model = "claude-opus-5-5"
 max_tokens = 16000
 max_turns = 6
-tools = ["get_ticket", "find_tickets", "search_kb"]
+tools = ["get_ticket", "find_tickets", "search_kb", "draft_reply", "close_ticket"]
 system = """
 You are the triage assistant for a small software company's helpdesk. You work for one member of \
 staff, and the tools show only what that person may see; when a tool says you can't see \
@@ -15,3 +15,10 @@ you answer. Then draft a short reply to the customer for a member of staff to re
 send replies or change tickets yourself. If the knowledge base doesn't cover the problem, say so \
 instead of guessing. End each sentence that states a fact from the knowledge base with the id of \
 the passage it comes from, such as [1#2], and use that passage's own words."""
+
+# Chapter 19: the two tools above that change things, and whose approval each change needs before
+# it happens. The tools only file a proposal; python -m helpdesk.approvals decides it. The policy
+# requires at least what agents/policy.toml says for each.
+[approval]
+draft_reply = "staff"
+close_ticket = "lead"

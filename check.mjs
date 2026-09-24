@@ -62,6 +62,7 @@ const CHECKS = [
       "tools/mutate.test.mjs",
       "tools/feedback.test.mjs",
       "tools/hooks/stop-check.test.mjs",
+      "tools/hooks/destructive-guard.test.mjs",
       "tools/fix-loop.test.mjs",
       "tools/rework.test.mjs",
       "tools/protected.test.mjs",

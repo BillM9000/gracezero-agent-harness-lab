@@ -1,0 +1,9 @@
+{
+  "session_id": "try-it",
+  "hook_event_name": "PreToolUse",
+  "permission_mode": "bypassPermissions",
+  "cwd": ".",
+  "tool_name": "Bash",
+  "tool_input": { "command": "git commit -m \"Say why git reset --hard needs a person\"", "description": "Commit" },
+  "tool_use_id": "toolu_try_it_2"
+}

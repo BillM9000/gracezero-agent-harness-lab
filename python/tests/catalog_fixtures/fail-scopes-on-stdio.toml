@@ -1,0 +1,12 @@
+# expect: fail
+# reasons: servers[0].scopes
+# A stdio server takes its credentials from its environment, not tokens with scopes.
+[[servers]]
+name = "notes"
+owner = "docs-team"
+transport = "stdio"
+command = ["uvx", "example-notes-mcp==0.3.1"]
+tools = ["search_notes", "read_note"]
+approved = "2026-09-20"
+approved_by = "platform-security"
+scopes = ["notes:read"]

@@ -1,7 +1,7 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11, 12, 16 to 18, 24, 25 and
-// 30 are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 13, 16 to 18, 24, 25
+// and 30 are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and
 // chapter 1's tally's check for missing fields; the guards from earlier chapters were broken by
 // hand when they were built (CHANGELOG.md records each time) and are the next candidates to add.
 
@@ -41,6 +41,13 @@ const TOOL_DEFS = "tests/fitness/test_tool_definitions.py";
 const ADAPTER_TESTS = "tests/test_anthropic_client.py";
 const MCP_SERVER = "python/src/helpdesk/mcp_server.py";
 const MCP = "tests/test_mcp_server.py";
+const TOKENS = "python/src/mcp_governance/tokens.py";
+const FRONT_DOOR = "python/src/mcp_governance/resource_server.py";
+const CATALOG = "python/src/mcp_governance/catalog.py";
+const TOKEN_TESTS = "tests/test_mcp_tokens.py";
+const HTTP_TESTS = "tests/test_mcp_http.py";
+const CATALOG_TESTS = "tests/test_mcp_catalog.py";
+const catalogFixture = (name) => pytest(`${CATALOG_TESTS}::test_each_fixture_gets_exactly_the_verdict_it_names[${name}]`);
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -1194,6 +1201,162 @@ export const MUTATIONS = [
     find: 'broken_contract_guidance = "Only helpdesk/mcp_server.py may use the MCP SDK. Put the rule in helpdesk.services or the toolbox, where every way in applies it, and have the server call that."\n',
     replace: "",
     run: pytest(`${LAYERS}::test_a_service_importing_the_mcp_sdk_is_caught_with_the_fix`),
+  },
+
+  // Chapter 13: governing MCP servers. The token checks, the scopes, the audit log and the catalog.
+  {
+    guard: "tokens: a token issued for another server is refused",
+    file: TOKENS,
+    find: "        if self.audience not in [canonical(str(a)) for a in audiences]:\n",
+    replace: "        if False:\n",
+    run: pytest(`${TOKEN_TESTS}::test_a_token_issued_for_another_server_is_refused_however_valid_it_is_there`),
+  },
+  {
+    guard: "tokens: a token from another issuer is refused",
+    file: TOKENS,
+    find: "                issuer=self.issuer,\n",
+    replace: "",
+    run: pytest(`${TOKEN_TESTS}::test_a_token_from_another_issuer_is_refused`),
+  },
+  {
+    guard: "tokens: an expired token is refused",
+    file: TOKENS,
+    find: 'options={"require": REQUIRED, "verify_aud": False},',
+    replace: 'options={"require": REQUIRED, "verify_aud": False, "verify_exp": False},',
+    run: pytest(`${TOKEN_TESTS}::test_an_expired_token_is_refused`),
+  },
+  {
+    guard: "tokens: every claim RFC 9068 requires must be there",
+    file: TOKENS,
+    find: 'options={"require": REQUIRED, "verify_aud": False},',
+    replace: 'options={"verify_aud": False},',
+    run: pytest(`${TOKEN_TESTS}::test_a_token_missing_a_claim_rfc_9068_requires_is_refused`),
+  },
+  {
+    guard: "tokens: only an access token is accepted",
+    file: TOKENS,
+    find: '        if str(header.get("typ", "")).lower() not in TOKEN_TYPES:\n',
+    replace: "        if False:\n",
+    run: pytest(`${TOKEN_TESTS}::test_a_signed_jwt_that_isnt_an_access_token_is_refused`),
+  },
+  {
+    guard: "front door: an operation needs its scope",
+    file: FRONT_DOOR,
+    find: "        missing = [s for s in needed if s not in grant.scopes]",
+    replace: "        missing: list[str] = []",
+    run: pytest(`${HTTP_TESTS}::test_a_scope_narrows_what_a_person_may_do_and_never_widens_it`),
+  },
+  {
+    guard: "front door: the token never reaches the MCP server",
+    file: FRONT_DOOR,
+    find: "await self.forward(app, without_authorization(scope), replay(body, receive), send)",
+    replace: "await self.forward(app, scope, replay(body, receive), send)",
+    run: pytest(`${HTTP_TESTS}::test_the_token_never_reaches_the_mcp_server`),
+  },
+  {
+    guard: "front door: a request without a token is audited too",
+    file: FRONT_DOOR,
+    find: '            self.audit.record(**record, status=401, outcome="refused 401: no token")\n',
+    replace: "",
+    run: pytest(`${HTTP_TESTS}::test_every_request_is_audited_and_the_token_never_is`),
+  },
+  {
+    guard: "front door: a refusal says where the metadata is",
+    file: FRONT_DOOR,
+    find: "        parts.append(f'resource_metadata=\"{self.metadata_url}\"')\n",
+    replace: "",
+    run: pytest(`${HTTP_TESTS}::test_a_request_without_a_token_is_told_where_to_get_one`),
+  },
+  {
+    guard: "mcp http: a subject the server doesn't know is refused",
+    file: MCP_SERVER,
+    find: "person = next((p for p in access.staff(conn) if str(p.id) == subject), None)",
+    replace: "person = next((p for p in access.staff(conn) if str(p.id) == subject), access.staff(conn)[0])",
+    run: pytest(`${HTTP_TESTS}::test_a_subject_the_server_doesnt_know_is_refused`),
+  },
+  {
+    guard: "mcp http: the person comes from the token",
+    file: MCP_SERVER,
+    find: "return None if person is None else (person.label, mcp_app_for(conn, person))",
+    replace: 'return None if person is None else (person.label, mcp_app_for(conn, access.find_person(conn, "dana")))',
+    run: pytest(`${HTTP_TESTS}::test_the_person_comes_from_the_token`),
+  },
+  {
+    guard: "mcp http: a ticket resource needs tickets:read",
+    file: MCP_SERVER,
+    find: 'RESOURCE_SCOPES = {TICKETS: "tickets:read", ARTICLES: "kb:read"}',
+    replace: 'RESOURCE_SCOPES = {ARTICLES: "kb:read"}',
+    run: pytest(`${HTTP_TESTS}::test_every_way_to_a_ticket_needs_tickets_read`),
+  },
+  {
+    guard: "mcp http: the prompt needs tickets:read",
+    file: MCP_SERVER,
+    find: 'PROMPT_SCOPES = {DRAFT_REPLY.name: "tickets:read"}',
+    replace: "PROMPT_SCOPES: dict[str, str] = {}",
+    run: pytest(`${HTTP_TESTS}::test_every_way_to_a_ticket_needs_tickets_read`),
+  },
+  {
+    guard: "mcp http: a request from another web origin is refused",
+    file: MCP_SERVER,
+    find: "stateless_http=True, json_response=True, host=HTTP_HOST",
+    replace: 'stateless_http=True, json_response=True, host="0.0.0.0"',
+    run: pytest(`${HTTP_TESTS}::test_a_request_from_another_web_origin_is_refused`),
+  },
+  {
+    guard: "mcp http: the server is compared with its catalog entry",
+    file: MCP_SERVER,
+    find: "    problems = offered_differs(server, tools=offered, scopes=SCOPES_SUPPORTED)",
+    replace: "    problems: list[str] = []",
+    run: pytest(`${HTTP_TESTS}::test_the_server_offers_exactly_what_the_catalog_approved`),
+  },
+  {
+    guard: "catalog: a tool the catalog didn't approve is found",
+    file: CATALOG,
+    find: "        for extra in [x for x in offered if x not in approved]:",
+    replace: "        for extra in []:",
+    run: pytest(`${HTTP_TESTS}::test_the_server_offers_exactly_what_the_catalog_approved`),
+  },
+  {
+    guard: "catalog: an all-granting scope is refused",
+    file: CATALOG,
+    find: "        elif scope.lower() in omnibus:",
+    replace: "        elif False:",
+    run: catalogFixture("fail-all-granting-scope"),
+  },
+  {
+    guard: "catalog: a server anywhere else must use HTTPS",
+    file: CATALOG,
+    find: '    if parts.scheme == "http" and shown_host not in local_hosts:',
+    replace: "    if False:",
+    run: catalogFixture("fail-plain-http-elsewhere"),
+  },
+  {
+    guard: "catalog: a field of the other transport is refused",
+    file: CATALOG,
+    find: "        elif key not in expected and transport in BY_TRANSPORT:",
+    replace: "        elif False:",
+    run: catalogFixture("fail-command-on-http"),
+  },
+  {
+    guard: "catalog: a server listed twice is refused",
+    file: CATALOG,
+    find: "            if key in seen:",
+    replace: "            if False:",
+    run: catalogFixture("fail-listed-twice"),
+  },
+  {
+    guard: "catalog: a server with no tools is refused",
+    file: CATALOG,
+    find: "        if not tools:",
+    replace: "        if False:",
+    run: catalogFixture("fail-no-tools"),
+  },
+  {
+    guard: "catalog: the allowlist never matches a server by its name",
+    file: CATALOG,
+    find: '{"serverUrl": s["url"]} if s["transport"] == "http" else {"serverCommand": s["command"]}',
+    replace: '{"serverName": s["name"]}',
+    run: pytest(`${CATALOG_TESTS}::test_the_allowlist_names_each_server_by_address_or_exact_command_never_by_name`),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

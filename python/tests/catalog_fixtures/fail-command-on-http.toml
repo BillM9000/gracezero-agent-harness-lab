@@ -1,0 +1,13 @@
+# expect: fail
+# reasons: servers[0].command
+# An http server is reached at its address: a command belongs to stdio servers.
+[[servers]]
+name = "helpdesk"
+owner = "support-tools"
+transport = "http"
+url = "http://127.0.0.1:8765/mcp"
+scopes = ["kb:read", "tickets:read"]
+tools = ["get_ticket", "find_tickets", "search_kb"]
+approved = "2026-09-23"
+approved_by = "platform-security"
+command = ["python", "-m", "helpdesk.mcp_server"]

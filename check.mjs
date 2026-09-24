@@ -1,8 +1,8 @@
 // One command to run every check in the repository: node check.mjs
 //
-// Runs the Python lint, format, import-rule, model-text-rule, agent-policy, retrieval and test
-// checks, a check that the API contract and the TypeScript types generated from it are current, the
-// TypeScript type-check, import rules and tests, the Node script tests, a check that setup.mjs's
+// Runs the Python lint, format, import-rule, model-text-rule, agent-policy, MCP-catalog, retrieval
+// and test checks, a check that the API contract and the TypeScript types generated from it are
+// current, the TypeScript type-check, import rules and tests, the Node script tests, a check that setup.mjs's
 // Windows path limit still fits the installed packages, a budget for the instruction files, a check
 // of what the documentation claims, and a check that the work list's done items name real tests,
 // then prints one line per check. Exits 1 if any fails, after printing the end of that check's
@@ -32,6 +32,8 @@ const CHECKS = [
   ["Python model-text rule (python -m helpdesk_lint)", tool("python"), ["-m", "helpdesk_lint"], { cwd: python }],
   // Agent definitions against the platform's policy (chapter 18).
   ["Agent definitions (python -m agent_policy)", tool("python"), ["-m", "agent_policy"], { cwd: python }],
+  // The catalog of approved MCP servers against its rules (chapter 13).
+  ["MCP server catalog (python -m mcp_governance)", tool("python"), ["-m", "mcp_governance"], { cwd: python }],
   // Retrieval against its golden set (chapter 9): recall at 3 at or above the floor in
   // evals/kb_questions.json, and nothing returned for questions the knowledge base can't answer.
   ["Knowledge-base retrieval (python -m helpdesk.kb eval)", tool("python"), ["-m", "helpdesk.kb", "eval"], { cwd: python }],

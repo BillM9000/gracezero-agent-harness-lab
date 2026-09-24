@@ -6,6 +6,7 @@ python -m helpdesk.mcp_client --as sam resources                   its resources
 python -m helpdesk.mcp_client --as sam read helpdesk://tickets/4   read one resource
 python -m helpdesk.mcp_client --as sam prompts                     its prompts
 python -m helpdesk.mcp_client --as sam prompt draft_reply ticket_id=2
+python -m helpdesk.mcp_client --url http://127.0.0.1:8765/mcp --as sam call get_ticket ticket_id=2
 
 Add --wire to see every JSON-RPC message sent and received, and --legacy to open with the
 initialize handshake of protocol 2025-11-25 instead of 2026-07-28's per-request metadata.
@@ -15,24 +16,39 @@ as a subprocess, with the member of staff in its environment (HELPDESK_STAFF), w
 message a line to its standard input, and reads one a line from its standard output. --as sets
 that environment variable, as a host's configuration would; no message carries a person. A call's
 arguments are NAME=VALUE pairs, read as JSON where they parse, as in python -m helpdesk.tools.
+
+With --url it speaks Streamable HTTP to a server that's already running (chapter 13), such as
+python -m helpdesk.mcp_server --http, every message its own POST. --as then gets an access token
+for that person from the lab's test issuer, for the server at --url (or --audience) and with the
+scopes in --scope, and sends it with every request; without --as it sends no token. `metadata`
+prints the server's Protected Resource Metadata. A refusal prints its HTTP status and challenge.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import queue
 import subprocess
 import sys
 import threading
+import urllib.error
+import urllib.request
 from collections.abc import Callable, Sequence
 from typing import Any
+from urllib.parse import urlsplit
+
+from helpdesk.data.seed import STAFF
+from mcp_governance import run_dir
+from mcp_governance.tokens import LabIssuer
 
 MODERN = "2026-07-28"
 LEGACY = "2025-11-25"
 CLIENT = {"name": "helpdesk-mcp-client", "version": "0.1.0"}
 STAFF_VARIABLE = "HELPDESK_STAFF"  # the server's own name for it; the client never imports the server
+SCOPES = ("kb:read", "tickets:read")  # what --url asks for unless --scope says: all the server lists
 TIMEOUT = 30  # seconds to wait for any one reply before giving up on the server
 
 
@@ -174,6 +190,154 @@ class StdioClient:
         self.close()
 
 
+class Refused(RuntimeError):
+    """An answer over HTTP that isn't a JSON-RPC message: refused before the MCP server saw the request."""
+
+    def __init__(self, status: int, reason: str, challenge: str | None, body: str) -> None:
+        super().__init__(f"HTTP {status} {reason}")
+        self.status = status
+        self.reason = reason
+        self.challenge = challenge
+        self.body = body
+
+
+# The methods whose target the 2026-07-28 transport copies into the Mcp-Name header, and where it is.
+NAMED = {"tools/call": "name", "prompts/get": "name", "resources/read": "uri"}
+
+
+def header_value(value: str) -> str:
+    """A value for Mcp-Name: as it is if it's plain printable ASCII, otherwise in the specification's
+    Base64 form, =?base64?...?=."""
+    plain = value.isascii() and value.isprintable() and value == value.strip() and not value.startswith("=?")
+    return value if plain else f"=?base64?{base64.b64encode(value.encode()).decode()}?="
+
+
+class HttpClient:
+    """One MCP server over Streamable HTTP, revision 2026-07-28: every message its own POST, with the
+    method and name copied into headers and the bearer token, if there is one, on every request."""
+
+    legacy = False
+    stderr = ""
+
+    def __init__(
+        self,
+        url: str,
+        token: str | None = None,
+        *,
+        wire: Callable[[str, str], None] | None = None,
+        note: str = "",
+    ) -> None:
+        self.url = url
+        self.token = token
+        self.wire = wire
+        self.note = note  # what the token is, for --wire, which never prints the token itself
+        self._next_id = 0
+        self.opening: dict[str, Any] = {}
+        # No proxy: the lab's server is on this machine, and the token must go nowhere else.
+        self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+    def _send(self, request: urllib.request.Request) -> tuple[int, str, dict[str, str], bytes]:
+        try:
+            with self._opener.open(request, timeout=TIMEOUT) as response:
+                return response.status, response.reason, dict(response.headers), response.read()
+        except urllib.error.HTTPError as e:
+            return e.code, e.reason, dict(e.headers), e.read()
+        except urllib.error.URLError as e:
+            raise ServerExited(
+                f"nothing answered at {request.full_url} ({e.reason}). Is the server running?"
+            ) from None
+
+    def request(
+        self, method: str, params: dict[str, Any] | None = None, *, meta: bool = True
+    ) -> dict[str, Any]:
+        self._next_id += 1
+        params = dict(params or {})
+        if meta:
+            params["_meta"] = {
+                "io.modelcontextprotocol/protocolVersion": MODERN,
+                "io.modelcontextprotocol/clientInfo": CLIENT,
+                "io.modelcontextprotocol/clientCapabilities": {},
+            }
+        message = {"jsonrpc": "2.0", "id": self._next_id, "method": method, "params": params}
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            "MCP-Protocol-Version": MODERN,
+            "Mcp-Method": method,
+        }
+        if method in NAMED and isinstance(params.get(NAMED[method]), str):
+            headers["Mcp-Name"] = header_value(params[NAMED[method]])
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        body = json.dumps(message)
+        if self.wire:
+            shown = {k: (f"Bearer ({self.note})" if k == "Authorization" else v) for k, v in headers.items()}
+            self.wire(
+                "->",
+                f"POST {self.url} "
+                + " ".join(f"{k}: {v}" for k, v in shown.items() if k.startswith(("Mcp", "Auth"))),
+            )
+            self.wire("->", body)
+        request = urllib.request.Request(self.url, data=body.encode(), headers=headers, method="POST")
+        status, reason, answer_headers, raw = self._send(request)
+        challenge = next((v for k, v in answer_headers.items() if k.lower() == "www-authenticate"), None)
+        text = raw.decode("utf-8", errors="replace")
+        if self.wire:
+            self.wire("<-", f"{status} {reason}" + (f" WWW-Authenticate: {challenge}" if challenge else ""))
+            self.wire("<-", text)
+        reply = parse_reply(text, answer_headers)
+        if reply is None:
+            raise Refused(status, reason, challenge, text)
+        return reply
+
+    def open(self) -> dict[str, Any]:
+        self.opening = self.request("server/discover")
+        return self.opening
+
+    def metadata(self) -> dict[str, Any]:
+        """The server's Protected Resource Metadata (RFC 9728), at the well-known path the MCP
+        specification tries first: /.well-known/oauth-protected-resource, then the endpoint's path."""
+        parts = urlsplit(self.url)
+        where = f"{parts.scheme}://{parts.netloc}/.well-known/oauth-protected-resource{parts.path}"
+        status, reason, _, raw = self._send(urllib.request.Request(where, method="GET"))
+        if status != 200:
+            raise Refused(status, reason, None, raw.decode("utf-8", errors="replace"))
+        return json.loads(raw)
+
+    def close(self) -> int:
+        return 0
+
+    def __enter__(self) -> HttpClient:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
+
+def parse_reply(text: str, headers: dict[str, str]) -> dict[str, Any] | None:
+    """A JSON-RPC reply from a JSON body or from the last event of a Server-Sent Events stream; None
+    when the answer isn't one."""
+    content_type = next((v for k, v in headers.items() if k.lower() == "content-type"), "")
+    if content_type.startswith("text/event-stream"):
+        events = [line[5:].strip() for line in text.splitlines() if line.startswith("data:")]
+        text = events[-1] if events else ""
+    try:
+        reply = json.loads(text)
+    except ValueError:
+        return None
+    return reply if isinstance(reply, dict) and reply.get("jsonrpc") == "2.0" else None
+
+
+def subject_for(person: str) -> str:
+    """The staff id the lab's issuer puts in a token's subject, for a first name or an id. A real
+    issuer knows who signed in; the lab's reads the sample staff list."""
+    for staff_id, name, _ in STAFF:
+        if person.strip().lower() in (str(staff_id), name.split()[0].lower()):
+            return str(staff_id)
+    known = ", ".join(name.split()[0].lower() for _, name, _ in STAFF)
+    raise ValueError(f"No member of staff called {person!r}. Choose one of: {known}.")
+
+
 def arguments_from(pairs: Sequence[str]) -> dict[str, Any]:
     arguments = {}
     for pair in pairs:
@@ -192,7 +356,12 @@ def show_error(error: dict[str, Any]) -> int:
     return 1
 
 
-def run(client: StdioClient, command: str, args: argparse.Namespace) -> int:
+def run(client: StdioClient | HttpClient, command: str, args: argparse.Namespace) -> int:
+    if command == "metadata":
+        if not isinstance(client, HttpClient):
+            raise ValueError("metadata is for a server over HTTP: give its address with --url.")
+        print(json.dumps(client.metadata(), indent=2))
+        return 0
     opened = client.open()
     if "error" in opened:
         return show_error(opened["error"])
@@ -251,10 +420,21 @@ def run(client: StdioClient, command: str, args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(prog="python -m helpdesk.mcp_client")
-    parser.add_argument("--as", dest="person", help=f"who the server acts for: sets {STAFF_VARIABLE}")
+    parser.add_argument(
+        "--as",
+        dest="person",
+        help=f"who the server acts for: sets {STAFF_VARIABLE}, or with --url, the token's person",
+    )
     parser.add_argument("--legacy", action="store_true", help=f"open with the {LEGACY} initialize handshake")
     parser.add_argument("--wire", action="store_true", help="print every message sent (->) and received (<-)")
+    parser.add_argument("--url", help="a server over Streamable HTTP, such as http://127.0.0.1:8765/mcp")
+    parser.add_argument(
+        "--scope", default=" ".join(SCOPES), help=f'with --url, the token\'s scopes ("{" ".join(SCOPES)}")'
+    )
+    parser.add_argument("--audience", help="with --url, the server the token is issued for (default: --url)")
+    parser.add_argument("--client", default=CLIENT["name"], help="with --url, the token's client_id")
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("metadata")
     sub.add_parser("tools")
     sub.add_parser("resources")
     sub.add_parser("prompts")
@@ -269,9 +449,19 @@ def main() -> int:
     args = parser.parse_args()
 
     wire = (lambda direction, line: print(f"{direction} {line}")) if args.wire else None
-    client = StdioClient(args.person, legacy=args.legacy, wire=wire)
+    try:
+        client = (
+            http_client(args, wire) if args.url else StdioClient(args.person, legacy=args.legacy, wire=wire)
+        )
+    except ValueError as e:
+        print(e, file=sys.stderr)
+        return 2
     try:
         return run(client, args.command, args)
+    except Refused as e:
+        print(f"Refused: HTTP {e.status} {e.reason}")
+        print(f"WWW-Authenticate: {e.challenge}" if e.challenge else e.body)
+        return 1
     except ServerExited as e:
         print(f"Stopped: {e}", file=sys.stderr)
         return 2
@@ -280,6 +470,26 @@ def main() -> int:
         return 2
     finally:
         client.close()
+
+
+def http_client(args: argparse.Namespace, wire: Callable[[str, str], None] | None) -> HttpClient:
+    """A client for the server at --url, with a token for --as from the lab's test issuer, if --as is given.
+
+    A real client asks the authorization server the server's metadata names, naming the server it wants
+    the token for (the resource indicator, RFC 8707), and the person signs in. The lab has no
+    authorization server, so it signs the token itself, for the person, the server and the scopes asked."""
+    if args.legacy:
+        raise ValueError("--legacy is for stdio. Over HTTP this client speaks 2026-07-28.")
+    if args.person is None:
+        return HttpClient(args.url, wire=wire)
+    audience = args.audience or args.url
+    scopes = args.scope.split()
+    subject = subject_for(args.person)
+    token = LabIssuer.at(run_dir()).issue(
+        subject=subject, audience=audience, scopes=scopes, client_id=args.client
+    )
+    note = f'a token for {args.person} (subject {subject}), scope "{" ".join(scopes)}", for {audience}'
+    return HttpClient(args.url, token, wire=wire, note=note)
 
 
 if __name__ == "__main__":

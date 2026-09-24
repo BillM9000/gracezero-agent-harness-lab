@@ -1,0 +1,19 @@
+# The organization's approved MCP servers (chapter 13). A server may run here only if it's listed,
+# and it's added by a change to this file that the platform team reviews. python -m mcp_governance
+# checks every entry against the rules (src/mcp_governance/catalog.py, with their data in
+# policy.toml), and python -m mcp_governance allowlist turns this file into the allowlist hosts
+# enforce. The helpdesk's HTTP server refuses to start if the tools or scopes it offers differ from
+# its entry here.
+
+[[servers]]
+name = "helpdesk"
+owner = "support-tools"
+transport = "http"
+# The address tokens for it are issued for: the default of python -m helpdesk.mcp_server --http.
+url = "http://127.0.0.1:8765/mcp"
+# The most a token for it may carry. Each operation asks for the one it needs.
+scopes = ["kb:read", "tickets:read"]
+# Exactly the tools it was approved with. A tool added later needs a new review before it can run.
+tools = ["get_ticket", "find_tickets", "search_kb"]
+approved = "2026-09-23"
+approved_by = "platform-security"

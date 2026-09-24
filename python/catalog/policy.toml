@@ -1,0 +1,15 @@
+# The data for the catalog's rules (chapter 13). python -m mcp_governance checks servers.toml, the
+# catalog in this folder, against it. Change a list here; the rules that use them are in
+# src/mcp_governance/catalog.py, and tests/catalog_fixtures/ shows what they accept and refuse.
+
+# How a host may reach an approved server: over HTTP with a token, or by starting it on the
+# person's own machine.
+transports = ["http", "stdio"]
+
+# Hosts where an http:// address is acceptable, because the traffic never leaves the machine.
+# Anywhere else, a server's address must be https://.
+local_hosts = ["127.0.0.1", "localhost", "[::1]"]
+
+# Scopes that grant everything at once. The MCP specification's security best practices list
+# wildcard or omnibus scopes, such as these, among the common mistakes.
+omnibus_scopes = ["*", "all", "full-access"]

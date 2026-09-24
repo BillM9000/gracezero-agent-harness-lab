@@ -1,0 +1,4 @@
+# expect: fail
+# reasons: servers
+# A catalog with nothing in it approves nothing, and says so.
+# (no servers)

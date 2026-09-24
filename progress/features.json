@@ -128,6 +128,12 @@
       "proof": "python/tests/test_mcp_server.py::test_one_person_cannot_see_anothers_ticket_through_any_way_in"
     },
     {
+      "id": "mcp-governance",
+      "description": "The MCP server serves HTTP as an OAuth resource server: it accepts only tokens issued for it alone, requires each operation's scope, acts for the person the token names, never passes the token on and audits every request; and it runs only as the catalog of approved servers approved it (chapter 13).",
+      "status": "done",
+      "proof": "python/tests/test_mcp_http.py::test_a_token_for_another_server_is_refused"
+    },
+    {
       "id": "golden-set",
       "description": "A golden set of tickets with known good answers, for evaluating the assistant (chapter 21).",
       "status": "todo",

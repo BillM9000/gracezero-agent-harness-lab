@@ -1,16 +1,23 @@
-"""Composition root for the helpdesk's MCP server (chapter 12).
+"""Composition root for the helpdesk's MCP server (chapters 12 and 13).
 
 HELPDESK_STAFF=sam python -m helpdesk.mcp_server    serve MCP on stdio, acting for Sam
+python -m helpdesk.mcp_server --http                serve Streamable HTTP on 127.0.0.1:8765,
+                                                    for the person each request's token names
 
-An MCP host starts this as a subprocess and speaks JSON-RPC to it, one message a line, over its
-standard input and output. python -m helpdesk.mcp_client plays the host.
+On stdio, an MCP host starts this as a subprocess and speaks JSON-RPC to it, one message a line,
+over its standard input and output. python -m helpdesk.mcp_client plays the host.
 
 Who the server acts for comes from its environment, which whoever configures the host sets, and
 never from a message: the MCP specification says a server on stdio takes its credentials from the
 environment. With no HELPDESK_STAFF, or a name that isn't on the staff list, it refuses to start;
-it never picks a person itself. In the lab the variable names the person. A real deployment would
-put a credential there that proves who it is, or serve over HTTP with the specification's OAuth
-authorization, which chapter 13 covers.
+it never picks a person itself. In the lab the variable names the person; it doesn't prove who.
+
+Over HTTP (chapter 13), one server serves everyone, as an OAuth resource server: every request
+carries an access token, which mcp_governance.ResourceServer verifies (issued by the lab's test
+issuer, for this server alone, unexpired) before the request is served by the same server as on
+stdio, built for the person the token names. Each operation needs a scope (required_scopes), every
+request is written to the audit log, and the server refuses to start if its tools or scopes differ
+from its entry in the catalog of approved servers (catalog/servers.toml).
 
 It offers three kinds of thing, and each is another way in to the same data:
 - tools: the triage assistant's three (helpdesk/assistant/tools.py), run through the same toolbox,
@@ -26,14 +33,18 @@ serves a fresh in-memory copy of the sample data, so nothing is saved.
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
+import socket
 import sqlite3
 import sys
 from importlib.metadata import version
+from pathlib import Path
 from typing import Any
 
 import anyio
+import uvicorn
 from mcp import types
 from mcp.server import CacheHint, Server, ServerRequestContext
 from mcp.server.stdio import stdio_server
@@ -48,6 +59,11 @@ from helpdesk.model.types import ToolCall
 from helpdesk.services import access, kb, tickets
 from helpdesk.services.access import Person
 from helpdesk.services.errors import Invalid, ServiceError
+from mcp_governance import SERVERS, load, run_dir
+from mcp_governance.audit import AuditLog
+from mcp_governance.catalog import entry, offered_differs
+from mcp_governance.resource_server import ASGIApp, PersonApp, Receive, ResourceServer, Scope, Send
+from mcp_governance.tokens import ISSUER, Verifier, public_key_at
 
 STAFF_VARIABLE = "HELPDESK_STAFF"
 TICKETS = "helpdesk://tickets/"
@@ -73,9 +89,33 @@ DRAFT_REPLY = types.Prompt(
     ],
 )
 
+# Over HTTP (chapter 13): the scope each operation needs, beyond a token issued for this server.
+# Discovery and the lists need nothing more. A ticket needs tickets:read through every way in: the
+# tools, the ticket resource and the prompt. A test requires every tool offered to have a scope here.
+TOOL_SCOPES = {"get_ticket": "tickets:read", "find_tickets": "tickets:read", "search_kb": "kb:read"}
+PROMPT_SCOPES = {DRAFT_REPLY.name: "tickets:read"}
+RESOURCE_SCOPES = {TICKETS: "tickets:read", ARTICLES: "kb:read"}
+SCOPES_SUPPORTED = sorted({*TOOL_SCOPES.values(), *PROMPT_SCOPES.values(), *RESOURCE_SCOPES.values()})
+HTTP_HOST = "127.0.0.1"  # the specification asks a server running locally to listen on localhost only
+HTTP_PORT = 8765
+CATALOG_NAME = "helpdesk"  # this server's entry in the catalog of approved servers
 # The code the revisions with the initialize handshake (2024-11-05 to 2025-11-25) give a resource that
 # doesn't exist. 2026-07-28 uses -32602 (Invalid Params) instead, and the SDK names only that one.
 RESOURCE_NOT_FOUND = -32002
+
+
+def required_scopes(method: str, name: str | None) -> tuple[str, ...]:
+    """The scopes one request needs. A tool, prompt or resource this server doesn't have needs none:
+    the server refuses it as unknown, the same for every token."""
+    if method == "tools/call" and name in TOOL_SCOPES:
+        return (TOOL_SCOPES[name],)
+    if method == "prompts/get" and name in PROMPT_SCOPES:
+        return (PROMPT_SCOPES[name],)
+    if method == "resources/read" and name:
+        for prefix, scope in RESOURCE_SCOPES.items():
+            if name.startswith(prefix):
+                return (scope,)
+    return ()
 
 
 def not_found(ctx: ServerRequestContext[Any], message: str, uri: str) -> MCPError:
@@ -214,7 +254,126 @@ async def serve(server: Server[Any]) -> None:
         await server.run(read_stream, write_stream, server.create_initialization_options())
 
 
-def main() -> int:
+def mcp_app_for(conn: sqlite3.Connection, person: Person) -> ASGIApp:
+    """The server build_server makes for one person, answering one request over Streamable HTTP.
+    Revision 2026-07-28 keeps nothing from one request to the next, so neither does this: every
+    request gets a server built for the person its token names, and the server is gone after it."""
+
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        http = build_server(conn, person).streamable_http_app(
+            stateless_http=True, json_response=True, host=HTTP_HOST
+        )
+        async with http.router.lifespan_context(http):
+            await http(scope, receive, send)
+
+    return app
+
+
+def build_http_app(
+    conn: sqlite3.Connection, *, resource: str, verifier: Verifier, audit: AuditLog
+) -> ResourceServer:
+    """The helpdesk over HTTP: the resource server's checks, then the person's own MCP server."""
+
+    def for_subject(subject: str) -> PersonApp | None:
+        # The token's subject is a staff id. The person is looked up on every request, never cached,
+        # so someone removed from the staff list is refused from their next request on.
+        person = next((p for p in access.staff(conn) if str(p.id) == subject), None)
+        return None if person is None else (person.label, mcp_app_for(conn, person))
+
+    return ResourceServer(
+        resource=resource,
+        verifier=verifier,
+        authorization_servers=[ISSUER],
+        scopes_supported=SCOPES_SUPPORTED,
+        required_scopes=required_scopes,
+        for_subject=for_subject,
+        audit=audit,
+    )
+
+
+def catalog_problems(conn: sqlite3.Connection, server: dict[str, Any] | None) -> list[str]:
+    """How this server differs from the one the catalog approved. Empty when they match."""
+    if server is None:
+        return [f"the catalog has no entry for {CATALOG_NAME}, so it was never approved"]
+    # Which tools exist doesn't depend on who they act for.
+    offered = [spec.name for spec in triage_tools(conn, Person(0, "Catalog Check", "none")).specs]
+    problems = offered_differs(server, tools=offered, scopes=SCOPES_SUPPORTED)
+    problems += [
+        f"its tool {name} needs no scope: give it one in TOOL_SCOPES"
+        for name in offered
+        if name not in TOOL_SCOPES
+    ]
+    return problems
+
+
+def shown(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(Path.cwd()).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def serve_http(port: int, catalog: Path) -> int:
+    if os.environ.get(STAFF_VARIABLE, "").strip():
+        print(
+            f"Refused: {STAFF_VARIABLE} is set, but over HTTP the person comes from each request's token, "
+            f"never from the server's environment. Unset it: it's for the stdio server.",
+            file=sys.stderr,
+        )
+        return 2
+    conn = connect(":memory:")
+    try:
+        init_schema(conn)
+        seed(conn)
+        # Check what will run against what was approved, before serving anything (chapter 18's rule).
+        problems = catalog_problems(conn, entry(load(catalog), CATALOG_NAME))
+        if problems:
+            for problem in problems:
+                print(f"Refused: {problem}.", file=sys.stderr)
+            print(f"Nothing was served: this isn't the server {shown(catalog)} approved.", file=sys.stderr)
+            return 2
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            listener.bind((HTTP_HOST, port))
+        except OSError as e:
+            listener.close()
+            print(f"Refused: can't listen on {HTTP_HOST}:{port} ({e.strerror}). Try --port.", file=sys.stderr)
+            return 2
+        resource = f"http://{HTTP_HOST}:{listener.getsockname()[1]}/mcp"
+        folder = run_dir()
+        # The server reads only the issuer's public key: it checks tokens, and can never make one.
+        verifier = Verifier(public_key_at(folder), issuer=ISSUER, audience=resource)
+        audit = AuditLog(folder / "audit.jsonl")
+        app = build_http_app(conn, resource=resource, verifier=verifier, audit=audit)
+        print(
+            f"helpdesk MCP server: {resource}, over Streamable HTTP, for the person each request's token "
+            f"names. It accepts tokens from {ISSUER} issued for that address; audit log {shown(audit.path)}.",
+            file=sys.stderr,
+            flush=True,
+        )
+        try:
+            uvicorn.Server(uvicorn.Config(app, log_level="warning")).run(sockets=[listener])
+        finally:
+            audit.close()
+        return 0
+    finally:
+        conn.close()
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="python -m helpdesk.mcp_server")
+    parser.add_argument("--http", action="store_true", help="serve Streamable HTTP, for each request's token")
+    parser.add_argument(
+        "--port", type=int, default=HTTP_PORT, help=f"with --http, the port (default {HTTP_PORT})"
+    )
+    parser.add_argument(
+        "--catalog", type=Path, default=SERVERS, help="with --http, the catalog to check against"
+    )
+    args = parser.parse_args(argv)
+    return serve_http(args.port, args.catalog) if args.http else serve_stdio()
+
+
+def serve_stdio() -> int:
     who = os.environ.get(STAFF_VARIABLE, "").strip()
     if not who:
         print(

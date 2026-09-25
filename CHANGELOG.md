@@ -239,6 +239,7 @@
 - **Chapter 35 in the skills map:** Part IX gains chapter 35, with its likely question, building no signal, so `--questions` lists it under "Any kind of job".
 - `tools/mutate.test.mjs`: 5 new tests (12); `postings/skills.test.mjs` updated (the rest of the path now ends with 35). 3 new entries in `tools/mutations.mjs` (479); the 7 `mutate:` entries applied and caught on the working tree before commit, and the file put back byte for byte. The README says what chapter 35 added. `AGENTS.md` unchanged. Work list: `guardrail-planted-breaks` done.
 - Not run: any real model; nothing here calls one.
+- `node tools/mutate.mjs` on the committed tree at `b92b5d5`: 479 of 479 caught in 22.6 minutes, and the tree unchanged.
 
 ## 2026-09-25, chapter 34 lab
 

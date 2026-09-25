@@ -33,6 +33,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Work list: `guardrail-planted-breaks` done, proved by `tools/mutate.test.mjs`.
 - Checked with: `node check.mjs` and `node tools/progress.mjs .`.
 - Not run: `--real`, for any command; nothing here calls a model.
+- Then `node tools/mutate.mjs` on the committed tree at `b92b5d5`: all 479 caught in 22.6 minutes, and the tree unchanged.
 - Next: chapter 36.
 
 ## 2026-09-25: chapter 34, ten failure modes and how to catch them

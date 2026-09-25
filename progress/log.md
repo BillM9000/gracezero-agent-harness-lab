@@ -25,6 +25,16 @@ What each working session did, newest first. Add an entry at the end of every se
 - Then `node tools/mutate.mjs` on a fresh clone at `338df39`: all 494 caught in 24.9 minutes, and the tree unchanged.
 - Next: Appendices C and D, the glossary, the sources list, the quick-reference card and the front matter.
 
+## 2026-09-25: chapter 35, ten guardrails worth adding first
+
+- `tools/mutate.mjs --only PREFIX`: runs only the mutation entries whose name starts with the prefix, any number of times; a prefix that selects nothing refuses the run (exit 1) and lists the groups.
+- `postings/skills-map.json`: chapter 35 in Part IX, with its likely question.
+- `tools/mutate.test.mjs`, 5 new tests (12); 3 new mutation entries (479); the 7 `mutate:` entries applied and caught on the working tree before commit.
+- Work list: `guardrail-planted-breaks` done, proved by `tools/mutate.test.mjs`.
+- Checked with: `node check.mjs` and `node tools/progress.mjs .`.
+- Not run: `--real`, for any command; nothing here calls a model.
+- Next: chapter 36.
+
 ## 2026-09-25: chapter 34, ten failure modes and how to catch them
 
 - `tools/fix-loop.mjs`: an attempt that changes what the checks compare the code with (the API contract, the types generated from it, or a number `README.md`, `AGENTS.md` or `CLAUDE.md` claims) stops the loop, because the code may be the wrong side; the record's outcome is `changed a reference`, and `tools/measure.mjs` counts it with silenced rules and changed checks.

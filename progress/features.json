@@ -236,6 +236,12 @@
       "proof": "tools/fix-loop.test.mjs::stops when an attempt rewrites a claimed number to match the code, and names the claim"
     },
     {
+      "id": "guardrail-planted-breaks",
+      "description": "One guardrail's planted breaks can be run on their own, by the start of their names, and a prefix that selects nothing refuses the run instead of checking nothing (chapter 24).",
+      "status": "done",
+      "proof": "tools/mutate.test.mjs::an --only that selects nothing refuses before anything runs, and lists the groups"
+    },
+    {
       "id": "templates",
       "description": "Each of Appendix B's templates passes the check it was written for, or runs, and fails when a violation is planted, so a reader copies something that works; the workflow templates stay the lab's own workflows, trimmed (Appendix B).",
       "status": "done",

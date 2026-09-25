@@ -208,6 +208,12 @@
     {
       "id": "central-ai-team",
       "description": "A new use case reaches production through intake and a readiness gate with a named technical sign-off, built on the platform's shared capabilities (chapter 28).",
+      "status": "done",
+      "proof": "python/tests/test_readiness.py::test_the_check_fails_when_a_use_case_in_production_changes"
+    },
+    {
+      "id": "rollout-to-teams",
+      "description": "Teams adopt the platform as a product: a golden path a new team starts from that passes every check on its first commit, and standards whose use and overrides are measured (chapter 29).",
       "status": "todo",
       "proof": null
     }

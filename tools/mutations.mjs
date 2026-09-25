@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 27 and 31
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 28 and 31
 // are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter
 // 1's tally's check for missing fields; the guards from earlier chapters were broken by hand when
 // they were built (CHANGELOG.md records each time) and are the next candidates to add.
@@ -97,6 +97,9 @@ const gatewayTest = (name) => pytest(`tests/test_gateway.py::${name}`);
 const TRIAGE = "python/src/helpdesk/triage.py";
 const COST = "python/src/helpdesk/model/cost.py";
 const costTest = (name) => pytest(`tests/test_cost.py::${name}`);
+const READINESS_RULES = "python/src/readiness/rules.py";
+const READINESS = "python/src/helpdesk/readiness.py";
+const readinessTest = (name) => pytest(`tests/test_readiness.py::${name}`);
 // The real lock check, on this repository as setup left it.
 const LOCK_CHECK = { node: [LOCKFILES] };
 const approvals = (name) => pytest(`${APPROVALS}::${name}`);
@@ -4045,6 +4048,153 @@ export const MUTATIONS = [
     find: "    if cache and keep is not None:",
     replace: "    if False:",
     run: costTest("test_trimming_sends_only_the_last_exchanges_and_is_priced_apart_from_caching"),
+  },
+  {
+    guard: "readiness: a tier comes from the lowest score it reaches",
+    file: READINESS_RULES,
+    find: "    reached = [name for name, lowest in tiers.items() if total >= lowest]",
+    replace: "    reached = [name for name, lowest in tiers.items() if total > lowest]",
+    run: readinessTest("test_the_answers_score_the_tier"),
+  },
+  {
+    guard: "readiness: the strictest tool sets the least answer",
+    file: READINESS_RULES,
+    find: "            if question not in found or points[least] > points[found[question][0]]:",
+    replace: "            if question not in found:",
+    run: readinessTest("test_an_agents_tools_set_the_least_answer_and_the_strictest_tool_wins"),
+  },
+  {
+    guard: "readiness: an answer below what the agent's tools show fails triage",
+    file: READINESS_RULES,
+    find: "        if points[said] < points[least]:",
+    replace: "        if False:",
+    run: readinessTest("test_an_agents_tools_set_the_least_answer_and_the_strictest_tool_wins"),
+  },
+  {
+    guard: "readiness: a recorded tier must be the rubric's",
+    file: READINESS_RULES,
+    find: "    if recorded != c.scored.tier:",
+    replace: "    if False:",
+    run: readinessTest("test_a_recorded_tier_that_isnt_the_rubrics_fails"),
+  },
+  {
+    guard: "readiness: a need outside the library is named",
+    file: READINESS_RULES,
+    find: "    missing = [need for need in c.record[\"needs\"] if need not in c.library]",
+    replace: "    missing = []",
+    run: readinessTest("test_a_need_outside_the_library_is_left_for_the_platform_team"),
+  },
+  {
+    guard: "readiness: the policy item fails on the policy's reasons",
+    file: READINESS_RULES,
+    find: "    if reasons:",
+    replace: "    if False:",
+    run: readinessTest("test_the_policy_item_carries_the_policys_reason"),
+  },
+  {
+    guard: "readiness: a server outside the catalog fails",
+    file: READINESS_RULES,
+    find: "    unknown = [s for s in wanted if s not in c.evidence.servers]",
+    replace: "    unknown = []",
+    run: readinessTest("test_a_server_not_in_the_catalog_fails"),
+  },
+  {
+    guard: "readiness: promotion needs the agent in the promotion",
+    file: READINESS_RULES,
+    find: "    if c.agent is None or c.agent not in p.agents:",
+    replace: "    if c.agent is None:",
+    run: readinessTest("test_promotion_needs_the_agent_in_a_promotion_that_is_still_current"),
+  },
+  {
+    guard: "readiness: promotion needs nothing changed since",
+    file: READINESS_RULES,
+    find: "    if not p.current:",
+    replace: "    if False:",
+    run: readinessTest("test_promotion_needs_the_agent_in_a_promotion_that_is_still_current"),
+  },
+  {
+    guard: "readiness: every red-team case must pass every trial",
+    file: READINESS_RULES,
+    find: "    failed = [case for case, passed in p.injections.items() if passed < p.trials]",
+    replace: "    failed = []",
+    run: readinessTest("test_red_team_needs_every_case_to_pass_every_trial"),
+  },
+  {
+    guard: "readiness: a sign-off must come from a reviewer for its role",
+    file: READINESS_RULES,
+    find: "        if s[\"by\"] not in c.readiness[\"reviewers\"].get(role, []):",
+    replace: "        if False:",
+    run: readinessTest("test_a_sign_off_counts_only_from_a_reviewer_who_isnt_the_champion_for_what_ships"),
+  },
+  {
+    guard: "readiness: a champion can't sign off their own use case",
+    file: READINESS_RULES,
+    find: "        if s[\"by\"] == c.record[\"champion\"]:",
+    replace: "        if False:",
+    run: readinessTest("test_a_sign_off_counts_only_from_a_reviewer_who_isnt_the_champion_for_what_ships"),
+  },
+  {
+    guard: "readiness: a sign-off counts only for what ships",
+    file: READINESS_RULES,
+    find: "        if s[\"fingerprint\"] != now:",
+    replace: "        if False:",
+    run: readinessTest("test_a_change_to_the_agent_after_sign_off_needs_a_new_one"),
+  },
+  {
+    guard: "readiness: the fingerprint covers the use case",
+    file: READINESS_RULES,
+    find: "    reviewed = {k: v for k, v in record.items() if k not in (\"stage\", \"signoffs\")}",
+    replace: "    reviewed = {}",
+    run: readinessTest("test_the_fingerprint_leaves_out_only_the_stage_and_the_sign_offs"),
+  },
+  {
+    guard: "readiness: a use case in production must be ready",
+    file: READINESS_RULES,
+    find: "        return not self.problems and (self.stage != \"production\" or self.ready)",
+    replace: "        return not self.problems",
+    run: readinessTest("test_only_a_use_case_in_production_must_be_ready"),
+  },
+  {
+    guard: "readiness: a use case's team must have a budget",
+    file: READINESS_RULES,
+    find: "    if record[\"team\"] not in evidence.teams:",
+    replace: "    if False:",
+    run: readinessTest("test_a_malformed_record_fails_at_any_stage"),
+  },
+  {
+    guard: "readiness: a use case past proposed records its tier",
+    file: READINESS_RULES,
+    find: "    if tier is None and record[\"stage\"] != \"proposed\":",
+    replace: "    if False:",
+    run: readinessTest("test_a_malformed_record_fails_at_any_stage"),
+  },
+  {
+    guard: "readiness: the library lists only modules that exist",
+    file: READINESS,
+    find: "        if importlib.util.find_spec(entry[\"provided_by\"]) is None:",
+    replace: "        if False:",
+    run: readinessTest("test_every_capability_names_a_module_that_exists"),
+  },
+  {
+    guard: "readiness: every checklist item has a check",
+    file: READINESS,
+    find: "for i in ids if i not in CHECKS",
+    replace: "for i in ids if False",
+    run: readinessTest("test_every_checklist_item_has_a_check_and_every_check_an_item"),
+  },
+  {
+    guard: "readiness: a promotion is current only while nothing it measured changed",
+    file: READINESS,
+    find: "        current=gate.configuration() == dict(was),",
+    replace: "        current=True,",
+    run: readinessTest("test_the_promotion_is_current_only_while_nothing_it_measured_changed"),
+  },
+  {
+    guard: "readiness: triage refuses a recorded tier that isn't the rubric's",
+    file: READINESS,
+    find: "    if record.get(\"tier\") not in (None, scored.tier):",
+    replace: "    if False:",
+    run: readinessTest("test_triage_refuses_a_recorded_tier_that_isnt_the_rubrics"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

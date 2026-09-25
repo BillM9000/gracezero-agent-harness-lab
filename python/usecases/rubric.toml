@@ -1,0 +1,48 @@
+# The intake rubric (chapter 28), as data. Every use case answers these questions under [intake];
+# each answer adds its points, and the total sets the tier, which sets the path to production and
+# what the readiness gate asks for (usecases/readiness.toml). The central team owns this file: a
+# change to it is reviewed like any other. python -m helpdesk.readiness triage FILE scores one.
+
+[questions.acts]
+ask = "What does it do with what it finds?"
+answers = { reads = 0, drafts = 1, changes = 3 }
+
+[questions.data]
+ask = "What's the most sensitive data it reads?"
+answers = { public = 0, internal = 1, customer = 2 }
+
+[questions.audience]
+ask = "Who reads what it writes before a person has checked it?"
+answers = { staff = 0, customers = 3 }
+
+# The lowest score of each tier, lowest first.
+[tiers]
+low = 0
+medium = 2
+high = 4
+
+# What each tier's path to production is. The items each tier must show are in readiness.toml.
+[paths]
+low = "Self-serve: build on the library, and the platform's automatic checks are the gate."
+medium = "Reviewed: add golden sets and a promotion, and a platform reviewer signs off."
+high = "Central: as reviewed, plus the red-team suite on every trial and a security reviewer's sign-off."
+
+# What an agent's tools prove about the answers. A tool listed here sets the least answer its
+# questions may take, so a use case can't answer its way into a lower tier than its agent can reach.
+# A test keeps draft_reply and close_ticket in step with the policy's [writes] (agents/policy.toml).
+[floors.get_ticket]
+data = "customer"
+
+[floors.find_tickets]
+data = "customer"
+
+[floors.delegate_customer]
+data = "customer"
+
+[floors.draft_reply]
+acts = "drafts"
+data = "customer"
+
+[floors.close_ticket]
+acts = "changes"
+data = "customer"

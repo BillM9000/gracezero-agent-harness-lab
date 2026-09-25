@@ -6,6 +6,16 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`; on the working tree, `node tools/mutate.mjs --list` prints every entry and the total. Trust the count, not a number here.
 
+## 2026-09-25: chapter 28, the central AI team
+
+- `python/usecases/`: three use cases (one in production, one being built, one proposed), the intake rubric (`rubric.toml`: answers, points, tiers, paths, and the floors an agent's tools set on the answers), the readiness checklist (`readiness.toml`: seven items by tier, the sign-offs each tier needs and who may give them) and the capability library (`library.toml`: ten capabilities, each naming the module that provides it).
+- `src/readiness/rules.py`: the rules as pure functions over the record and the evidence. `python -m helpdesk.readiness` (a composition root) gathers the evidence: the policy's verdict on each definition, the last promotion and whether it's current, the catalog's servers, the teams. `check` is the 25th check; `triage FILE` scores one use case; `fingerprint FILE` prints what a sign-off must carry.
+- 30 new Python tests (598); 21 new mutations (418), all applied and caught on the working tree before commit.
+- Work list: `central-ai-team` done, proved by `tests/test_readiness.py`; `rollout-to-teams` (chapter 29) added.
+- Checked with: `node check.mjs` (all 25 checks passed) and `node tools/progress.mjs .`.
+- Not run: `--real`, for any command; nothing here calls a model. The customer digest stays "building" because the lab's promotion covers only the triage assistant.
+- Next: `rollout-to-teams` (chapter 29).
+
 ## 2026-09-25: chapter 27, gateways, cost and model routing
 
 - `helpdesk/model/gateway.py`: one front door for every call to a provider. It checks the team's month and its share of the rate limits before each call, routes to the cheapest model on the job's route, moves to another deployment or model when one is down or a model refuses, caches identical requests from one team when the route allows, and records every attempt with the team, the route and the deployment.

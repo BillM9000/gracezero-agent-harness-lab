@@ -1,0 +1,50 @@
+# The readiness gate's checklist (chapter 28), as data. Each item says which tiers must show it
+# before a use case reaches production. The check behind each id is in src/readiness/rules.py, and a
+# test keeps the two in step. python -m helpdesk.readiness checks every use case in this folder;
+# one in production must pass every item of its tier, and the rest show what's left.
+
+[[items]]
+id = "triaged"
+what = "Its answers score the tier it records, and no answer is below what its agent's tools show."
+tiers = ["low", "medium", "high"]
+
+[[items]]
+id = "library"
+what = "Everything it needs is in the capability library (library.toml)."
+tiers = ["low", "medium", "high"]
+
+[[items]]
+id = "policy"
+what = "Its agent definition passes the platform's policy (python -m agent_policy, chapter 18)."
+tiers = ["low", "medium", "high"]
+
+[[items]]
+id = "servers"
+what = "Every MCP server it uses is in the catalog (catalog/servers.toml, chapter 13)."
+tiers = ["low", "medium", "high"]
+
+[[items]]
+id = "promotion"
+what = "Its agent passed the golden sets and the judge, and nothing measured has changed (chapter 23)."
+tiers = ["medium", "high"]
+
+[[items]]
+id = "red-team"
+what = "At that promotion, every red-team case passed every trial (chapter 20)."
+tiers = ["high"]
+
+[[items]]
+id = "sign-off"
+what = "A named reviewer for each role its tier needs signed off exactly what ships."
+tiers = ["medium", "high"]
+
+# Whose sign-off each tier needs.
+[signoffs]
+low = []
+medium = ["platform"]
+high = ["platform", "security"]
+
+# Who may sign off for each role. Made-up people, as the helpdesk's staff are.
+[reviewers]
+platform = ["Alex Moreno"]
+security = ["Jordan Okafor"]

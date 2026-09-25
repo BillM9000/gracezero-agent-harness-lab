@@ -1,0 +1,55 @@
+# The capability library (chapter 28): what the platform offers every team that builds with AI, so
+# no team builds its own. A use case lists what it needs from here under needs. Each entry names the
+# module that provides it, and python -m helpdesk.readiness fails if that module doesn't exist, so
+# the library can't list something the platform doesn't have. A capability joins by a change to
+# this file that the central team reviews, with the code that provides it.
+
+[[capabilities]]
+name = "model-access"
+what = "Every model call through the gateway, charged to the team, within its budget (chapter 27)."
+provided_by = "helpdesk.gateway"
+
+[[capabilities]]
+name = "agent-definitions"
+what = "An agent as data, checked against the platform's policy (chapter 18)."
+provided_by = "agent_policy"
+
+[[capabilities]]
+name = "knowledge-base"
+what = "Search over the knowledge base, with citations (chapter 9)."
+provided_by = "helpdesk.kb"
+
+[[capabilities]]
+name = "helpdesk-tools"
+what = "Reading tickets as the person who asked, through the helpdesk's MCP server (chapters 11 to 13)."
+provided_by = "helpdesk.mcp_server"
+
+[[capabilities]]
+name = "approval-queue"
+what = "A proposal a person approves or rejects before anything changes (chapter 19)."
+provided_by = "helpdesk.approvals"
+
+[[capabilities]]
+name = "red-team-suite"
+what = "Tickets that carry instructions, and a check that none is obeyed (chapter 20)."
+provided_by = "helpdesk.injections"
+
+[[capabilities]]
+name = "golden-sets"
+what = "Cases with keys, run several times, graded against what the tools returned (chapter 21)."
+provided_by = "helpdesk.evals"
+
+[[capabilities]]
+name = "model-judge"
+what = "Rubrics judged by a model, calibrated against a person's labels (chapter 22)."
+provided_by = "helpdesk.judge"
+
+[[capabilities]]
+name = "promotion-gate"
+what = "A change ships only after the golden sets and the judge pass with it (chapter 23)."
+provided_by = "helpdesk.gate"
+
+[[capabilities]]
+name = "call-record"
+what = "A line for every model call: tokens, cost and outcome, never the words (chapter 26)."
+provided_by = "helpdesk.calls"

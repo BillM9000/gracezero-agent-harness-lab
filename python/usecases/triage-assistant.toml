@@ -1,0 +1,41 @@
+# A use case in production (chapter 28): the triage assistant from chapter 3, as the support team
+# asked for it. python -m helpdesk.readiness checks it against every item its tier needs.
+name = "triage-assistant"
+team = "support-tools"
+champion = "Dana Whitfield"
+problem = "Staff read each ticket, search the knowledge base and write a first reply by hand."
+stage = "production"
+tier = "high"
+agent = "triage"
+servers = []
+needs = [
+  "model-access",
+  "agent-definitions",
+  "knowledge-base",
+  "approval-queue",
+  "red-team-suite",
+  "golden-sets",
+  "model-judge",
+  "promotion-gate",
+  "call-record",
+]
+
+[intake]
+acts = "changes"
+data = "customer"
+audience = "staff"
+
+# Each fingerprint is python -m helpdesk.readiness fingerprint usecases/triage-assistant.toml as it
+# was when the reviewer signed. A change to this file (apart from stage and these lines) or to
+# agents/triage.toml changes it, and the sign-off no longer counts.
+[[signoffs]]
+role = "platform"
+by = "Alex Moreno"
+on = 2026-09-25
+fingerprint = "sha256:e4756b96a57cfe4f4bd52170c162364af4d6ff0657e4e02c43bcd8cab806877c"
+
+[[signoffs]]
+role = "security"
+by = "Jordan Okafor"
+on = 2026-09-25
+fingerprint = "sha256:e4756b96a57cfe4f4bd52170c162364af4d6ff0657e4e02c43bcd8cab806877c"

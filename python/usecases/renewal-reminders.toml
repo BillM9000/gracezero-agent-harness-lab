@@ -1,0 +1,13 @@
+# A proposed use case (chapter 28), as it arrived at intake: nothing built yet, and not triaged.
+# python -m helpdesk.readiness triage usecases/renewal-reminders.toml scores it.
+name = "renewal-reminders"
+team = "support-tools"
+champion = "Priya Nair"
+problem = "Customers whose plan renews this month get no reminder, and some ask for refunds."
+stage = "proposed"
+needs = ["model-access", "agent-definitions", "customer-email"]
+
+[intake]
+acts = "drafts"
+data = "customer"
+audience = "customers"

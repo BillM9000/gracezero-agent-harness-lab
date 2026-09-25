@@ -1,0 +1,16 @@
+# A use case being built (chapter 28): chapter 14's orchestrator, which reads each customer's open
+# tickets with a worker and gives a lead one digest. python -m helpdesk.readiness shows what's left
+# before it can move to production.
+name = "customer-digest"
+team = "support-tools"
+champion = "Sam Rivera"
+problem = "A lead reads every open ticket to see which customers are waiting on several."
+stage = "building"
+tier = "medium"
+agent = "orchestrator"
+needs = ["model-access", "agent-definitions", "golden-sets", "promotion-gate", "call-record"]
+
+[intake]
+acts = "reads"
+data = "customer"
+audience = "staff"

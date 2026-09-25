@@ -86,6 +86,16 @@ test("a test command that fails on the unchanged code proves nothing, and fails 
   assert.equal(readFileSync(join(root, "guard.mjs"), "utf8"), GUARD);
 });
 
+test("test commands run without writing Python bytecode, so a file put back is never shadowed", () => {
+  // The control passes only if the runner told Python not to write .pyc files.
+  const needs = ["-e", 'process.exit(process.env.PYTHONDONTWRITEBYTECODE === "1" ? 0 : 1)'];
+  const root = repository([{ guard: "the comment", file: "guard.mjs", find: "Only even", replace: "Any", run: { node: needs } }]);
+  const { output } = mutate(root);
+  assert.doesNotMatch(output, /CONTROL/);
+  assert.match(output, /SURVIVED {2}the comment/);
+  assert.ok(clean(root));
+});
+
 // The runner finds a stale entry only when it runs, which CI does every night. This finds one in
 // seconds, in node check.mjs, so the list can't fall behind the code for a day. (Chapter 14's
 // policy change made one entry stale, and only the nightly run noticed.)

@@ -586,6 +586,13 @@ export const MUTATIONS = [
     run: { node: ["--test", "tools/mutate.test.mjs"] },
   },
   {
+    guard: "mutate: Python writes no bytecode, so a file put back is never shadowed by a stale .pyc",
+    file: "tools/mutate.mjs",
+    find: 'ENV.PYTHONDONTWRITEBYTECODE = "1";',
+    replace: "",
+    run: { node: ["--test", "tools/mutate.test.mjs"] },
+  },
+  {
     guard: "mutate: a mutation whose text is gone is stale",
     file: "tools/mutate.mjs",
     find: "if (text.split(m.find).length !== 2) {",

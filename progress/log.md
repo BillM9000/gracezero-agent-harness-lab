@@ -13,7 +13,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - `python -m helpdesk.judge check` is the 22nd check.
 - 49 new Python tests, and the policy command's test now expects four definitions; 26 new mutations, each applied and caught before commit.
 - Work list: `model-judge` done, proved by `tests/test_judge.py`; `evals-gate` (chapter 23) added.
-- Checked with: `node check.mjs` (all 22 checks passed) and `node tools/progress.mjs .`; then `node tools/mutate.mjs` at `5c6e5e0`, 289 of 289 caught in 14.6 minutes.
+- Checked with: `node check.mjs` (all 22 checks passed) and `node tools/progress.mjs .`; then `node tools/mutate.mjs` at `5c6e5e0`, 289 of 289 caught in 14.6 minutes. A fresh clone then showed a stale `.pyc` can outlive a mutation put back within a second; `tools/mutate.mjs` now runs commands with `PYTHONDONTWRITEBYTECODE=1`, with a test and a mutation (290).
 - Not run: `--real`, for any command. Which judge agrees with a person more, how often a real drafter and judge settle, and what a real judge says of `AGENTS.md` wait for a paid run; the chapter lists the commands.
 - Next: `evals-gate` (chapter 23).
 

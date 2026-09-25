@@ -30,6 +30,12 @@ const WINDOWS = process.platform === "win32";
 // for itself, so the variable is removed. (This runner's own tests found it.)
 const ENV = { ...process.env };
 delete ENV.NODE_TEST_CONTEXT;
+// Python checks a cached .pyc against its source's modification time, in whole seconds, and its
+// size. A mutation that keeps the line's length ("forbid" to "ignore"), put back within the second,
+// leaves a .pyc of the broken code that Python then trusts, so a later command would run it and a
+// survivor could pass as caught. With no .pyc written, every run compiles the source on disk.
+// (Found verifying chapter 22 from a fresh clone, where exactly that happened to a Try it step.)
+ENV.PYTHONDONTWRITEBYTECODE = "1";
 
 function changedFiles() {
   return spawnSync("git", ["status", "--porcelain", "--untracked-files=no"], { cwd: ROOT, encoding: "utf8" })

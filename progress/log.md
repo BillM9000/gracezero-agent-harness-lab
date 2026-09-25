@@ -15,6 +15,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Work list: `evals-gate` done, proved by `tests/test_gate.py`; `measure-harness` (chapter 26) added.
 - Checked with: `node check.mjs` (all 23 checks passed) and `node tools/progress.mjs .`.
 - Not run: `--real`, for any command. Whether a real model passes the gate, and what a real run costs, wait for a paid run: `python -m helpdesk.gate run --real --max-usd 15 --promote`.
+- Then `node tools/mutate.mjs` on the committed tree at `eb272e1`: all 320 caught in 16.3 minutes, and the tree unchanged.
 - Next: `measure-harness` (chapter 26).
 
 ## 2026-09-24: chapter 22, model judges

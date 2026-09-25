@@ -214,8 +214,8 @@
     {
       "id": "rollout-to-teams",
       "description": "Teams adopt the platform as a product: a golden path a new team starts from that passes every check on its first commit, and standards whose use and overrides are measured (chapter 29).",
-      "status": "todo",
-      "proof": null
+      "status": "done",
+      "proof": "python/tests/test_golden_path.py::test_a_use_case_started_on_the_golden_path_passes_every_check_from_its_first_commit"
     }
   ]
 }

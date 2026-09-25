@@ -5,7 +5,8 @@ against the readiness checklist for its tier, with the evidence the caller gathe
 definitions and what the platform's policy says of each, the last promotion, the catalog's servers
 and the teams. It reads no files and calls nothing, so the tests can pin exactly what it accepts.
 Only a use case in production must pass every item; for the rest, the items not yet met are what's
-left to do.
+left to do. excused(...) applies a reviewer's exceptions (chapter 29): an item may wait until a set
+day, with a reason, and an exception that has nothing left to excuse fails.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import hashlib
 import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import date
 from typing import Any
 
 STAGES = ("proposed", "building", "production")
@@ -33,16 +35,20 @@ OPTIONAL: dict[str, tuple[type, str]] = {
     "servers": (list, "List the MCP servers it uses, from catalog/servers.toml."),
     "tier": (str, "Record the tier its triage gave."),
     "signoffs": (list, "Record each reviewer's sign-off."),
+    "exceptions": (list, "Record each reviewer's exception: the item, the reason and the day it ends."),
 }
 SIGNOFF_FIELDS = ("role", "by", "on", "fingerprint")
+EXCEPTION_FIELDS = ("item", "reason", "by", "on", "until")
+# What a reviewer signs off leaves these out: where it has got to, and the reviewers' own records.
+NOT_REVIEWED = ("stage", "signoffs", "exceptions")
 TYPE_NAMES = {str: "text", list: "a list", dict: "a table"}
 
 
 def fingerprint(record: Mapping[str, Any], definition: Mapping[str, Any] | None) -> str:
-    """What a reviewer signs off: the use case, apart from its stage and its sign-offs, and its agent's
-    definition. Parsed first, so a comment or a blank line changes nothing; any other change to
-    either needs a new sign-off."""
-    reviewed = {k: v for k, v in record.items() if k not in ("stage", "signoffs")}
+    """What a reviewer signs off: the use case, apart from its stage, sign-offs and exceptions, and its
+    agent's definition. Parsed first, so a comment or a blank line changes nothing; any other change
+    to either needs a new sign-off."""
+    reviewed = {k: v for k, v in record.items() if k not in NOT_REVIEWED}
     text = json.dumps({"use case": reviewed, "agent": definition}, sort_keys=True, default=str)
     return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -121,6 +127,7 @@ class Evidence:
     promotion: Promotion | None
     servers: frozenset[str]  # the catalog's approved MCP servers
     teams: frozenset[str]  # the teams in agents/policy.toml
+    today: date  # the day exceptions are judged on
 
 
 @dataclass(frozen=True)
@@ -128,6 +135,7 @@ class Result:
     item: str
     ok: bool
     detail: str
+    excused: bool = False  # ok only because a reviewer's exception is in force
 
 
 @dataclass
@@ -322,6 +330,67 @@ def shape(record: Mapping[str, Any], rubric: Mapping[str, Any], evidence: Eviden
     return problems
 
 
+def exception_problems(record: Mapping[str, Any], readiness: Mapping[str, Any]) -> list[str]:
+    """What's wrong with the exceptions a use case records (chapter 29), whatever its stage. An
+    exception names an item that may take one, gives a reason, comes from a reviewer who isn't the
+    champion, and ends within the checklist's limit."""
+    rules = readiness["exceptions"]
+    reviewers = {name for names in readiness["reviewers"].values() for name in names}
+    problems = []
+    for i, e in enumerate(record.get("exceptions", [])):
+        where = f"exceptions[{i}]"
+        lacking = [f for f in EXCEPTION_FIELDS if not isinstance(e, dict) or f not in e]
+        if lacking:
+            problems.append(f"{where}: needs {', '.join(lacking)}.")
+            continue
+        if e["item"] not in rules["items"]:
+            problems.append(
+                f"{where}: {json.dumps(e['item'])} can't be excused; only {', '.join(rules['items'])} can. "
+                "Meet it, or ask for the rule itself to change, for everyone."
+            )
+        if not str(e["reason"]).strip():
+            problems.append(f"{where}: reason is empty. Say why it can wait, so nobody has to guess later.")
+        if e["by"] not in reviewers:
+            problems.append(f"{where}: {e['by']} isn't a reviewer in usecases/readiness.toml.")
+        elif e["by"] == record["champion"]:
+            problems.append(f"{where}: {e['by']} is its champion, and can't excuse their own use case.")
+        if not (isinstance(e["on"], date) and isinstance(e["until"], date)):
+            problems.append(f"{where}: on and until must be dates, such as 2026-09-25.")
+        elif not 0 < (e["until"] - e["on"]).days <= rules["max_days"]:
+            problems.append(
+                f"{where}: runs from {e['on']} to {e['until']}. An exception ends within "
+                f"{rules['max_days']} days of the day it's given; for longer, change the rule instead."
+            )
+    return problems
+
+
+def excused(record: Mapping[str, Any], results: list[Result], today: date) -> tuple[list[Result], list[str]]:
+    """The results with the use case's exceptions applied, and the exceptions with nothing left to
+    excuse. An item that fails is excused while its exception is in force, and fails again, saying
+    so, the day after it ends; the latest exception for an item is the one that counts."""
+    given = {e["item"]: (i, e) for i, e in enumerate(record.get("exceptions", []))}
+    out: list[Result] = []
+    stale: list[str] = []
+    for r in results:
+        if r.item not in given:
+            out.append(r)
+            continue
+        i, e = given[r.item]
+        if r.ok:
+            stale.append(f"exceptions[{i}]: {r.item} passes now, so there's nothing to excuse. Remove it.")
+            out.append(r)
+        elif today > e["until"]:
+            out.append(Result(r.item, False, f"its exception ended on {e['until']}: {r.detail}"))
+        else:
+            detail = f"by {e['by']} until {e['until']}: {e['reason']} Without it: {r.detail}"
+            out.append(Result(r.item, True, detail, excused=True))
+    asked = {r.item for r in results}
+    for item, (i, _) in given.items():
+        if item not in asked:
+            stale.append(f"exceptions[{i}]: its tier doesn't ask for {item}, so there's nothing to excuse.")
+    return out, stale
+
+
 def review(
     record: Mapping[str, Any],
     rubric: Mapping[str, Any],
@@ -332,6 +401,7 @@ def review(
     name = str(record.get("name", "?"))
     stage = str(record.get("stage", "?"))
     problems = shape(record, rubric, evidence)
+    problems += [] if problems else exception_problems(record, readiness)
     scored, wrong = (None, []) if problems else score(record["intake"], rubric)
     problems += wrong
     if problems:
@@ -343,4 +413,5 @@ def review(
         for item in readiness["items"]
         if tier in item["tiers"]
     ]
-    return Review(name, stage, tier, "tier" in record, scored, [], results)
+    results, stale = excused(record, results, evidence.today)
+    return Review(name, stage, tier, "tier" in record, scored, stale, results)

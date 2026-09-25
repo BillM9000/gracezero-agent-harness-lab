@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 28 and 31
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 29 and 31
 // are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter
 // 1's tally's check for missing fields; the guards from earlier chapters were broken by hand when
 // they were built (CHANGELOG.md records each time) and are the next candidates to add.
@@ -100,6 +100,9 @@ const costTest = (name) => pytest(`tests/test_cost.py::${name}`);
 const READINESS_RULES = "python/src/readiness/rules.py";
 const READINESS = "python/src/helpdesk/readiness.py";
 const readinessTest = (name) => pytest(`tests/test_readiness.py::${name}`);
+const GOLDEN_RULES = "python/src/golden_path/rules.py";
+const GOLDEN = "python/src/helpdesk/golden_path.py";
+const goldenTest = (name) => pytest(`tests/test_golden_path.py::${name}`);
 // The real lock check, on this repository as setup left it.
 const LOCK_CHECK = { node: [LOCKFILES] };
 const approvals = (name) => pytest(`${APPROVALS}::${name}`);
@@ -4143,7 +4146,7 @@ export const MUTATIONS = [
   {
     guard: "readiness: the fingerprint covers the use case",
     file: READINESS_RULES,
-    find: "    reviewed = {k: v for k, v in record.items() if k not in (\"stage\", \"signoffs\")}",
+    find: "    reviewed = {k: v for k, v in record.items() if k not in NOT_REVIEWED}",
     replace: "    reviewed = {}",
     run: readinessTest("test_the_fingerprint_leaves_out_only_the_stage_and_the_sign_offs"),
   },
@@ -4195,6 +4198,216 @@ export const MUTATIONS = [
     find: "    if record.get(\"tier\") not in (None, scored.tier):",
     replace: "    if False:",
     run: readinessTest("test_triage_refuses_a_recorded_tier_that_isnt_the_rubrics"),
+  },
+  {
+    guard: "readiness: an exception can't excuse triage, the policy or the sign-off",
+    file: READINESS_RULES,
+    find: "        if e[\"item\"] not in rules[\"items\"]:",
+    replace: "        if False:",
+    run: readinessTest("test_a_malformed_exception_fails_at_any_stage"),
+  },
+  {
+    guard: "readiness: an exception needs a reason",
+    file: READINESS_RULES,
+    find: "        if not str(e[\"reason\"]).strip():",
+    replace: "        if False:",
+    run: readinessTest("test_a_malformed_exception_fails_at_any_stage"),
+  },
+  {
+    guard: "readiness: an exception comes from a listed reviewer",
+    file: READINESS_RULES,
+    find: "        if e[\"by\"] not in reviewers:",
+    replace: "        if False:",
+    run: readinessTest("test_a_malformed_exception_fails_at_any_stage"),
+  },
+  {
+    guard: "readiness: a champion can't excuse their own use case",
+    file: READINESS_RULES,
+    find: "        elif e[\"by\"] == record[\"champion\"]:",
+    replace: "        elif False:",
+    run: readinessTest("test_a_champion_cant_excuse_their_own_use_case"),
+  },
+  {
+    guard: "readiness: an exception ends within the checklist's limit",
+    file: READINESS_RULES,
+    find: "        elif not 0 < (e[\"until\"] - e[\"on\"]).days <= rules[\"max_days\"]:",
+    replace: "        elif False:",
+    run: readinessTest("test_a_malformed_exception_fails_at_any_stage"),
+  },
+  {
+    guard: "readiness: exceptions are checked at all",
+    file: READINESS_RULES,
+    find: "    problems += [] if problems else exception_problems(record, readiness)",
+    replace: "    problems += []",
+    run: readinessTest("test_a_malformed_exception_fails_at_any_stage"),
+  },
+  {
+    guard: "readiness: an exception excuses only until the day it ends",
+    file: READINESS_RULES,
+    find: "        elif today > e[\"until\"]:",
+    replace: "        elif False:",
+    run: readinessTest("test_an_exception_excuses_an_item_until_the_day_it_ends"),
+  },
+  {
+    guard: "readiness: an exception for an item that passes fails",
+    file: READINESS_RULES,
+    find: "        if r.ok:",
+    replace: "        if False:",
+    run: readinessTest("test_an_exception_with_nothing_to_excuse_fails"),
+  },
+  {
+    guard: "readiness: an exception for an item its tier doesn't ask for fails",
+    file: READINESS_RULES,
+    find: "        if item not in asked:",
+    replace: "        if False:",
+    run: readinessTest("test_an_exception_with_nothing_to_excuse_fails"),
+  },
+  {
+    guard: "readiness: an exception leaves the fingerprint alone",
+    file: READINESS_RULES,
+    find: "NOT_REVIEWED = (\"stage\", \"signoffs\", \"exceptions\")",
+    replace: "NOT_REVIEWED = (\"stage\", \"signoffs\")",
+    run: readinessTest("test_an_exception_leaves_the_fingerprint_alone"),
+  },
+  {
+    guard: "readiness: the check judges exceptions on the day it's given",
+    file: READINESS,
+    find: "    found = evidence(on)",
+    replace: "    found = evidence()",
+    run: readinessTest("test_the_check_shows_an_excused_item_and_judges_it_on_the_day_given"),
+  },
+  {
+    guard: "golden path: a name must be safe for files and routes",
+    file: GOLDEN_RULES,
+    find: "    if not NAME.fullmatch(answers.name):",
+    replace: "    if False:",
+    run: goldenTest("test_new_refuses_answers_it_cant_use_and_says_what_to_do"),
+  },
+  {
+    guard: "golden path: a name that's taken is refused",
+    file: GOLDEN_RULES,
+    find: "    elif answers.name in taken:",
+    replace: "    elif False:",
+    run: goldenTest("test_new_refuses_answers_it_cant_use_and_says_what_to_do"),
+  },
+  {
+    guard: "golden path: the names taken are the files in agents/ and usecases/",
+    file: GOLDEN,
+    find: "    return {p.stem for p in [*AGENTS.glob(\"*.toml\"), *USE_CASES.glob(\"*.toml\")]}",
+    replace: "    return set()",
+    run: goldenTest("test_new_refuses_answers_it_cant_use_and_says_what_to_do"),
+  },
+  {
+    guard: "golden path: a team needs a budget first",
+    file: GOLDEN_RULES,
+    find: "    if answers.team not in teams:",
+    replace: "    if False:",
+    run: goldenTest("test_a_team_needs_a_budget_before_the_path_will_start_it"),
+  },
+  {
+    guard: "golden path: the champion and the problem are one short line",
+    file: GOLDEN_RULES,
+    find: "        elif len(text) > LONGEST[field] or any(ord(c) < 32 or ord(c) == 127 for c in text):",
+    replace: "        elif False:",
+    run: goldenTest("test_new_refuses_answers_it_cant_use_and_says_what_to_do"),
+  },
+  {
+    guard: "golden path: every answer is written as a TOML string",
+    file: GOLDEN_RULES,
+    find: "json.dumps(text, ensure_ascii=False)",
+    replace: "('\"' + text + '\"')",
+    run: goldenTest("test_no_answer_can_change_the_shape_of_what_the_path_writes"),
+  },
+  {
+    guard: "golden path: DEL is escaped",
+    file: GOLDEN_RULES,
+    find: String.raw`.replace("\x7f", "\\u007f")`,
+    replace: "",
+    run: goldenTest("test_toml_text_and_toml_string_hold_exactly_the_text"),
+  },
+  {
+    guard: "golden path: the system prompt's quotes and backslashes are escaped",
+    file: GOLDEN_RULES,
+    find: String.raw`        escaped = [line.replace("\\", "\\\\").replace('"', '\\"') for line in lines]`,
+    replace: "        escaped = lines",
+    run: goldenTest("test_toml_text_and_toml_string_hold_exactly_the_text"),
+  },
+  {
+    guard: "golden path: the platform's standard text follows the opening",
+    file: GOLDEN_RULES,
+    find: String.raw`    return "\n\n".join([opening, *template["standard"].values()])`,
+    replace: "    return opening",
+    run: goldenTest("test_the_check_passes_and_names_what_the_path_leaves_to_the_team"),
+  },
+  {
+    guard: "golden state: a need outside the library takes a use case off the path",
+    file: GOLDEN_RULES,
+    find: "    missing = [need for need in record.get(\"needs\", []) if need not in library]",
+    replace: "    missing = []",
+    run: goldenTest("test_the_golden_state_takes_a_use_case_off_the_path_for_each_check"),
+  },
+  {
+    guard: "golden state: an agent without the standard text is off the path",
+    file: GOLDEN_RULES,
+    find: "if text not in definition.get(\"system\", \"\")",
+    replace: "if False",
+    run: goldenTest("test_the_golden_state_takes_a_use_case_off_the_path_for_each_check"),
+  },
+  {
+    guard: "golden state: a use case with no agent yet isn't on the path",
+    file: GOLDEN_RULES,
+    find: "        return False, \"no agent definition yet\"",
+    replace: "        return True, \"no agent definition yet\"",
+    run: goldenTest("test_the_golden_state_takes_a_use_case_off_the_path_for_each_check"),
+  },
+  {
+    guard: "golden state: an exception in force takes a use case off the path",
+    file: GOLDEN_RULES,
+    find: " and e[\"until\"] >= today",
+    replace: " and False",
+    run: goldenTest("test_the_golden_state_takes_a_use_case_off_the_path_for_each_check"),
+  },
+  {
+    guard: "golden path: the check fails on any item the path doesn't leave to the team",
+    file: GOLDEN,
+    find: "for res in r.results if not res.ok and res.item not in leaves]",
+    replace: "for res in r.results if False]",
+    run: goldenTest("test_the_check_fails_when_the_path_would_write_what_the_platform_refuses"),
+  },
+  {
+    guard: "golden path: the check fails when what it writes is off the golden path",
+    file: GOLDEN,
+    find: "for res in golden if not res.ok]",
+    replace: "for res in golden if False]",
+    run: goldenTest("test_the_check_fails_when_what_the_path_writes_would_be_off_the_golden_path"),
+  },
+  {
+    guard: "golden path: the policy judges what the path writes",
+    file: GOLDEN,
+    find: "        policy={**found.policy, name: reasons},",
+    replace: "        policy={**found.policy, name: []},",
+    run: goldenTest("test_the_check_fails_when_the_path_would_write_what_the_platform_refuses"),
+  },
+  {
+    guard: "golden path: new writes nothing when the path itself fails",
+    file: GOLDEN,
+    find: "    if verdict.problems:\n        print(\"\\n\".join(verdict.problems))",
+    replace: "    if False:\n        print(\"\\n\".join(verdict.problems))",
+    run: goldenTest("test_new_writes_nothing_when_the_path_itself_fails"),
+  },
+  {
+    guard: "golden path: the report counts each check that takes a use case off the path",
+    file: GOLDEN,
+    find: "            off[res.item] += 1",
+    replace: "            off[res.item] += 0",
+    run: goldenTest("test_the_report_counts_the_lab_by_team_and_by_check"),
+  },
+  {
+    guard: "golden path: new writes nothing when the answers can't be used",
+    file: GOLDEN,
+    find: "    if problems:\n        print(\"\\n\".join(problems))",
+    replace: "    if False:\n        print(\"\\n\".join(problems))",
+    run: goldenTest("test_new_refuses_answers_it_cant_use_and_says_what_to_do"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

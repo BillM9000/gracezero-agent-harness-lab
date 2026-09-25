@@ -1,6 +1,7 @@
 """Composition root for the central team's intake and readiness gate (chapter 28).
 
 python -m helpdesk.readiness check              every use case in usecases/ against its tier's items
+                                                (--today YYYY-MM-DD: judge exceptions as of that day)
 python -m helpdesk.readiness triage FILE        one use case's intake answers: score, tier, path
 python -m helpdesk.readiness fingerprint FILE   what a reviewer signs off for that use case
 
@@ -8,7 +9,8 @@ The rules are in src/readiness/rules.py and take no files; this module gathers w
 the agent definitions and what the platform's policy says of each (chapter 18), the last promotion
 and whether anything it measured has changed (chapter 23), the catalog's MCP servers (chapter 13)
 and the teams with budgets (chapter 27). It also checks that every capability in the library names
-a module that exists. No model runs here.
+a module that exists. A reviewer's exception excuses an item until a set day (chapter 29). No model
+runs here.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ import re
 import sys
 import tomllib
 from collections.abc import Mapping
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +31,7 @@ from agent_policy.rules import check as check_policy
 from helpdesk import gate
 from mcp_governance import SERVERS
 from readiness import LIBRARY, NOT_USE_CASES, READINESS, RUBRIC, USE_CASES, load
-from readiness.rules import CHECKS, Evidence, Promotion, Review, fingerprint, review, score
+from readiness.rules import CHECKS, Evidence, Promotion, Result, Review, fingerprint, review, score
 
 # The promotion record's configuration names each agent definition it fingerprinted this way.
 FINGERPRINTED = re.compile(r"^agents/([\w-]+)\.toml:")
@@ -66,8 +69,10 @@ def promotion() -> Promotion | None:
     )
 
 
-def evidence() -> Evidence:
-    policy, models, on = load_toml(POLICY), load_toml(MODELS), today()
+def evidence(on: date | None = None) -> Evidence:
+    """What the rules judge, as of a day: today unless one is given."""
+    policy, models = load_toml(POLICY), load_toml(MODELS)
+    on = on or today()
     found = definitions()
     return Evidence(
         definitions=found,
@@ -75,6 +80,7 @@ def evidence() -> Evidence:
         promotion=promotion(),
         servers=frozenset(s["name"] for s in load_toml(SERVERS).get("servers", [])),
         teams=frozenset(policy["teams"]),
+        today=on,
     )
 
 
@@ -106,29 +112,36 @@ def use_cases() -> list[Path]:
     return sorted(p for p in USE_CASES.glob("*.toml") if p.name not in NOT_USE_CASES)
 
 
+def status(res: Result) -> str:
+    return "excused" if res.excused else "ok" if res.ok else "left"
+
+
 def describe(r: Review, record: Mapping[str, Any]) -> list[str]:
     if r.problems:
-        return [f"{r.name}: {r.stage}, with {len(r.problems)} problem(s) in the record:"] + [
-            f"  {p}" for p in r.problems
-        ]
+        head = [f"{r.name}: {r.stage}, with {len(r.problems)} problem(s) in the record:"]
+        return head + [f"  {p}" for p in r.problems] + results(r)
     if r.scored is None or not r.recorded:
         tier = f"not triaged yet (the rubric gives {r.tier})"
     elif r.scored.tier != r.tier:
         tier = f"recorded {r.tier}, though its answers score {r.scored.score}, {r.scored.tier}"
     else:
         tier = f"{r.tier} (score {r.scored.score})"
-    lines = [f"{r.name}: {r.stage}, {tier}, {record['team']}, champion {record['champion']}"]
+    return [f"{r.name}: {r.stage}, {tier}, {record['team']}, champion {record['champion']}"] + results(r)
+
+
+def results(r: Review) -> list[str]:
+    if not r.results:
+        return []
     width = max(len(res.item) for res in r.results)
-    for res in r.results:
-        lines.append(f"  {'ok' if res.ok else 'left':<5} {res.item:<{width}}  {res.detail}")
-    return lines
+    label = max(5, *(len(status(res)) + 1 for res in r.results))
+    return [f"  {status(res):<{label}} {res.item:<{width}}  {res.detail}" for res in r.results]
 
 
-def check() -> int:
+def check(on: date | None = None) -> int:
     rubric, readiness, library = load(RUBRIC), load(READINESS), load(LIBRARY)
     problems = library_problems(library) + checklist_problems(readiness)
     names = frozenset(entry["name"] for entry in library["capabilities"])
-    found = evidence()
+    found = evidence(on)
     print(f"The capability library (usecases/library.toml): {len(names)} capabilities.")
     print(f"The readiness checklist (usecases/readiness.toml): {len(readiness['items'])} items.\n")
     reviews = []
@@ -187,14 +200,15 @@ def main(argv: list[str] | None = None) -> int:
         prog="python -m helpdesk.readiness", description=__doc__.split("\n\n")[0]
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("check", help="every use case against the items its tier needs")
+    checked = commands.add_parser("check", help="every use case against the items its tier needs")
+    checked.add_argument("--today", type=date.fromisoformat, help="judge exceptions as of YYYY-MM-DD")
     triaged = commands.add_parser("triage", help="score one use case's intake answers")
     triaged.add_argument("file", type=Path)
     printed = commands.add_parser("fingerprint", help="what a reviewer signs off for one use case")
     printed.add_argument("file", type=Path)
     args = parser.parse_args(argv)
     if args.command == "check":
-        return check()
+        return check(args.today)
     try:
         if args.command == "triage":
             return triage(args.file)

@@ -1,7 +1,7 @@
 // One command to run every check in the repository: node check.mjs
 //
 // Runs the Python lint, format, import-rule, model-text-rule, agent-policy, MCP-catalog, retrieval,
-// golden-set, model-judge, promotion-gate, model-gateway, use-case readiness and test checks, a check that the API contract and the TypeScript types generated from it are
+// golden-set, model-judge, promotion-gate, model-gateway, use-case readiness, golden-path and test checks, a check that the API contract and the TypeScript types generated from it are
 // current, the TypeScript type-check, import rules and tests, the Node script tests, a check that setup.mjs's
 // Windows path limit still fits the installed packages, a check that every pinned package has its
 // hashes and that what's installed matches the lock files, a budget for the instruction files, a check
@@ -63,6 +63,10 @@ const CHECKS = [
   // rubric's, the library lists only what exists, and one in production passes every item its tier
   // needs, a named reviewer's sign-off on exactly what ships included. No model runs here.
   ["Use-case readiness (python -m helpdesk.readiness check)", tool("python"), ["-m", "helpdesk.readiness", "check"], { cwd: python }],
+  // The golden path (chapter 29): what python -m helpdesk.golden_path new writes for a team passes
+  // the policy, its triage, the library and the golden state from its first commit, so the path
+  // can't fall behind the platform's own rules. No model runs here.
+  ["Golden path (python -m helpdesk.golden_path check)", tool("python"), ["-m", "helpdesk.golden_path", "check"], { cwd: python }],
   // The contract is generated from the Python code, and the TypeScript types from the contract.
   // These two run before the type-check, so drift is reported as drift before it shows up as type errors.
   ["API contract (python -m helpdesk.contract)", tool("python"), ["-m", "helpdesk.contract", "check", "../contracts/openapi.json"], { cwd: python }],

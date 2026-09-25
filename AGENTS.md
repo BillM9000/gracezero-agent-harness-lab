@@ -11,17 +11,18 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | Path | What it is |
 |---|---|
 | `python/src/helpdesk/api/` | HTTP routes (FastAPI) and the request and response models. |
-| `python/src/helpdesk/services/` | Business rules: who may see and change what (`access.py`), retrieval and citations, the approval queue, customers' text as data. |
+| `python/src/helpdesk/services/` | Business rules: access (`access.py`), retrieval and citations, the approval queue, customers' text as data. |
 | `python/src/helpdesk/data/` | SQL and the SQLite connection. |
-| `python/src/helpdesk/assistant/` | The triage assistant: its loop (`agent.py`), tools (`tools.py`; `proposing.py` for those that only file a proposal), patterns and judges. A tool acts for the person it was built for, never one in its arguments. |
-| `python/src/helpdesk/model/` | The model interface, a mock, the provider clients (Anthropic's, OpenAI's), stop reasons (`stops.py`), costs (`cost.py`) and the gateway (`gateway.py`, chapter 27). |
+| `python/src/helpdesk/assistant/` | The triage assistant: its loop (`agent.py`), tools (`tools.py`; `proposing.py` files proposals), patterns and judges. A tool acts for the person it was built for, never one in its arguments. |
+| `python/src/helpdesk/model/` | The model interface, a mock, the provider clients (Anthropic's, OpenAI's), stop reasons (`stops.py`), costs and the gateway (`gateway.py`, chapter 27). |
 | `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. |
 | `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
 | `python/agents/` | Agent definitions, the platform's policy for them and the models' retirement dates (`models.toml`), checked by `python/src/agent_policy/` (chapters 18, 20). |
 | `python/catalog/` | Approved MCP servers and their rules' data, checked by `python/src/mcp_governance/`, with the HTTP server's token checks and audit log. |
 | `python/usecases/` | Use cases, the intake rubric, readiness checklist and capability library (`python/src/readiness/`, chapter 28). |
+| `python/golden-path/` | Templates for a new use case (`python/src/golden_path/`, chapter 29). |
 | The modules directly in `python/src/helpdesk/` | Composition roots: the web service (`main.py`) and the commands below. |
-| `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to; `tests/fitness/` checks properties of the code as a whole (chapter 15). |
+| `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims; `tests/fitness/` checks properties of the whole code (chapter 15). |
 | `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
 | `ts/` | TypeScript client and CLI for the API. `src/api-types.ts` is generated from the contract. Import rules: `eslint.config.js` and `.dependency-cruiser.cjs`. |
 | `boundaries/` | The helpdesk's layer rule in Go, Java and .NET (chapter 16). Only CI runs them. |
@@ -30,7 +31,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
 | `progress/` | The work list (`features.json`) and the session log (`log.md`); see below. |
 | `.github/workflows/` | CI: `ci.yml` (every check), `docs.yml` (Markdown-only changes), `nightly.yml` (`node tools/mutate.mjs`, chapter 24; retirement dates, 23). |
-| `.claude/settings.json` | Claude Code's settings: deny rules, a guard before shell commands and a Stop hook, both in `tools/hooks/` (chapters 19 and 25). |
+| `.claude/settings.json` | Claude Code's settings: deny rules, a guard before shell commands and a Stop hook, both in `tools/hooks/` (chapters 19, 25). |
 
 ## Starting a session
 
@@ -44,7 +45,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (`python/.venv`, the pinned packages, `npm ci`)
-- Check: `node check.mjs` (all <!-- claim: checks -->25 checks; CI runs the same command). Model retirement dates are checked as of the latest `read` in `python/agents/models.toml`; `AGENT_POLICY_TODAY=YYYY-MM-DD` sets another.
+- Check: `node check.mjs` (all <!-- claim: checks -->26 checks; CI runs the same command). Model retirement dates are checked as of the latest `read` in `python/agents/models.toml`; `AGENT_POLICY_TODAY=YYYY-MM-DD` sets another.
 - Check quickly: `node check.mjs --fast` (no test suites; the full run counts)
 - After changing a pin: `node tools/lockfiles.mjs hashes`, `node setup.mjs`, then `node tools/install-paths.mjs`.
 - After changing a request or response model: `node tools/regenerate.mjs`, then fix what `node check.mjs` reports.
@@ -54,16 +55,15 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Test: `pytest`
 - Lint: `ruff check .` and `ruff format --check .`
 - Guardrails: `lint-imports`, and `python -m helpdesk_lint` for the lab's own rule
-- Policies: `python -m agent_policy` for agents, as of today (`--today`: another day), `python -m mcp_governance` for MCP servers (also `allowlist`, `audit`); `tests/policy_fixtures/` and `tests/catalog_fixtures/` are each rule's examples
+- Policies: `python -m agent_policy` for agents, as of today (`--today`: another day), `python -m mcp_governance` for MCP servers (also `allowlist`, `audit`); each rule's examples are in `tests/*_fixtures/`
 - Run: `uvicorn --factory helpdesk.main:create_default_app`
 - The triage assistant: `python -m helpdesk.triage` (the mock, scripted); `--real "..."` calls Anthropic's API
 - Red team: `python -m helpdesk.injections run`, and `flag "text"`
 - Golden sets, judges and the gate: `python -m helpdesk.evals`, `helpdesk.judge` and `helpdesk.gate`, each with `check`; `--help` lists the rest (`--real` is billed and needs `--max-usd`); `helpdesk.calls FILE` sums a `gate run --record FILE`
-- The gateway: `python -m helpdesk.gateway check`, `demo` and `report FILE`; real calls are recorded in `records/gateway.jsonl`
-- Use cases: `python -m helpdesk.readiness check`, `triage FILE` and `fingerprint FILE`
+- The gateway: `python -m helpdesk.gateway check`, `demo` and `report FILE`; real calls go in `records/gateway.jsonl`
+- Use cases: `python -m helpdesk.readiness check`, `triage FILE`, `fingerprint FILE`; `python -m helpdesk.golden_path new NAME` starts one (also `check`, `report`)
 - Knowledge base: `python -m helpdesk.kb eval`; also `query`, `cite`, `chunks`, `size`
-- Tools: `python -m helpdesk.tools list`, `schema`, `call` and `compare`
-- Patterns: `python -m helpdesk.patterns revise`, `batch` and `compare`
+- Tools and patterns: `python -m helpdesk.tools` and `helpdesk.patterns` (see `--help`)
 - Approvals: `python -m helpdesk.approvals list --as sam`; also `show`, `approve`, `reject`, `log`
 - MCP: `python -m helpdesk.mcp_client --as sam tools` (also `call`, `read`, `prompt`); `python -m helpdesk.mcp_server --http`
 
@@ -81,7 +81,7 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 - `node tools/lockfiles.mjs` checks every pin has its hashes and what's installed matches the locks (chapter 20).
 - `node tools/instruction-files.mjs <path>` reports what each instruction file loads, and when (chapter 6).
 - `node tools/doc-claims.mjs [path]` checks the paths and marked numbers in these documents (chapter 8).
-- `node tools/progress.mjs [path]` shows the work list and the last log entry, and fails if a done item's test doesn't exist (chapter 10).
+- `node tools/progress.mjs [path]` shows the work list and the last log entry, and fails if a done item's test is missing (chapter 10).
 - `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it (`--list` lists them; `--only PREFIX` runs a group); when you add a guard, add its entry (chapter 24).
 - `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command, with limits (chapter 25).
 - For readers, each described in its header and the README: `tools/harness-inventory.mjs`, `tools/rework.mjs`, `tools/measure.mjs`.

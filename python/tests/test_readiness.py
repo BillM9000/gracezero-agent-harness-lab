@@ -2,19 +2,21 @@
 
 The rules take their evidence as arguments, so most tests build it by hand from the lab's real data
 and change one thing. The last tests run the command over the lab's own use cases, and over copies
-of them in a temporary folder with one thing changed. Nothing here calls a model.
+of them in a temporary folder with one thing changed. The last section covers chapter 29's
+exceptions. Nothing here calls a model.
 """
 
 from __future__ import annotations
 
 import copy
 import shutil
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from agent_policy import POLICY
+from agent_policy import POLICY, today
 from agent_policy import load as load_toml
 from helpdesk import readiness as command
 from readiness import LIBRARY, READINESS, RUBRIC, USE_CASES, load
@@ -37,6 +39,7 @@ def evidence(**changes: Any) -> Evidence:
         "promotion": Promotion("2026-09-25", "the mock", frozenset({"triage", "judge"}), True, 5, INJECTIONS),
         "servers": frozenset({"helpdesk"}),
         "teams": frozenset({"support-tools"}),
+        "today": today(),
     }
     base.update(changes)
     return Evidence(**base)
@@ -312,3 +315,105 @@ def test_fingerprint_prints_what_the_sign_offs_in_the_lab_carry(capsys):
     assert command.main(["fingerprint", str(USE_CASES / "triage-assistant.toml")]) == 0
     printed = capsys.readouterr().out.strip()
     assert printed == TRIAGE["signoffs"][0]["fingerprint"] == TRIAGE["signoffs"][1]["fingerprint"]
+
+
+# --- Chapter 29: exceptions a reviewer gives, each with a reason and a day it ends.
+
+STALE = Promotion("2026-09-25", "the mock", frozenset({"triage", "judge"}), False, 5, INJECTIONS)
+
+
+def excepted(**changes: Any) -> dict[str, Any]:
+    """The triage assistant with one exception for its promotion, given by a platform reviewer."""
+    exception = {
+        "item": "promotion",
+        "reason": "The judge's rubric changed; a paid run re-promotes it this sprint.",
+        "by": "Alex Moreno",
+        "on": date(2026, 9, 20),
+        "until": date(2026, 10, 1),
+    }
+    exception.update(changes)
+    return {**TRIAGE, "exceptions": [exception]}
+
+
+def test_an_exception_excuses_an_item_until_the_day_it_ends():
+    r = review(excepted(), RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, evidence(promotion=STALE))
+    assert r.ready and r.passes
+    [promoted] = [res for res in r.results if res.item == "promotion"]
+    assert promoted.ok and promoted.excused
+    assert promoted.detail.startswith("by Alex Moreno until 2026-10-01: The judge's rubric changed;")
+    assert "Without it: what the model is given changed since the promotion" in promoted.detail
+    on_the_last_day = evidence(promotion=STALE, today=date(2026, 10, 1))
+    assert review(excepted(), RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, on_the_last_day).ready
+    after = evidence(promotion=STALE, today=date(2026, 10, 2))
+    r = review(excepted(), RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, after)
+    assert not r.ready and not r.passes
+    [promoted] = [res for res in r.results if res.item == "promotion"]
+    assert not promoted.ok and not promoted.excused
+    assert promoted.detail.startswith("its exception ended on 2026-10-01: what the model is given changed")
+
+
+def test_an_exception_with_nothing_to_excuse_fails():
+    r = review(excepted(), RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, evidence())
+    assert not r.passes
+    assert r.problems == ["exceptions[0]: promotion passes now, so there's nothing to excuse. Remove it."]
+    digest = load(USE_CASES / "customer-digest.toml")
+    record = {**digest, "exceptions": [{**excepted()["exceptions"][0], "item": "red-team"}]}
+    r = review(record, RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, evidence())
+    assert r.problems == ["exceptions[0]: its tier doesn't ask for red-team, so there's nothing to excuse."]
+
+
+@pytest.mark.parametrize(
+    ("change", "expected"),
+    [
+        ({"item": "sign-off"}, 'exceptions[0]: "sign-off" can\'t be excused; only library, servers,'),
+        ({"item": "policy"}, 'exceptions[0]: "policy" can\'t be excused;'),
+        ({"reason": "  "}, "exceptions[0]: reason is empty."),
+        ({"by": "Sam Rivera"}, "exceptions[0]: Sam Rivera isn't a reviewer in usecases/readiness.toml."),
+        ({"by": "Dana Whitfield"}, "exceptions[0]: Dana Whitfield isn't a reviewer"),
+        (
+            {"until": date(2026, 10, 21)},
+            "exceptions[0]: runs from 2026-09-20 to 2026-10-21. An exception ends",
+        ),
+        ({"until": date(2026, 9, 20)}, "exceptions[0]: runs from 2026-09-20 to 2026-09-20."),
+        ({"on": "yesterday"}, "exceptions[0]: on and until must be dates"),
+        ({"until": None}, "exceptions[0]: needs until."),
+    ],
+)
+def test_a_malformed_exception_fails_at_any_stage(change, expected):
+    exception = {k: v for k, v in {**excepted()["exceptions"][0], **change}.items() if v is not None}
+    for stage in ("building", "production"):
+        record = {**TRIAGE, "stage": stage, "exceptions": [exception]}
+        r = review(record, RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, evidence(promotion=STALE))
+        assert not r.passes
+        assert any(p.startswith(expected) for p in r.problems), r.problems
+
+
+def test_a_champion_cant_excuse_their_own_use_case():
+    record = {**excepted(), "champion": "Alex Moreno"}
+    r = review(record, RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, evidence(promotion=STALE))
+    assert r.problems == ["exceptions[0]: Alex Moreno is its champion, and can't excuse their own use case."]
+
+
+def test_an_exception_leaves_the_fingerprint_alone():
+    definition = DEFINITIONS["triage"]
+    assert fingerprint(excepted(), definition) == fingerprint(TRIAGE, definition)
+
+
+def test_the_check_shows_an_excused_item_and_judges_it_on_the_day_given(tmp_path, monkeypatch, capsys):
+    folder = lab_copy(tmp_path, monkeypatch)
+    path = folder / "triage-assistant.toml"
+    exception = (
+        '\n[[exceptions]]\nitem = "promotion"\nreason = "A paid run re-promotes it."\n'
+        'by = "Alex Moreno"\non = 2026-09-25\nuntil = 2026-10-09\n'
+    )
+    path.write_text(path.read_text(encoding="utf-8") + exception, encoding="utf-8")
+    real = command.gate.configuration
+    monkeypatch.setattr(command.gate, "configuration", lambda: {**real(), "evals/judged.json": "0"})
+    assert command.main(["check", "--today", "2026-10-09"]) == 0
+    out = capsys.readouterr().out
+    assert "  excused  promotion  by Alex Moreno until 2026-10-09: A paid run re-promotes it." in out
+    assert "  ok       red-team   all 16 red-team cases passed 5 of 5 trials" in out
+    assert command.main(["check", "--today", "2026-10-10"]) == 1
+    out = capsys.readouterr().out
+    assert "  left  promotion  its exception ended on 2026-10-09: what the model is given changed" in out
+    assert "  usecases/triage-assistant.toml: it's in production and not ready." in out

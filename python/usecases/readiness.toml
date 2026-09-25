@@ -44,6 +44,14 @@ low = []
 medium = ["platform"]
 high = ["platform", "security"]
 
+# Chapter 29: the items a use case may fail for a while, with a reviewer's exception under
+# [[exceptions]] in its record: the item, the reason, who gave it, the day, and the day it ends, at
+# most max_days later. Triage, the policy and the sign-off never take one: they're what the gate is
+# for. An exception for an item that passes fails the check, so none outlives its reason.
+[exceptions]
+items = ["library", "servers", "promotion", "red-team"]
+max_days = 30
+
 # Who may sign off for each role. Made-up people, as the helpdesk's staff are.
 [reviewers]
 platform = ["Alex Moreno"]

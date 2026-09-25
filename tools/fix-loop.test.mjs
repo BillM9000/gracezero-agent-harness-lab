@@ -1,6 +1,7 @@
 // Tests for tools/fix-loop.mjs (chapter 25). Each test builds a small git repository whose
 // check.mjs fails while app.txt says "bug", then runs the loop with a scripted fake agent: one
 // that fixes it, one that never manages to, one that does nothing, one that edits the check.
+// Chapter 34 adds fixtures whose check compares a document or a contract with the code.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -211,6 +212,98 @@ test("without --record the loop writes no record", () => {
   const root = repository();
   loop(root, "--agent", agent("fixer").command);
   assert.equal(existsSync(join(root, "records")), false);
+});
+
+// Chapter 34: an attempt that brings what the checks compare the code with into line with the code.
+// The fixture's check compares the number README.md claims with the lines in rules.txt, and fails
+// the way tools/doc-claims.mjs does.
+const STAND_IN = join(dirname(LOOP), "stand-in-agent.mjs");
+const CLAIM_CHECK = `import { readFileSync } from "node:fs";
+const said = Number(readFileSync("README.md", "utf8").match(/<!-- claim: rules -->(\\d+)/)[1]);
+const counted = readFileSync("rules.txt", "utf8").trim().split("\\n").length;
+console.log("PASS  Stub lint (0.1s)");
+if (said !== counted) {
+  console.log("FAIL  Documentation claims (0.2s)\\n      1 problem:\\n      - README.md:2: says " + said + " rules in rules.txt, but there are " + counted + ". Update the document, or the code if the document is right.\\n\\n1 of 2 checks failed.");
+  process.exit(1);
+}
+console.log("\\nAll 2 checks passed.");
+`;
+
+function commit(root, files) {
+  for (const [name, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(root, name)), { recursive: true });
+    writeFileSync(join(root, name), text);
+  }
+  git(root, "add", ".");
+  git(root, "commit", "-q", "-m", "more fixture");
+  return root;
+}
+
+// Five rules in the file, six in the document: one rule was deleted, and the document still counts it.
+function claimRepository() {
+  const root = repository("ok");
+  return commit(root, {
+    "check.mjs": CLAIM_CHECK,
+    "README.md": "# Fixture\n- <!-- claim: rules -->6 rules, one a line in rules.txt.\n",
+    "rules.txt": "a\nb\nc\nd\ne\n",
+  });
+}
+
+test("stops when an attempt rewrites a claimed number to match the code, and names the claim", () => {
+  const root = claimRepository();
+  const { code, output } = loop(root, "--agent", `node "${STAND_IN}" --rewrite-docs`);
+  assert.equal(code, 1, output);
+  assert.match(output, /stand-in agent: made README\.md:2 say 5, the number the check counted\./);
+  assert.match(
+    output,
+    /fix-loop: the agent changed what the checks compare the code with \(README\.md, the number it claims for rules\), and with that the checks pass\.\nStopping: the code may be what's wrong, and a person decides which side to change\./,
+  );
+  assert.doesNotMatch(output, /pass after/);
+  assert.match(readFileSync(join(root, "README.md"), "utf8"), /<!-- claim: rules -->5 rules/);
+  assert.match(git(root, "status", "--short").stdout, /M README\.md/);
+});
+
+// Fixes app.txt, and regenerates the contract from code that no longer has a route.
+const CONTRACTOR = 'writeFileSync("app.txt", "ok\\n"); writeFileSync("contracts/openapi.json", "{\\"paths\\": {}}\\n");';
+
+test("stops when an attempt regenerates the API contract to match the code", () => {
+  const root = commit(repository(), { "contracts/openapi.json": '{"paths": {"/tickets": {}}}\n' });
+  AGENTS.contractor = CONTRACTOR;
+  const { code, output } = loop(root, "--agent", agent("contractor").command);
+  assert.equal(code, 1, output);
+  assert.match(output, /the agent changed what the checks compare the code with \(contracts\/openapi\.json\), and with that the checks pass\./);
+  assert.doesNotMatch(output, /pass after/);
+});
+
+test("the prose around a claimed number is the agent's to fix", () => {
+  const root = commit(repository(), { "README.md": "# Fixture\n- <!-- claim: rules -->6 rules, one a line.\n" });
+  AGENTS.writer = 'writeFileSync("app.txt", "ok\\n"); writeFileSync("README.md", "# Fixture\\n- <!-- claim: rules -->6 rules, one a line in rules.txt.\\n");';
+  const { code, output } = loop(root, "--agent", agent("writer").command);
+  assert.equal(code, 0, output);
+  assert.match(output, /the fast checks pass after 1 attempt\./);
+});
+
+test("a claim marker inside a code span is an example, not a claim", () => {
+  const root = commit(repository(), { "AGENTS.md": "Mark a number with `<!-- claim: NAME -->12`.\n" });
+  AGENTS.example = 'writeFileSync("app.txt", "ok\\n"); writeFileSync("AGENTS.md", "Mark a number with `<!-- claim: NAME -->13`.\\n");';
+  const { code, output } = loop(root, "--agent", agent("example").command);
+  assert.equal(code, 0, output);
+});
+
+test("the prompt says that changing what the checks compare the code with stops the run too", () => {
+  const fake = agent("fixer");
+  loop(repository(), "--agent", fake.command);
+  assert.match(fake.prompt(), /So does changing what the checks compare the code with: the API contract/);
+});
+
+test("--record says an attempt changed a reference, and which", () => {
+  const root = commit(repository(), { "contracts/openapi.json": '{"paths": {"/tickets": {}}}\n' });
+  AGENTS.contractor = CONTRACTOR;
+  const record = join(temporary("record-"), "fix-loop.jsonl");
+  loop(root, "--agent", agent("contractor").command, "--record", record);
+  const [line] = readFileSync(record, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  assert.equal(line.outcome, "changed a reference");
+  assert.deepEqual(line.references_changed, ["contracts/openapi.json"]);
 });
 
 // The holes a review found (2026-09-26): what the protected list didn't cover, a rule switched off for

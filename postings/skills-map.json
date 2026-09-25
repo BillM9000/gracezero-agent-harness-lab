@@ -9,6 +9,7 @@
     { "id": "VI", "name": "Feedback Loops", "chapters": [24, 25] },
     { "id": "VII", "name": "Running It", "chapters": [26, 27, 28, 29, 30, 31] },
     { "id": "VIII", "name": "Your Career", "chapters": [32, 33] },
+    { "id": "IX", "name": "Quick Lists", "chapters": [34] },
     { "id": "Appendices", "name": "Appendices", "chapters": ["A"] }
   ],
   "start": {
@@ -56,6 +57,7 @@
     { "chapter": 31, "title": "Walking Into a Harness Someone Else Built", "question": "\"You're joining a team whose agent harness someone else built. What do you do in your first week?\"", "builds": ["codingAgents"], "lab": ["tools/rework.mjs"], "checks": ["Script tests"] },
     { "chapter": 32, "title": "Skills, Learning Path and Portfolio", "question": "\"Walk me through something you've built that shows [the posting's top requirement].\"", "builds": [], "lab": ["postings/skills.mjs", "postings/skills-map.json"], "checks": ["Script tests"] },
     { "chapter": 33, "title": "Interviewing for AI Platform Roles", "question": "\"How do you know?\", asked after any of the others.", "builds": [], "lab": [], "checks": [] },
+    { "chapter": 34, "title": "Ten Failure Modes and How to Catch Them", "question": "\"What are the most common ways AI agents fail, and how would you catch each one automatically?\"", "builds": [], "lab": ["tools/fix-loop.mjs", "tools/stand-in-agent.mjs"], "checks": ["Script tests"], "unproven": "a real agent choosing which side of a failed comparison to change: the stand-in's choice is scripted" },
     { "chapter": "A", "title": "The Same Harness in Five Tools", "builds": ["codingAgents"], "lab": [], "checks": [] }
   ]
 }

@@ -25,6 +25,17 @@ What each working session did, newest first. Add an entry at the end of every se
 - Then `node tools/mutate.mjs` on a fresh clone at `338df39`: all 494 caught in 24.9 minutes, and the tree unchanged.
 - Next: Appendices C and D, the glossary, the sources list, the quick-reference card and the front matter.
 
+## 2026-09-25: chapter 34, ten failure modes and how to catch them
+
+- `tools/fix-loop.mjs`: an attempt that changes what the checks compare the code with (the API contract, the types generated from it, or a number `README.md`, `AGENTS.md` or `CLAUDE.md` claims) stops the loop, because the code may be the wrong side; the record's outcome is `changed a reference`, and `tools/measure.mjs` counts it with silenced rules and changed checks.
+- `tools/stand-in-agent.mjs --rewrite-docs` makes such an attempt, for the chapter's Try it.
+- `postings/skills-map.json`: Part IX and chapter 34, with its likely question.
+- 7 new script tests; 8 new mutation entries and 2 updated (476); the 52 fix loop, measure and skills entries applied and caught on the working tree before commit.
+- Work list: `reference-changes` done, proved by `tools/fix-loop.test.mjs`.
+- Checked with: `node check.mjs` and `node tools/progress.mjs .`.
+- Not run: `--real`, for any command; nothing here calls a model.
+- Next: chapters 35 and 36.
+
 ## 2026-09-25: chapter 33, interviewing for AI platform roles
 
 - `postings/skills-map.json`: each numbered chapter (1 to 33) now carries its likely interview question, word for word from its "Talking about it in an interview" section. Appendix A has none, and doesn't need one.

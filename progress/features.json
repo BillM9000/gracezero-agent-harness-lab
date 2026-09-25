@@ -230,6 +230,12 @@
       "proof": "postings/skills.test.mjs::a chapter without its likely question stops the run"
     },
     {
+      "id": "reference-changes",
+      "description": "The fix loop stops an attempt that changes what a check compares the code with (the API contract, the types made from it, or a number a document claims), because the code may be the side that's wrong and a person decides which (chapter 34).",
+      "status": "done",
+      "proof": "tools/fix-loop.test.mjs::stops when an attempt rewrites a claimed number to match the code, and names the claim"
+    },
+    {
       "id": "templates",
       "description": "Each of Appendix B's templates passes the check it was written for, or runs, and fails when a violation is planted, so a reader copies something that works; the workflow templates stay the lab's own workflows, trimmed (Appendix B).",
       "status": "done",

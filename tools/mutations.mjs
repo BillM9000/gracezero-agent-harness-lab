@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14 and 16 to 32 are
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14 and 16 to 34 are
 // here, Appendix B's templates, the script tests' git runner (tools/git-run.mjs), chapter 7's
 // consumer test and chapter 1's tally's check for missing fields; the guards from earlier chapters
 // were broken by hand when they were built (CHANGELOG.md records each time) and are the next
@@ -3374,7 +3374,7 @@ export const MUTATIONS = [
   {
     guard: "fix loop: --record writes a line for every attempt",
     file: "tools/fix-loop.mjs",
-    find: "  record({ attempt, failing: failed, outcome, still_failing: failing(checks.output), silenced, checks_changed: changed, head_moved: moved });\n",
+    find: "  record({\n    attempt,\n    failing: failed,\n    outcome,\n    still_failing: failing(checks.output),\n    silenced,\n    checks_changed: changed,\n    references_changed: rewritten,\n    head_moved: moved,\n  });\n",
     replace: "",
     run: nodeTest(LOOP_TESTS, "--record writes one line per attempt"),
   },
@@ -3493,8 +3493,8 @@ export const MUTATIONS = [
   {
     guard: "measure: silencing a rule and changing a check both count against the loop",
     file: MEASURE,
-    find: 'silencedOrChanged: n("silenced a rule") + n("changed the checks") + n("moved HEAD"),',
-    replace: 'silencedOrChanged: n("silenced a rule") + n("moved HEAD"),',
+    find: 'const gamed = n("silenced a rule") + n("changed the checks") +',
+    replace: 'const gamed = n("silenced a rule") +',
     run: nodeTest(MEASURE_TESTS, "the loop's record counts each attempt"),
   },
   {
@@ -4772,6 +4772,64 @@ export const MUTATIONS = [
     run: nodeTest(SKILLS_TESTS, "without --questions, no questions are printed"),
   },
 
+  // Chapter 34: an attempt that changes what the checks compare the code with stops the fix loop.
+  {
+    guard: "fix loop: an attempt that changes a reference stops the loop",
+    file: "tools/fix-loop.mjs",
+    find: "  if (rewritten.length) {",
+    replace: "  if (false) {",
+    run: nodeTest(LOOP_TESTS, "stops when an attempt regenerates the API contract"),
+  },
+  {
+    guard: "fix loop: the API contract is a reference",
+    file: "tools/fix-loop.mjs",
+    find: "const REFERENCES = [/^contracts\\//, ",
+    replace: "const REFERENCES = [",
+    run: nodeTest(LOOP_TESTS, "stops when an attempt regenerates the API contract"),
+  },
+  {
+    guard: "fix loop: a number a document claims is a reference",
+    file: "tools/fix-loop.mjs",
+    find: 'const CLAIMING = ["README.md", "AGENTS.md", "CLAUDE.md"];',
+    replace: "const CLAIMING = [];",
+    run: nodeTest(LOOP_TESTS, "stops when an attempt rewrites a claimed number"),
+  },
+  {
+    guard: "fix loop: the prose around a claimed number isn't a reference",
+    file: "tools/fix-loop.mjs",
+    find: "        const key = `${doc}, the number it claims for ${m[1]}`;",
+    replace: "        const key = `${doc}, the number it claims for ${m[1]}: ${line}`;",
+    run: nodeTest(LOOP_TESTS, "the prose around a claimed number"),
+  },
+  {
+    guard: "fix loop: a claim marker in a code span is an example",
+    file: "tools/fix-loop.mjs",
+    find: 'for (const m of line.replace(/`[^`]*`/g, "").matchAll(',
+    replace: "for (const m of line.matchAll(",
+    run: nodeTest(LOOP_TESTS, "a claim marker inside a code span"),
+  },
+  {
+    guard: "fix loop: the prompt says a changed reference stops the run",
+    file: "tools/fix-loop.mjs",
+    find: '    "So does changing what the checks compare the code with: the API contract, the types made from it, or a number a document claims.",\n',
+    replace: "",
+    run: nodeTest(LOOP_TESTS, "the prompt says that changing what the checks compare"),
+  },
+  {
+    guard: "fix loop: the record says an attempt changed a reference",
+    file: "tools/fix-loop.mjs",
+    find: '        ? "changed a reference"',
+    replace: '        ? "fixed"',
+    run: nodeTest(LOOP_TESTS, "--record says an attempt changed a reference"),
+  },
+  {
+    guard: "measure: a changed reference counts with silenced rules and changed checks",
+    file: MEASURE,
+    find: ' + n("changed a reference") +',
+    replace: " +",
+    run: nodeTest(MEASURE_TESTS, "an attempt that changed a reference counts"),
+  },
+
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code
   // and data, a tool's configuration anywhere, file-wide silencing, and HEAD watched.
   {
@@ -4882,8 +4940,8 @@ export const MUTATIONS = [
   {
     guard: "measure: an attempt that moved HEAD counts with silenced rules and changed checks",
     file: MEASURE,
-    find: ' + n("changed the checks") + n("moved HEAD"),',
-    replace: ' + n("changed the checks"),',
+    find: ' + n("moved HEAD");',
+    replace: ";",
     run: nodeTest(MEASURE_TESTS, "an attempt that moved HEAD counts"),
   },
 

@@ -155,6 +155,15 @@ test("the loop's record counts each attempt by what it did", () => {
   assert.equal(m.byCheck["Python lint (ruff check)"], 2);
 });
 
+test("an attempt that changed a reference counts with the ones that silenced a rule or changed a check", () => {
+  const entries = [
+    { outcome: "fixed", failing: ["Documentation claims (tools/doc-claims.mjs)"] },
+    { outcome: "changed a reference", failing: ["Documentation claims (tools/doc-claims.mjs)"] },
+  ];
+  const m = loopMeasures(entries);
+  assert.deepEqual([m.attempts, m.fixed, m.silencedOrChanged, m.other], [2, 1, 1, 0]);
+});
+
 test("an attempt that moved HEAD counts with the ones that silenced a rule or changed the checks", () => {
   const entries = [
     { outcome: "moved HEAD", failing: ["Python lint (ruff check)"] },

@@ -236,6 +236,7 @@
 - `postings/skills.test.mjs`, 14 tests, added to the script tests. 13 new entries in `tools/mutations.mjs` (461), all 13 applied and caught on the working tree before commit. `AGENTS.md` trimmed first (seven command lines shortened), then the script added beside the tally and the `postings/` row updated: 3,998 of its 4,000 estimated tokens. The README says what chapter 32 added, and its closing line, "Coming chapter by chapter: gateways, cost and model routing," stale since chapter 27, now says each chapter records what it added here. Work list: `skills-map` done.
 - Not run: any real model; nothing here calls one.
 - `node tools/mutate.mjs` on the committed tree at `67eb371`: 461 of 461 caught in 19.4 minutes, and the tree unchanged.
+- **The map's error message names the map from the repository's root** (`postings/skills-map.json: 1 problem(s).`), not by its absolute path, so it reads the same on every machine. Found reading the Try it output from the first fresh clone at `f9e9e0c`. One new test (15 in `postings/skills.test.mjs`) and one new mutation entry (462); all 14 skills entries applied and caught on the working tree before commit.
 
 ## 2026-09-25, chapter 29 lab
 

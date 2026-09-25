@@ -35,6 +35,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Checked with: `node check.mjs` (all 26 checks passed) and `node tools/progress.mjs .`.
 - Not run: `--real`, for any command; nothing here calls a model.
 - Then `node tools/mutate.mjs` on the committed tree at `67eb371`: all 461 caught in 19.4 minutes, and the tree unchanged.
+- Then the map's error names it from the repository's root (`postings/skills-map.json`), not by its absolute path, so the message reads the same on every machine: found reading the Try it output from the first fresh clone. One test (15) and one mutation entry (462); the 14 skills entries applied and caught on the working tree; the fresh clone at the tag reruns all 462.
 - Next: chapter 33.
 
 ## 2026-09-25: chapter 29, rolling it out to teams

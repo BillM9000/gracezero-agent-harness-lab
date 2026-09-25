@@ -18,7 +18,7 @@
 // Exit codes: 0 printed, 1 the map or the sample has problems (each one is listed), 2 usage.
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { listFiles } from "../tools/harness-inventory.mjs";
@@ -117,7 +117,8 @@ function problemsIn() {
 
 const problems = problemsIn();
 if (problems.length) {
-  console.error(`${mapFile}: ${problems.length} problem(s). Nothing was printed.`);
+  // The map's path from the repository's root, so the message reads the same on every machine.
+  console.error(`${relative(ROOT, mapFile).split(sep).join("/")}: ${problems.length} problem(s). Nothing was printed.`);
   for (const line of problems) console.error(`- ${line}`);
   process.exit(1);
 }

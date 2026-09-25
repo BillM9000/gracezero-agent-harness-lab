@@ -4714,6 +4714,13 @@ export const MUTATIONS = [
     replace: "    if (false) console.log",
     run: nodeTest(SKILLS_TESTS, "--evidence names the checks"),
   },
+  {
+    guard: "skills: the map is named from the repository's root",
+    file: SKILLS,
+    find: "${relative(ROOT, mapFile).split(sep).join(\"/\")}: ${problems.length} problem(s)",
+    replace: "${mapFile}: ${problems.length} problem(s)",
+    run: nodeTest(SKILLS_TESTS, "the map is named from the repository's root"),
+  },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code
   // and data, a tool's configuration anywhere, file-wide silencing, and HEAD watched.

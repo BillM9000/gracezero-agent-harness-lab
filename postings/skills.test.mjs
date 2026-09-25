@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -94,6 +94,15 @@ test("a skill no chapter builds stops the run", () => {
     withMap("unbuilt", (m) => (chapter(m, 9).builds = [])),
     /"retrieval" is built by no chapter\. Add it to the chapters that build it, or say why in notCovered\./,
   );
+});
+
+test("the map is named from the repository's root, so the message reads the same on every machine", () => {
+  const map = brokenCopy(MAP, "named", (m) => (chapter(m, 9).builds = []));
+  const run = skills(SAMPLE, "--type", "enablement", "--map", map);
+  const shown = relative(join(here, ".."), map).split(sep).join("/");
+  assert.equal(run.status, 1);
+  assert.ok(run.stderr.startsWith(`${shown}: 1 problem(s). Nothing was printed.`), run.stderr);
+  assert.ok(!run.stderr.includes(join(here, "..")), "the root's own path isn't printed");
 });
 
 test("a signal added to the codebook must be placed in the map first", () => {

@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 21, 24, 25
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 22, 24, 25
 // and 30 are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and
 // chapter 1's tally's check for missing fields; the guards from earlier chapters were broken by
 // hand when they were built (CHANGELOG.md records each time) and are the next candidates to add.
@@ -67,6 +67,9 @@ const lockTest = (name) => nodeTest(LOCK_TESTS, name);
 const GRADING = "python/src/helpdesk/assistant/grading.py";
 const EVALS = "python/src/helpdesk/evals.py";
 const evalsTest = (name) => pytest(`tests/test_evals.py::${name}`);
+const JUDGING = "python/src/helpdesk/assistant/judging.py";
+const JUDGE = "python/src/helpdesk/judge.py";
+const judgeTest = (name) => pytest(`tests/test_judge.py::${name}`);
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -2573,6 +2576,189 @@ export const MUTATIONS = [
     find: '"PYTHONPATH": str(workdir / "src"), "PYTHONIOENCODING": ENCODING}',
     replace: '"PYTHONPATH": str(workdir / "src")}',
     run: pytest(`${LAYERS}::test_the_output_reads_the_same_whatever_encoding_the_shell_sets`),
+  },
+  // Chapter 22: model judges.
+  {
+    guard: "judges: a field the verdict schema doesn't have is refused",
+    file: JUDGING,
+    find: '    model_config = ConfigDict(extra="forbid", strict=True)',
+    replace: '    model_config = ConfigDict(extra="ignore", strict=True)',
+    run: judgeTest("test_a_field_the_schema_doesnt_have_is_refused"),
+  },
+  {
+    guard: "judges: a verdict is pass, fail or unknown, nothing else",
+    file: JUDGING,
+    find: '    verdict: Literal["pass", "fail", "unknown"]',
+    replace: "    verdict: str",
+    run: judgeTest("test_every_malformed_answer_is_an_error_never_a_pass"),
+  },
+  {
+    guard: "judges: an answer about another criterion is refused",
+    file: JUDGING,
+    find: "    if verdict.criterion != criterion.id:",
+    replace: "    if False:",
+    run: judgeTest("test_an_answer_about_another_criterion_is_refused"),
+  },
+  {
+    guard: "judges: an empty reason is refused",
+    file: JUDGING,
+    find: "    if not verdict.reason.strip():",
+    replace: "    if False:",
+    run: judgeTest("test_an_empty_reason_is_refused"),
+  },
+  {
+    guard: "judges: a quotation must be in the text judged",
+    file: JUDGING,
+    find: "    if verdict.quote is not None and not (verdict.quote.strip() and found(verdict.quote, judged)):",
+    replace: "    if False:",
+    run: judgeTest("test_a_quote_the_text_doesnt_contain_is_refused"),
+  },
+  {
+    guard: "judges: a refusal or a cut-off answer is no verdict",
+    file: JUDGING,
+    find: "read_verdict(final_text(response), criterion, text)",
+    replace: "read_verdict(response.text, criterion, text)",
+    run: judgeTest("test_a_refusal_or_a_cut_off_answer_is_no_verdict_even_with_a_verdict_in_it"),
+  },
+  {
+    guard: "judges: each criterion is asked in a conversation of its own",
+    file: JUDGING,
+    find: "messages=[message])",
+    replace: "messages=[message, message])",
+    run: judgeTest("test_each_criterion_is_asked_in_a_conversation_of_its_own"),
+  },
+  {
+    guard: "judges: the judge is given what the writer was given",
+    file: JUDGING,
+    find: '    data = "\\n".join(json.dumps(item, ensure_ascii=False) for item in given) or "(none)"',
+    replace: '    data = "(none)"',
+    run: judgeTest("test_the_judge_is_given_what_the_writer_was_given_as_data"),
+  },
+  {
+    guard: "judges: the text to judge goes in as data, a JSON string",
+    file: JUDGING,
+    find: "            json.dumps(text, ensure_ascii=False),",
+    replace: "            text,",
+    run: judgeTest("test_the_judge_is_given_what_the_writer_was_given_as_data"),
+  },
+  {
+    guard: "judges: unknown or an error is never a pass",
+    file: JUDGING,
+    find: '        if any(o in ("unknown", "error") for o in outcomes):',
+    replace: "        if False:",
+    run: judgeTest("test_unknown_or_an_error_is_never_a_pass"),
+  },
+  {
+    guard: "judges: a fail decides even beside an unknown",
+    file: JUDGING,
+    find: '        if "fail" in outcomes:',
+    replace: "        if False:",
+    run: judgeTest("test_a_fail_decides_even_beside_an_unknown"),
+  },
+  {
+    guard: "judging the judge: a false pass is counted apart from a false fail",
+    file: JUDGING,
+    find: '        elif outcome == "pass":',
+    replace: "        elif False:",
+    run: judgeTest("test_a_false_pass_is_counted_apart_from_a_false_fail"),
+  },
+  {
+    guard: "judging the judge: unknown is never agreement",
+    file: JUDGING,
+    find: '        if outcome == "unknown":',
+    replace: "        if False:",
+    run: judgeTest("test_unknown_and_errors_are_never_agreement"),
+  },
+  {
+    guard: "judging the judge: the rubber-stamp baseline counts the person's passes",
+    file: JUDGING,
+    find: '        self.person_passed += label == "pass"',
+    replace: "        self.person_passed += 0",
+    run: judgeTest("test_the_rubber_stamp_baseline_is_the_share_the_person_passed"),
+  },
+  {
+    guard: "the second slot: a person's label wins over the judge's",
+    file: JUDGING,
+    find: "        return person\n",
+    replace: "        return judge_outcome\n",
+    run: judgeTest("test_a_persons_label_wins_and_an_unsettled_judge_waits_for_one"),
+  },
+  {
+    guard: "the second slot: a person reads every reply the judge couldn't settle",
+    file: JUDGING,
+    find: 'for i, o in outcomes.items() if o == "person"]',
+    replace: "for i, o in outcomes.items() if False]",
+    run: judgeTest("test_the_second_slot_reads_everything_unsettled_and_a_sample_of_passes"),
+  },
+  {
+    guard: "judge loop: the judge sees only drafts whose citations hold",
+    file: JUDGING,
+    find: "        if not report.ok:",
+    replace: "        if False:",
+    run: judgeTest("test_the_judge_only_sees_drafts_whose_citations_hold"),
+  },
+  {
+    guard: "judge loop: the judge gets the drafter's tool results as its data",
+    file: JUDGING,
+    find: "        given = results_of(transcript)",
+    replace: "        given = []",
+    run: judgeTest("test_the_judge_gets_the_drafters_tool_results_as_its_data"),
+  },
+  {
+    guard: "judge loop: a judge that can't settle a criterion stops the loop for a person",
+    file: JUDGING,
+    find: '        if assessment.outcome == "person":',
+    replace: "        if False:",
+    run: judgeTest("test_a_judge_that_cant_settle_a_criterion_stops_the_loop_for_a_person"),
+  },
+  {
+    guard: "judge loop: a judge and a drafter that never settle stop at the round limit",
+    file: JUDGING,
+    find: '    return JudgedRevision(tuple(rounds), "limit", transcript)',
+    replace: '    return JudgedRevision(tuple(rounds), "passed", transcript)',
+    run: judgeTest("test_a_judge_and_a_drafter_that_never_settle_stop_at_the_round_limit"),
+  },
+  {
+    guard: "judge check: every malformed answer is refused",
+    file: JUDGE,
+    find: "        if not refused(response, criterion, text):",
+    replace: "        if False:",
+    run: judgeTest("test_the_check_fails_when_a_malformed_answer_would_count"),
+  },
+  {
+    guard: "judge check: every reply is labeled on every criterion",
+    file: JUDGE,
+    find: "        if sorted(reply.person) != ids:",
+    replace: "        if False:",
+    run: judgeTest("test_the_check_refuses_a_reply_missing_a_label"),
+  },
+  {
+    guard: "judge check: every criterion has a pass and a fail among the labels",
+    file: JUDGE,
+    find: '        if not {"pass", "fail"} <= seen:',
+    replace: "        if False:",
+    run: judgeTest("test_the_check_refuses_a_criterion_nobody_failed"),
+  },
+  {
+    guard: "judge check: a labeled reply's citations hold, so only judgment separates the replies",
+    file: JUDGE,
+    find: "        for problem in citations.check(reply.reply, given).problems:",
+    replace: "        for problem in ():",
+    run: judgeTest("test_the_check_refuses_a_reply_whose_citations_code_already_catches"),
+  },
+  {
+    guard: "judge check: the mock's scripts name labeled replies",
+    file: JUDGE,
+    find: "                if reply_id not in known or c not in ids:",
+    replace: "                if False:",
+    run: judgeTest("test_the_check_refuses_a_script_for_a_reply_that_isnt_labeled"),
+  },
+  {
+    guard: "judges: the same-model judge uses the drafter's model",
+    file: "python/agents/judge.toml",
+    find: 'model = "claude-opus-5-5"',
+    replace: 'model = "claude-sonnet-5"',
+    run: judgeTest("test_the_same_model_judge_uses_the_drafters_model"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

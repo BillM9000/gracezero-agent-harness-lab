@@ -240,7 +240,9 @@ def test_the_policy_command_checks_as_of_the_day_it_is_given(capsys):
     assert main(["--today", "2027-07-01"]) == 1
     out = capsys.readouterr().out
     assert "agents/triage.toml: model: claude-opus-5-5 may retire as soon as 2027-09-22, in 83 days" in out
-    assert out.rstrip().endswith("as of 2027-07-01: 2 problem(s).")
+    # One problem a definition: the triage assistant, the orchestrator and the two judges (chapter 22).
+    assert "agents/judge-second.toml: model: claude-sonnet-5 may retire as soon as 2027-06-30" in out
+    assert out.rstrip().endswith("as of 2027-07-01: 4 problem(s).")
 
 
 def test_every_approved_model_is_in_the_registry_active_and_every_replacement_is_known():

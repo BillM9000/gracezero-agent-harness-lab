@@ -1,0 +1,39 @@
+{
+  "about": "What the mock plays when it stands in for a judge (chapter 22). For a labeled reply it plays the person's label as its verdict, except where calibrate scripts another; the lab chose those exceptions to exercise every path: a false pass, a false fail, an unknown and a malformed answer. For the revise loop it plays a drafter and a judge that never settle, and for a document it plays unknown. The numbers these produce test the machinery and say nothing about any model.",
+  "calibrate": {
+    "same": {
+      "r05": {
+        "supported": {"verdict": "pass", "reason": "The reply's statements about the plan change match the cited passage."}
+      },
+      "r09": {
+        "answers": {"verdict": "unknown", "reason": "The data doesn't say why the token stopped working, so I can't tell whether the reply deals with the cause."}
+      }
+    },
+    "second": {
+      "r04": {
+        "supported": {"verdict": "fail", "reason": "No passage says what the next invoice will show.", "quote": "the next one should show your new plan"}
+      },
+      "r07": {
+        "next-step": {"raw": "PASS. The reply tells Chloe where to find the export."}
+      }
+    }
+  },
+  "revise": {
+    "task": "Draft a reply to ticket 2 for me to review.",
+    "turns": [
+      [["get_ticket", {"ticket_id": 2}]],
+      [["search_kb", {"query": "billed for a plan after downgrading"}]]
+    ],
+    "drafts": [
+      "Plan changes take effect at the next billing date [2#2]. Until then you keep the features of your current plan, and you are billed for it [2#2].",
+      "Hello Ben, thank you so much for your patience, and we are very sorry for any inconvenience. Plan changes take effect at the next billing date [2#2]. Until then you keep the features of your current plan, and you are billed for it [2#2].",
+      "Hello Ben, sorry for the confusion. Plan changes take effect at the next billing date [2#2]. Until then you keep the features of your current plan, and you are billed for it [2#2]. Reply here if the next invoice still shows Pro."
+    ],
+    "verdicts": [
+      {"tone": {"verdict": "fail", "reason": "It opens with no greeting and reads as curt."}},
+      {"next-step": {"verdict": "fail", "reason": "It apologizes twice and never says what Ben should do or expect."}},
+      {"tone": {"verdict": "fail", "reason": "The apology is too brief for a billing mistake.", "quote": "sorry for the confusion"}}
+    ]
+  },
+  "doc": {"verdict": "unknown", "reason": "The mock plays no verdict on a document: run with --real, or a person reads it."}
+}

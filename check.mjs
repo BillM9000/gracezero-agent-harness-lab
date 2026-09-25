@@ -1,7 +1,7 @@
 // One command to run every check in the repository: node check.mjs
 //
 // Runs the Python lint, format, import-rule, model-text-rule, agent-policy, MCP-catalog, retrieval,
-// golden-set and test checks, a check that the API contract and the TypeScript types generated from it are
+// golden-set, model-judge and test checks, a check that the API contract and the TypeScript types generated from it are
 // current, the TypeScript type-check, import rules and tests, the Node script tests, a check that setup.mjs's
 // Windows path limit still fits the installed packages, a check that every pinned package has its
 // hashes and that what's installed matches the lock files, a budget for the instruction files, a check
@@ -49,6 +49,9 @@ const CHECKS = [
   // The golden sets (chapter 21): every reference solution passes its key, so each key asks only for
   // what the tools give its person, and every scripted mistake fails, so every grader can fail.
   ["Golden sets (python -m helpdesk.evals check)", tool("python"), ["-m", "helpdesk.evals", "check"], { cwd: python }],
+  // Model judges (chapter 22): the rubrics and the labeled replies are sound, every malformed answer
+  // a judge could give is refused, and the labels can tell a judge from one that passes everything.
+  ["Model judges (python -m helpdesk.judge check)", tool("python"), ["-m", "helpdesk.judge", "check"], { cwd: python }],
   // The contract is generated from the Python code, and the TypeScript types from the contract.
   // These two run before the type-check, so drift is reported as drift before it shows up as type errors.
   ["API contract (python -m helpdesk.contract)", tool("python"), ["-m", "helpdesk.contract", "check", "../contracts/openapi.json"], { cwd: python }],

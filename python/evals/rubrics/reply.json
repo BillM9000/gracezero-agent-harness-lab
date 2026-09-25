@@ -1,0 +1,31 @@
+{
+  "id": "reply",
+  "subject": "a reply that a member of staff will send to a customer, drafted from the customer's ticket and the help articles",
+  "given": "the tool results the writer was given: the ticket, and the help-article passages its search returned",
+  "criteria": [
+    {
+      "id": "answers",
+      "question": "Does the reply deal with what the customer asked or reported?",
+      "pass": "it takes up the customer's own question or problem, all of it",
+      "fail": "it answers a different question, or leaves part of what they asked untouched"
+    },
+    {
+      "id": "next-step",
+      "question": "Does the reply leave the customer knowing what to do next, or what happens next?",
+      "pass": "the customer can act on it, or knows what the company will do",
+      "fail": "the customer is left without a next step"
+    },
+    {
+      "id": "supported",
+      "question": "Is every claim and promise in the reply supported by the data the writer was given?",
+      "pass": "everything it tells the customer is in that data or follows plainly from it",
+      "fail": "it states or promises something that data doesn't support, such as a refund, a date or a cause, whether or not the sentence cites a passage"
+    },
+    {
+      "id": "tone",
+      "question": "Is the reply courteous and plain?",
+      "pass": "polite and direct, with no blame and no terms a customer wouldn't know",
+      "fail": "curt, blaming, or written in the team's own jargon"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "instructions",
+  "subject": "an instruction file that coding agents read at the start of every session, such as AGENTS.md",
+  "given": "nothing but the file itself",
+  "criteria": [
+    {
+      "id": "map",
+      "question": "Is the file a map rather than an encyclopedia?",
+      "pass": "it points to where detail lives (files, commands, checks) and keeps each entry to a line or two",
+      "fail": "it holds long explanations, procedures or reference material that the files it could point to should hold"
+    },
+    {
+      "id": "reasons",
+      "question": "Does each rule say why it exists, or name what enforces it?",
+      "pass": "a reader can tell why each rule matters, or which check will fail when it's broken",
+      "fail": "some rules are bare orders, with no reason and nothing named that enforces them"
+    },
+    {
+      "id": "conflicts",
+      "question": "Are the rules free of contradictions?",
+      "pass": "no two rules ask for opposite things",
+      "fail": "two rules can't both be followed, or one undoes another"
+    }
+  ]
+}

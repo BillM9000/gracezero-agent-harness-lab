@@ -6,6 +6,17 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
 
+## 2026-09-24: chapter 22, model judges
+
+- `helpdesk/assistant/judging.py`: rubrics, one criterion a call in a fresh conversation, the writer's tool results as the judge's data, verdicts checked against a schema generated from `Verdict` (a malformed one, a refusal or a cut-off answer is an error, never a pass), agreement with a person's labels, the second slot, and the revise loop with a judge. `python -m helpdesk.judge` has `check`, `calibrate`, `compare`, `revise` and `doc`, all on the mock unless `--real`.
+- Data: `python/evals/rubrics/reply.json` and `instructions.json`, `python/evals/judged.json` (10 replies, 40 labels by one person), `python/evals/judge-mock.json` (the mock's verdicts, chosen by the lab). Definitions: `python/agents/judge.toml` (the drafter's model) and `judge-second.toml` (another model).
+- `python -m helpdesk.judge check` is the 22nd check.
+- 49 new Python tests, and the policy command's test now expects four definitions; 26 new mutations, each applied and caught before commit.
+- Work list: `model-judge` done, proved by `tests/test_judge.py`; `evals-gate` (chapter 23) added.
+- Checked with: `node check.mjs` and `node tools/progress.mjs .`.
+- Not run: `--real`, for any command. Which judge agrees with a person more, how often a real drafter and judge settle, and what a real judge says of `AGENTS.md` wait for a paid run; the chapter lists the commands.
+- Next: `evals-gate` (chapter 23).
+
 ## 2026-09-24: chapter 21, golden sets
 
 - The guardrail tests set `PYTHONIOENCODING` for lint-imports and read its output in that encoding (`67ceb32`); a new test runs them with the variable unset and set to `utf-8`, `cp1252` and `utf-16`. The committed file before the fix gave 12 failed and 12 errors with `utf-8` set.

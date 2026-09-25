@@ -1,0 +1,95 @@
+{
+  "about": "Replies a person has labeled, to judge the judge (chapter 22). Each reply is saved with the tool results its writer was given, and the judge grades against those, never against the helpdesk as it is now. The person who wrote the helpdesk wrote these replies and labeled them, one label per criterion of the rubric: a small set from one person, enough to test the machinery. Every reply's citations hold (chapter 9's check), so only judgment tells the good ones from the bad. python -m helpdesk.judge check keeps it that way.",
+  "rubric": "rubrics/reply.json",
+  "as": "sam",
+  "given": {
+    "1": [
+      "Ticket 1 [open, high priority]: \"Cannot reset my password\"\nFrom Ada Park, opened 2026-09-01. Unassigned.\nThe customer wrote: \"The reset email never arrives.\"\nNo replies yet.\nAda Park's other tickets that Sam Rivera can see: #11 [open] \"Notifications too frequent\" (2026-09-07).",
+      "[1#1] Resetting your password > Send yourself a reset link: On the sign-in page, choose the Forgot password link and enter the email address you signed up with. We send a reset link to that address. Use the link to choose a new password; the old one stops working at once.\n[1#2] Resetting your password > If the reset email doesn't arrive: Reset emails can take up to ten minutes to arrive, and they sometimes land in the spam folder. Check your spam folder, then use the Forgot password link again. If you signed up through single sign-on, you have no password with us: sign in with your company account instead.\n[1#3] Resetting your password > Reset links expire: A reset link works once, and it expires 30 minutes after we send it. If yours has expired, request a new one. Only the newest link works."
+    ],
+    "2": [
+      "Ticket 2 [open, normal priority]: \"Invoice shows the wrong plan\"\nFrom Ben Okafor, opened 2026-09-02. Assigned to Sam Rivera.\nThe customer wrote: \"I downgraded last month but was billed for Pro.\"\nNo replies yet.\nBen Okafor's other tickets that Sam Rivera can see: #5 [closed] \"Can I downgrade mid-month?\" (2026-08-12); #12 [open] \"API token stopped working\" (2026-09-08).",
+      "[2#2] Changing your plan > Downgrading: Plan changes take effect at the next billing date. Until then you keep the features of your current plan, and you are billed for it. Your projects are kept, but anything over the lower plan's limits becomes read-only.\n[2#1] Changing your plan > Upgrading: An upgrade from Free to Pro, or from Pro to Business, takes effect at once. We charge the difference for the rest of the current billing period straight away.\n[5#1] Signing in with single sign-on > Who can use it: Single sign-on (SSO) is part of the Business plan. A workspace owner connects your company's identity provider under Settings, then Security. After that, members sign in with their company account instead of a password."
+    ],
+    "3": [
+      "Ticket 3 [pending, low priority]: \"How do I export my data?\"\nFrom Chloe Varga, opened 2026-09-03. Assigned to Sam Rivera.\nThe customer wrote: \"Looking for a CSV export of all projects.\"\nNo replies yet.\nChloe Varga's other tickets that Sam Rivera can see: #8 [open] \"Import stops part way\" (2026-09-05).",
+      "[3#1] Exporting your data > Export to CSV: Settings, then Export, produces a CSV of every project you own. Each project becomes one file, and the files arrive together in one zip archive.\n[3#3] Exporting your data > What an export leaves out: Attachments are not included in a CSV export. Download them from each project's Files tab instead. Comments are included, in a separate column.\n[10#1] Importing from a spreadsheet > Importing a CSV: In a project, choose Import, then pick a CSV file. The first row must hold column names. Each following row becomes one task."
+    ],
+    "12": [
+      "Ticket 12 [open, high priority]: \"API token stopped working\"\nFrom Ben Okafor, opened 2026-09-08. Unassigned.\nThe customer wrote: \"Our integration gets 401 errors since this morning.\"\nNo replies yet.\nBen Okafor's other tickets that Sam Rivera can see: #2 [open] \"Invoice shows the wrong plan\" (2026-09-02); #5 [closed] \"Can I downgrade mid-month?\" (2026-08-12).",
+      "[13#1] API tokens > Creating a token: Open Settings, then API, and choose New token. Give it a name, copy it, and store it somewhere safe: we show a token only once. A token acts with your permissions.\n[13#3] API tokens > Revoking a token: Revoke a token you no longer use, or one that may have leaked, from the same page. It stops working at once, and anything that used it stops working too.\n[13#2] API tokens > Rate limits: Each token can make 100 requests a minute. Past that, requests fail with status 429 until the minute is up. Spread requests out, or wait and try again."
+    ]
+  },
+  "replies": [
+    {
+      "id": "r01",
+      "ticket": 1,
+      "reply": "Hello Ada, sorry the reset email hasn't reached you. Reset emails can take up to ten minutes to arrive, and they sometimes land in the spam folder [1#2]. Check your spam folder, then use the Forgot password link again [1#2]. If it still doesn't come, reply here and we'll look into it with you.",
+      "person": {"answers": "pass", "next-step": "pass", "supported": "pass", "tone": "pass"},
+      "note": "Explains the likely cause, says what to do, and offers help if that fails."
+    },
+    {
+      "id": "r02",
+      "ticket": 1,
+      "reply": "Check your spam folder, then use the Forgot password link again [1#2]. Our emails go out fine, so the problem is on your side.",
+      "person": {"answers": "pass", "next-step": "pass", "supported": "fail", "tone": "fail"},
+      "note": "Nothing the writer was given says the emails go out fine, and it blames the customer."
+    },
+    {
+      "id": "r03",
+      "ticket": 1,
+      "reply": "Hello Ada, thanks for writing in. Reset emails can take up to ten minutes to arrive, and they sometimes land in the spam folder [1#2].",
+      "person": {"answers": "pass", "next-step": "fail", "supported": "pass", "tone": "pass"},
+      "note": "Says why it might not arrive, and stops: Ada isn't told to check her spam folder or try again."
+    },
+    {
+      "id": "r04",
+      "ticket": 2,
+      "reply": "Hello Ben, thanks for flagging this. Plan changes take effect at the next billing date [2#2]. Until then you keep the features of your current plan, and you are billed for it [2#2]. So this invoice is still for Pro, and the next one should show your new plan. If it doesn't, reply here and we'll check your account.",
+      "person": {"answers": "pass", "next-step": "pass", "supported": "pass", "tone": "pass"},
+      "note": "The next invoice follows from the passage: the change takes effect at the next billing date."
+    },
+    {
+      "id": "r05",
+      "ticket": 2,
+      "reply": "Hello Ben, sorry for the confusion. Plan changes take effect at the next billing date [2#2]. We'll credit the Pro charge back to your card this week, so you won't pay for Pro at all.",
+      "person": {"answers": "pass", "next-step": "pass", "supported": "fail", "tone": "pass"},
+      "note": "Promises money back that nothing the writer was given offers; the passage says he is billed for the current plan until the change."
+    },
+    {
+      "id": "r06",
+      "ticket": 2,
+      "reply": "Hello Ben, thanks for your message. An upgrade from Free to Pro, or from Pro to Business, takes effect at once [2#1]. We charge the difference for the rest of the current billing period straight away [2#1].",
+      "person": {"answers": "fail", "next-step": "fail", "supported": "pass", "tone": "pass"},
+      "note": "Explains upgrading to a customer who downgraded, and leaves him nothing to do."
+    },
+    {
+      "id": "r07",
+      "ticket": 3,
+      "reply": "Hello Chloe, you can do this yourself. Settings, then Export, produces a CSV of every project you own [3#1]. Each project becomes one file, and the files arrive together in one zip archive [3#1]. Attachments are not included in a CSV export [3#3]. Download them from each project's Files tab instead [3#3].",
+      "person": {"answers": "pass", "next-step": "pass", "supported": "pass", "tone": "pass"},
+      "note": "Where to go, what arrives, and what to fetch separately."
+    },
+    {
+      "id": "r08",
+      "ticket": 3,
+      "reply": "Hi. Settings, then Export, produces a CSV of every project you own [3#1]. Heads up: blobs don't ride along in the zip, so pull them per project off the Files tab, and ping us if the job chokes.",
+      "person": {"answers": "pass", "next-step": "pass", "supported": "pass", "tone": "fail"},
+      "note": "Right, but written in the team's slang: a customer doesn't know what a blob is."
+    },
+    {
+      "id": "r09",
+      "ticket": 12,
+      "reply": "Hello Ben, sorry your integration has stopped working. Could you check under Settings, then API, that the token it uses is still listed? If it isn't, create a new one there and put it in your integration. If it is, reply here with the time the errors began, and we'll look further.",
+      "person": {"answers": "pass", "next-step": "pass", "supported": "pass", "tone": "pass"},
+      "note": "Doesn't guess at a cause, and gives him a check he can make and a way back to us."
+    },
+    {
+      "id": "r10",
+      "ticket": 12,
+      "reply": "Hello Ben, those errors mean your integration is sending too many requests. Each token can make 100 requests a minute [13#2]. Spread requests out, or wait and try again [13#2].",
+      "person": {"answers": "pass", "next-step": "pass", "supported": "fail", "tone": "pass"},
+      "note": "The passage says too many requests fail with status 429; Ben sees 401, so the cause it gives isn't supported."
+    }
+  ]
+}

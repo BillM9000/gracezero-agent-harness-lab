@@ -183,7 +183,13 @@
     },
     {
       "id": "model-judge",
-      "description": "A model judge grades the assistant's drafts against a rubric (chapter 22).",
+      "description": "A model judge grades the assistant's drafts against a rubric, one criterion a call, against the tool results the writer was given; every verdict is checked against a schema and a malformed one is an error, never a pass; the judge is calibrated against a person's labels with false passes counted apart; and a judge in the revise loop stops at the round limit (chapter 22).",
+      "status": "done",
+      "proof": "python/tests/test_judge.py::test_every_malformed_answer_is_an_error_never_a_pass"
+    },
+    {
+      "id": "evals-gate",
+      "description": "The golden sets and the judge gate a change: a regression suite in CI, a promotion gate, and what each run costs (chapter 23).",
       "status": "todo",
       "proof": null
     }

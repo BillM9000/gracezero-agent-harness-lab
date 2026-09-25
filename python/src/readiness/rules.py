@@ -240,8 +240,10 @@ def promotion(c: Context) -> tuple[bool, str]:
             f"{who} isn't in the promotion of {p.promoted}: its golden sets and a promotion come first",
         )
     if not p.current:
-        changed = f"what the model is given changed since the promotion of {p.promoted}"
-        return False, f"{changed}: python -m helpdesk.gate check"
+        return False, (
+            f"something the promotion of {p.promoted} measured has changed since: "
+            "python -m helpdesk.gate check"
+        )
     return True, f"in the promotion of {p.promoted}, measured on {p.measured_on}, and unchanged since"
 
 

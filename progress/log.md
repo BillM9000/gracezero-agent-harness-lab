@@ -15,6 +15,8 @@ What each working session did, newest first. Add an entry at the end of every se
 - Work list: `rollout-to-teams` done, proved by `tests/test_golden_path.py`. No next item added: no written chapter asks for one yet.
 - Checked with: `node check.mjs` (all 26 checks passed) and `node tools/progress.mjs .`.
 - Not run: `--real`, for any command; nothing here calls a model.
+- Then `node tools/mutate.mjs` on the committed tree at `c64331e`: all 448 caught in 20.7 minutes, and the tree unchanged.
+- Then the promotion item's message: "something the promotion of DATE measured has changed since", not "what the model is given changed", since the judge's rubric and the golden sets aren't given to the model. The mutation for that item still applies unchanged; the fresh clone at the tag reruns all 448.
 - Next: the chapters of Release 3.
 
 ## 2026-09-25: chapter 28, the central AI team

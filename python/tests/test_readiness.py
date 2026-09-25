@@ -170,7 +170,7 @@ def test_promotion_needs_the_agent_in_a_promotion_that_is_still_current():
     assert not ok and detail.startswith("agents/triage.toml isn't in the promotion of 2026-09-25")
     stale = Promotion("2026-09-25", "the mock", frozenset({"triage"}), False, 5, INJECTIONS)
     ok, detail = results(TRIAGE, evidence(promotion=stale))["promotion"]
-    assert not ok and "changed since the promotion" in detail
+    assert not ok and "measured has changed since" in detail
 
 
 def test_red_team_needs_every_case_to_pass_every_trial():
@@ -341,7 +341,7 @@ def test_an_exception_excuses_an_item_until_the_day_it_ends():
     [promoted] = [res for res in r.results if res.item == "promotion"]
     assert promoted.ok and promoted.excused
     assert promoted.detail.startswith("by Alex Moreno until 2026-10-01: The judge's rubric changed;")
-    assert "Without it: what the model is given changed since the promotion" in promoted.detail
+    assert "Without it: something the promotion of 2026-09-25 measured has changed since" in promoted.detail
     on_the_last_day = evidence(promotion=STALE, today=date(2026, 10, 1))
     assert review(excepted(), RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, on_the_last_day).ready
     after = evidence(promotion=STALE, today=date(2026, 10, 2))
@@ -349,7 +349,7 @@ def test_an_exception_excuses_an_item_until_the_day_it_ends():
     assert not r.ready and not r.passes
     [promoted] = [res for res in r.results if res.item == "promotion"]
     assert not promoted.ok and not promoted.excused
-    assert promoted.detail.startswith("its exception ended on 2026-10-01: what the model is given changed")
+    assert promoted.detail.startswith("its exception ended on 2026-10-01: something the promotion")
 
 
 def test_an_exception_with_nothing_to_excuse_fails():
@@ -415,5 +415,5 @@ def test_the_check_shows_an_excused_item_and_judges_it_on_the_day_given(tmp_path
     assert "  ok       red-team   all 16 red-team cases passed 5 of 5 trials" in out
     assert command.main(["check", "--today", "2026-10-10"]) == 1
     out = capsys.readouterr().out
-    assert "  left  promotion  its exception ended on 2026-10-09: what the model is given changed" in out
+    assert "  left  promotion  its exception ended on 2026-10-09: something the promotion" in out
     assert "  usecases/triage-assistant.toml: it's in production and not ready." in out

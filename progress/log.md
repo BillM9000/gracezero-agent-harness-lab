@@ -6,6 +6,17 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`; on the working tree, `node tools/mutate.mjs --list` prints every entry and the total. Trust the count, not a number here.
 
+## 2026-09-25: chapter 26, measuring a harness
+
+- `helpdesk/model/calls.py` and `python -m helpdesk.calls`: a record of every model call, however it ended, with a fingerprint of the request instead of the request. `python -m helpdesk.gate run --record FILE` writes one.
+- `tools/fix-loop.mjs --record FILE`: what each attempt did about a failed check. The loop now stops an attempt that silences a rule (`tools/silenced.mjs`); `tools/stand-in-agent.mjs --silence` shows it.
+- `tools/measure.mjs`: rework, reverts, silenced rules, drift fixes and known failures from git history; the fix loop's record, CI runs, pull requests and spend from `records/`; `--save` and `--against` a baseline, with an interval for the change in a rate. `tools/measure-demo.mjs` builds a history to try it on.
+- 13 new Python tests (524); 22 new script tests (127); 33 new mutations (353) and two updated, all 35 applied and caught on the working tree before commit.
+- Work list: `measure-harness` done, proved by `tools/measure.test.mjs`; `model-gateway` (chapter 27) added.
+- Checked with: `node check.mjs` (all 23 checks passed) and `node tools/progress.mjs .`.
+- Not run: `--real`, for any command. A record of a real model's calls (its own token counts, refusals and errors) waits for the paid gate run: `python -m helpdesk.gate run --real --max-usd 15 --promote --record ../records/calls.jsonl`. `gh run list` and `gh pr list` against a real repository: the lab has no remote, so the demo writes their shape.
+- Next: `model-gateway` (chapter 27).
+
 ## 2026-09-25: chapter 23, evaluations as a gate
 
 - `helpdesk/assistant/gating.py` (which differences are regressions and which are noise), `helpdesk/model/budget.py` (the cap) and `helpdesk/gate.py` (`check`, `estimate`, `run`, `run --promote`); `python/evals/gate.json` holds the rules' numbers and `python/evals/promoted.json` the record, promoted on the mock.

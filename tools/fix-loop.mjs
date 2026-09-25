@@ -1,7 +1,7 @@
 // A headless fix loop for pipelines (chapter 25): run the fast checks, and while they fail, hand
 // the report to an agent command and check again, at most three times.
 //
-//   node tools/fix-loop.mjs --agent "<command>" [--attempts N]
+//   node tools/fix-loop.mjs --agent "<command>" [--attempts N] [--record FILE]
 //
 // Run it from the repository root. The agent command runs through the shell with the prompt on
 // stdin, the way `claude -p` and `codex exec` read one; the command is yours, so the shell is too.
@@ -10,17 +10,23 @@
 //     to do: its changes would leave the working tree a person reviews;
 //   - the agent changed the checks themselves (tools/protected.mjs: every check's code and data, and
 //     a tool's configuration file wherever it appears): a person decides that;
+//   - the agent silenced a rule in the code, with a line tools/silenced.mjs recognizes (chapter 26);
 //   - an attempt leaves the checks reporting exactly what they reported before, because another
 //     attempt would get the same prompt;
 //   - the agent command didn't finish (it couldn't start, or ran past AGENT_TIMEOUT_MS).
 // It never commits and never undoes what the agent changed: that's left for a person, or the
 // pipeline's next step, to review. Exit codes: 0 the checks pass, 1 they don't, 2 usage.
+//
+// With --record FILE it appends one JSON line per attempt (chapter 26): which checks failed, what the
+// attempt did about them (fixed, silenced a rule, changed the checks, no progress, still failing,
+// didn't finish), and the lines or files behind that. tools/measure.mjs counts them.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { failureReport, RERUN, RULES, runFastChecks } from "./feedback.mjs";
 import { isProtected } from "./protected.mjs";
+import { newlyAdded, workingSilenced } from "./silenced.mjs";
 
 // git's own files that decide what it lists and diffs: a pattern added to info/exclude hides a new
 // file from the list below as surely as one added to a .gitignore, which the protected list names.
@@ -67,6 +73,7 @@ function promptFor(output, attempt, attempts) {
     `Run them with: ${RERUN}`,
     ...RULES,
     "Changing the checks themselves (tests, lint rules, check scripts or their settings) stops this run for a person to review.",
+    "So does switching a rule off in the code, with a comment that tells a linter, type checker or test runner to skip it.",
     "Don't commit: leave your changes in the working tree. A commit, or a checkout of another commit, stops the run too.",
     `This is attempt ${attempt} of ${attempts}.`,
   ].join("\n");
@@ -74,6 +81,21 @@ function promptFor(output, attempt, attempts) {
 
 // check.mjs prints how long each check took, which differs between identical runs.
 const withoutTimes = (output) => output.replace(/\(\d+(\.\d+)?s\)/g, "");
+
+// The checks a report names as failed, by their labels, without the times.
+const failing = (output) =>
+  output
+    .replaceAll("\r\n", "\n")
+    .split("\n")
+    .filter((line) => line.startsWith("FAIL  "))
+    .map((line) => line.slice(6).replace(/\s*\(\d+(\.\d+)?s\)\s*$/, "").trim());
+
+// One line per attempt, for tools/measure.mjs.
+function record(entry) {
+  if (!recordTo) return;
+  mkdirSync(dirname(recordTo), { recursive: true });
+  appendFileSync(recordTo, `${JSON.stringify({ at: new Date().toISOString(), ...entry })}\n`);
+}
 
 // An error's message often comes first in what a command prints, and a summary last: keep both.
 function excerpt(text) {
@@ -91,10 +113,13 @@ function finish(root, code, checks) {
 const agent = option("--agent");
 const attempts = Number(option("--attempts") ?? 3);
 if (!agent || !Number.isInteger(attempts) || attempts < 1 || attempts > 10) {
-  console.error('Usage: node tools/fix-loop.mjs --agent "<command>" [--attempts N], N from 1 to 10 (default 3).');
+  console.error(
+    'Usage: node tools/fix-loop.mjs --agent "<command>" [--attempts N] [--record FILE], N from 1 to 10 (default 3).',
+  );
   process.exit(2);
 }
 const root = process.cwd();
+const recordTo = option("--record") ? resolve(root, option("--record")) : null;
 if (!existsSync(join(root, "check.mjs"))) {
   console.error("fix-loop: run this from the repository root: there's no check.mjs here.");
   process.exit(2);
@@ -115,6 +140,8 @@ if (checks.passed) {
 }
 for (let attempt = 1; attempt <= attempts; attempt++) {
   console.log(`fix-loop: the fast checks fail. Attempt ${attempt} of ${attempts}: handing the report to the agent.`);
+  const failed = failing(checks.output);
+  const silencedBefore = workingSilenced(root);
   const started = Date.now();
   const run = spawnSync(agent, {
     cwd: root,
@@ -127,6 +154,7 @@ for (let attempt = 1; attempt <= attempts; attempt++) {
   if (run.stdout) process.stdout.write(run.stdout);
   if (run.error) {
     console.log(`fix-loop: the agent command didn't finish (${run.error.message}). Stopping.`);
+    record({ attempt, failing: failed, outcome: "didn't finish", still_failing: failed, silenced: [], checks_changed: [] });
     finish(root, 1, checks);
   }
   const seconds = Math.round((Date.now() - started) / 1000);
@@ -136,8 +164,20 @@ for (let attempt = 1; attempt <= attempts; attempt++) {
   const now = head(root);
   const moved = now !== start;
   const changed = changedChecks(before, protectedFiles(root));
+  const silenced = newlyAdded(silencedBefore, workingSilenced(root));
   const previous = checks;
   checks = runFastChecks(root);
+  const unchanged = withoutTimes(checks.output) === withoutTimes(previous.output);
+  const outcome = changed.length
+    ? "changed the checks"
+    : silenced.length
+      ? "silenced a rule"
+      : checks.passed
+        ? "fixed"
+        : unchanged
+          ? "no progress"
+          : "still failing";
+  record({ attempt, failing: failed, outcome, still_failing: failing(checks.output), silenced, checks_changed: changed });
   if (moved) {
     const short = (commit) => (commit ? commit.slice(0, 7) : "no commit");
     console.log(`fix-loop: the agent moved HEAD from ${short(start)} to ${short(now)}: it committed, or checked out another commit.`);
@@ -150,11 +190,18 @@ for (let attempt = 1; attempt <= attempts; attempt++) {
     console.log(`fix-loop: the agent changed the checks themselves (${changed.join(", ")})${passing}. Stopping: a person needs to review that.`);
     finish(root, 1, checks);
   }
+  if (silenced.length) {
+    const passing = checks.passed ? ", and with that the checks pass" : "";
+    console.log(`fix-loop: the agent silenced a rule instead of fixing the code${passing}:`);
+    for (const line of silenced) console.log(`  ${line}`);
+    console.log("Stopping: a person needs to review that.");
+    finish(root, 1, checks);
+  }
   if (checks.passed) {
     console.log(`fix-loop: the fast checks pass after ${attempt} attempt${attempt === 1 ? "" : "s"}.`);
     finish(root, 0, checks);
   }
-  if (withoutTimes(checks.output) === withoutTimes(previous.output)) {
+  if (unchanged) {
     console.log(`fix-loop: no progress: after attempt ${attempt} the checks report exactly what they did before. Stopping.`);
     finish(root, 1, checks);
   }

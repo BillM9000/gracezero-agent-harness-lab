@@ -196,6 +196,12 @@
     {
       "id": "measure-harness",
       "description": "The harness is measured against a baseline: rule violations, CI pass rate on agent changes, rework and reverts, cost per merged change and drift incidents, with the AI calls' tokens, cost and failures recorded (chapter 26).",
+      "status": "done",
+      "proof": "tools/measure.test.mjs::--against reports both windows, uses the baseline's length and known failures, and says what's noise"
+    },
+    {
+      "id": "model-gateway",
+      "description": "Every model call goes through one gateway that holds the keys, limits rates and tokens, routes by cost and capability, caches, falls back, and attributes cost to a team (chapter 27).",
       "status": "todo",
       "proof": null
     }

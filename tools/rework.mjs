@@ -34,12 +34,14 @@ function option(args, name, fallback) {
   return value;
 }
 
-// Commits oldest first, each with its time, subject, author, co-authors and the files it counts.
-export function readHistory(root, sinceSeconds, { allFiles = false, ignore = null } = {}) {
+// Commits oldest first, each with its hash, time, subject, author, co-authors and the files it
+// counts. rev is where the history ends (chapter 26 measures a window that ends at an older commit).
+export function readHistory(root, sinceSeconds, { allFiles = false, ignore = null, rev = "HEAD" } = {}) {
   // Committer time, the date --since filters on.
-  const format = "%x1e%ct%x1f%s%x1f%an%x1f%(trailers:key=Co-authored-by,valueonly,separator=%x1d)%x1f";
+  const format = "%x1e%H%x1f%ct%x1f%s%x1f%an%x1f%(trailers:key=Co-authored-by,valueonly,separator=%x1d)%x1f";
   const since = new Date(sinceSeconds * 1000).toISOString();
-  const log = spawnSync("git", ["log", "--no-merges", "--reverse", `--since=${since}`, `--format=${format}`, "--name-only"], {
+  const args = ["log", rev, "--no-merges", "--reverse", `--since=${since}`, `--format=${format}`, "--name-only"];
+  const log = spawnSync("git", args, {
     cwd: root,
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
@@ -50,8 +52,9 @@ export function readHistory(root, sinceSeconds, { allFiles = false, ignore = nul
     .split("\x1e")
     .filter((entry) => entry.trim())
     .map((entry) => {
-      const [time, subject, author, coauthors, files] = entry.split("\x1f");
+      const [hash, time, subject, author, coauthors, files] = entry.split("\x1f");
       return {
+        hash,
         time: Number(time),
         subject,
         author,
@@ -86,6 +89,7 @@ export function rework(history, { windowStart, within, depth }) {
     return areas.get(name);
   };
   const totals = { commits: 0, agentCommits: 0, fixes: 0, reworkFixes: 0 };
+  const fixes = []; // every fix in the window, for chapter 26's measures
   for (const commit of history) {
     const agent = isAgent(commit);
     if (commit.time >= windowStart) {
@@ -99,6 +103,8 @@ export function rework(history, { windowStart, within, depth }) {
           return before && before.agent && commit.time - before.time < within * DAY;
         });
         if (reworked.length) totals.reworkFixes++;
+        const shortest = reworked.length ? Math.min(...reworked.map((f) => commit.time - last.get(f).time)) / 3600 : null;
+        fixes.push({ hash: commit.hash, subject: commit.subject, time: commit.time, rework: reworked.length > 0, hours: shortest });
         for (const f of reworked) files.set(f, (files.get(f) ?? 0) + 1);
         // Once per folder, however many of its files the fix changes; the gap is the shortest there.
         for (const name of new Set(reworked.map((f) => folder(f, depth)))) {
@@ -115,7 +121,7 @@ export function rework(history, { windowStart, within, depth }) {
     .map(([name, a]) => ({ area: name, agentCommits: a.agentCommits, reworkFixes: a.reworkFixes, medianHours: median(a.hours) }))
     .sort((x, y) => y.reworkFixes - x.reworkFixes || x.area.localeCompare(y.area));
   const top = [...files.entries()].sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0])).slice(0, 5);
-  return { totals, rows, top };
+  return { totals, rows, top, fixes };
 }
 
 const percent = (part, whole) => (whole ? `${Math.round((100 * part) / whole)}%` : "-");

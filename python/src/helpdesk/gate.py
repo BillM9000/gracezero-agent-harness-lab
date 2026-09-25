@@ -8,6 +8,8 @@ python -m helpdesk.gate estimate          what one run of the gate sends, and wh
 python -m helpdesk.gate run               the golden sets and the judge's calibration, compared with
                                           the record; exits 1 on a regression
 python -m helpdesk.gate run --promote     the same, and if it passes, writes the record
+python -m helpdesk.gate run --record FILE also appends a line for every model call to FILE
+                                          (chapter 26; python -m helpdesk.calls FILE sums it up)
 
 A change to a prompt, a model, a tool, a rubric or a golden set changes what the record holds, so
 check fails until the gate has run with the change and passed: a promotion. --real runs the gate on
@@ -50,6 +52,7 @@ from helpdesk.data.db import connect, init_schema
 from helpdesk.kb import CHARS_PER_TOKEN
 from helpdesk.model.anthropic_client import tool_to_api
 from helpdesk.model.budget import Budget, BudgetReached, Spend, price
+from helpdesk.model.calls import CallLog
 from helpdesk.model.cost import PRICES, PRICES_READ
 from helpdesk.model.types import ModelClient, ToolCall
 from helpdesk.services import access
@@ -271,6 +274,7 @@ def measure(
     definition = evals.triage_definition()
     result = Measured(trials, {}, None, {})
     for suite in (s for s in SUITES if s in parts):
+        budget.part = suite
         before = snapshot(budget)
         tallies = evals.run_trials(evals.LOADERS[suite](), "triage", trials, definition, choose)
         result.suites[suite] = {
@@ -278,6 +282,7 @@ def measure(
         }
         result.spend[suite] = spent_since(budget, before)
     if "judge" in parts:
+        budget.part = "judge"
         before = snapshot(budget)
         calibration = judge.calibrate("same", judge_trials, real, budget=budget)
         agreement = calibration.agreement()
@@ -493,6 +498,7 @@ def run_gate(
     max_usd: float | None,
     promote: bool,
     trials: int | None,
+    record_to: Path | None = None,
 ) -> int:
     config = settings()
     rule, n = config.rule, trials or config.rule.trials
@@ -512,7 +518,8 @@ def run_gate(
         if need > max_usd:
             print(f"Refusing to start: that's ${need:.2f}, over the ${max_usd:.2f} cap. Nothing ran.")
             return 1
-    budget = Budget(max_usd, CHARS_PER_TOKEN)
+    log = CallLog(record_to, "gate run") if record_to else None
+    budget = Budget(max_usd, CHARS_PER_TOKEN, log)
     promoted = f"promoted {record['promoted']}, on {record['measured_on']}" if record else "no promotion yet"
     print(f"Gate: evals/gate.json, {n} trials a case. Record: evals/promoted.json ({promoted}).")
     print(model_line(real, vary))
@@ -524,6 +531,7 @@ def run_gate(
     except BudgetReached as stop:
         print(f"The cap stopped the run: {stop}")
         print("A gate that didn't finish fails, and nothing is promoted.")
+        say_recorded(log)
         return 1
     found = verdicts(measured, record, rule)
     print(
@@ -539,6 +547,7 @@ def run_gate(
         print("\nReported, not gating:\n" + "\n".join(notes))
     spend = total(measured.spend)
     print("\n" + cost_line(spend, real))
+    say_recorded(log)
     if failures:
         print("The gate fails: this change doesn't ship until the failures above are explained or fixed.")
         return 1
@@ -547,6 +556,11 @@ def run_gate(
         RECORD.write_text(json.dumps(record_of(measured, real, spend), indent=2) + "\n", encoding="utf-8")
         print(f"Promoted: evals/{RECORD.name} now records this configuration and these results.")
     return 0
+
+
+def say_recorded(log: CallLog | None) -> None:
+    if log is not None:
+        print(f"Recorded {log.written:,} calls in {log.path}.")
 
 
 def check(rules: Path | None = None, record_path: Path | None = None) -> int:
@@ -671,6 +685,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--suite", choices=PARTS, help="run one part only (never a promotion)")
     run.add_argument("--vary", type=int, metavar="SEED", help="the mock stands in for a model that varies")
     run.add_argument("--trials", type=int, help="trials a case, instead of evals/gate.json's")
+    run.add_argument("--record", type=Path, metavar="FILE", help="append a line for every model call")
     args = parser.parse_args(argv)
     if args.command == "check":
         return check()
@@ -696,7 +711,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.trials is not None and args.trials < 1:
         parser.error("--trials must be 1 or more")
     parts = (args.suite,) if args.suite else PARTS
-    return run_gate(parts, args.real, args.vary, args.max_usd, args.promote, args.trials)
+    return run_gate(parts, args.real, args.vary, args.max_usd, args.promote, args.trials, args.record)
 
 
 if __name__ == "__main__":

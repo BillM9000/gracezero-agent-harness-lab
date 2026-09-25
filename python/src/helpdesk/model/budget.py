@@ -9,17 +9,22 @@ the cap. After the call it adds what the provider says was used, or, from the mo
 So a capped run stops before the call that could cross the cap, not after it. The input side is an
 estimate (characters over chars_per_token), so the cap can be passed by at most that estimate's
 error on one call.
+
+Given a CallLog (chapter 26), the budget also records every call it sees, refusals, cut-off answers,
+errors and calls the cap refused included: see calls.py.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import json
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from helpdesk.model.anthropic_client import to_api, tool_to_api
+from helpdesk.model.calls import Call, CallLog, fingerprint, now, outcome_of
 from helpdesk.model.cost import PRICES
 from helpdesk.model.types import Message, ModelClient, ModelResponse, ToolSpec
 
@@ -53,15 +58,20 @@ def as_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, default=plain)
 
 
-def request_chars(system: str, messages: Sequence[Message], tools: Sequence[ToolSpec]) -> int:
-    """Characters of one request as the Anthropic adapter would send it (the same measure as
-    helpdesk.patterns.request_size, which a test keeps equal)."""
+def request_json(system: str, messages: Sequence[Message], tools: Sequence[ToolSpec]) -> str:
+    """One request as the Anthropic adapter would send it."""
     request = {
         "system": system,
         "tools": [tool_to_api(t) for t in tools],
         "messages": [to_api(m) for m in messages],
     }
-    return len(as_json(request))
+    return as_json(request)
+
+
+def request_chars(system: str, messages: Sequence[Message], tools: Sequence[ToolSpec]) -> int:
+    """Characters of one request (the same measure as helpdesk.patterns.request_size, which a test
+    keeps equal)."""
+    return len(request_json(system, messages, tools))
 
 
 def response_chars(response: ModelResponse) -> int:
@@ -81,17 +91,20 @@ class Budget:
     """One count, and one cap, for every model client a command builds. cap_usd None counts
     without a cap, which is how the gate measures what a run would cost."""
 
-    def __init__(self, cap_usd: float | None, chars_per_token: float) -> None:
+    def __init__(self, cap_usd: float | None, chars_per_token: float, log: CallLog | None = None) -> None:
         if cap_usd is not None and cap_usd <= 0:
             raise ValueError("a cap must be more than $0")
         self.cap = cap_usd
         self.chars_per_token = chars_per_token
         self.spent = Spend()
         self.worst_call = 0.0  # the most any one call so far could have cost
+        self.log = log
+        self.part = ""  # what the command is running now, for the record: a suite, the judge
 
     def wrap(self, inner: ModelClient, model: str, max_tokens: int) -> ModelClient:
         price(model, 0, 0)  # an unknown model fails here, before any call
-        return _Capped(self, inner, model, max_tokens)
+        capped = _Capped(self, inner, model, max_tokens)
+        return capped if self.log is None else _Recorded(self, capped, self.log)
 
     def check(self, worst: float) -> None:
         self.worst_call = max(self.worst_call, worst)
@@ -124,4 +137,53 @@ class _Capped:
         else:
             used_in, used_out = sent, response_chars(response) / self.budget.chars_per_token
         self.budget.add(self.model, used_in, used_out)
+        self.last = (used_in, used_out, response.usage is not None)
+        return response
+
+
+class _Recorded:
+    """Writes one line for every call through the cap, however it ended, and passes on what the
+    call returned or raised."""
+
+    def __init__(self, budget: Budget, capped: _Capped, log: CallLog) -> None:
+        self.budget, self.capped, self.log = budget, capped, log
+
+    def complete(
+        self, *, system: str, messages: Sequence[Message], tools: Sequence[ToolSpec] = ()
+    ) -> ModelResponse:
+        request = request_json(system, messages, tools)
+        at, started = now(), time.perf_counter()
+
+        def write(outcome: str, stop: str | None, error: str | None, used: tuple[float, float, bool]) -> None:
+            used_in, used_out, reported = used
+            self.log.write(
+                Call(
+                    at=at,
+                    run=self.log.run,
+                    command=self.log.command,
+                    part=self.budget.part,
+                    model=self.capped.model,
+                    outcome=outcome,
+                    stop_reason=stop,
+                    error=error,
+                    input_tokens=used_in,
+                    output_tokens=used_out,
+                    tokens_from="provider" if reported else "estimate" if stop else "none",
+                    usd=price(self.capped.model, used_in, used_out),
+                    ms=round((time.perf_counter() - started) * 1000),
+                    request=fingerprint(request),
+                )
+            )
+
+        try:
+            response = self.capped.complete(system=system, messages=messages, tools=tools)
+        except BudgetReached:
+            # Refused before it was made: nothing was sent, and nothing was spent.
+            write("over the cap", None, None, (0.0, 0.0, False))
+            raise
+        except Exception as error:
+            # No usage came back, so the budget counted nothing; the record says what went wrong.
+            write("error", None, type(error).__name__, (0.0, 0.0, False))
+            raise
+        write(outcome_of(response.stop_reason), response.stop_reason, None, self.capped.last)
         return response

@@ -11,9 +11,9 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | Path | What it is |
 |---|---|
 | `python/src/helpdesk/api/` | HTTP routes (FastAPI) and the request and response models. |
-| `python/src/helpdesk/services/` | Business rules: what each member of staff may see and change (`access.py`), retrieval and citations (chapter 9), the approval queue (`proposals.py`, `decisions.py`, chapter 19), customers' text as data (`untrusted.py`, chapter 20). |
+| `python/src/helpdesk/services/` | Business rules: who may see and change what (`access.py`), retrieval and citations (chapter 9), the approval queue (chapter 19), customers' text as data (chapter 20). |
 | `python/src/helpdesk/data/` | SQL and the SQLite connection. |
-| `python/src/helpdesk/assistant/` | The triage assistant: its loop (`agent.py`), tools (`tools.py`; `proposing.py` for those that only file a proposal), a comparison set (`narrow.py`), chapter 14's patterns and model judges (`judging.py`). A tool acts for the person it was built for, never one in its arguments. |
+| `python/src/helpdesk/assistant/` | The triage assistant: its loop (`agent.py`), tools (`tools.py`; `proposing.py` for those that only file a proposal), chapter 14's patterns and model judges (`judging.py`). A tool acts for the person it was built for, never one in its arguments. |
 | `python/src/helpdesk/model/` | The model interface, a deterministic mock, the Anthropic client, stop reasons (`stops.py`) and costs (`cost.py`). Imports nothing else from the helpdesk. |
 | `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. |
 | `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
@@ -24,7 +24,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
 | `ts/` | TypeScript client and command-line tool for the API. `src/api-types.ts` is generated from the contract. Import rules: `eslint.config.js` and `.dependency-cruiser.cjs`. |
 | `boundaries/` | The helpdesk's layer rule in Go, Java and .NET (chapter 16). Only CI runs them. |
-| `postings/` | Chapter 1's coded job-postings sample, its tally script, and a template for coding your own. |
+| `postings/` | Chapter 1's job-postings sample, tally script and template. |
 | `tools/` | Scripts the chapters build; each that checks something has a test beside it. See Scripts below. |
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
 | `progress/` | The work list (`features.json`) and the session log (`log.md`). See Starting a session below. |
@@ -54,11 +54,11 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Lint: `ruff check .` and `ruff format --check .`
 - Guardrails: `lint-imports`, and `python -m helpdesk_lint` for the lab's own rule
 - Policies: `python -m agent_policy` for agents, as of today (`--today`: another day), `python -m mcp_governance` for MCP servers (also `allowlist`, `audit`); `tests/policy_fixtures/` and `tests/catalog_fixtures/` show what each rule accepts and refuses
-- Run: `uvicorn --factory helpdesk.main:create_default_app` (`HELPDESK_DB` sets the database file)
+- Run: `uvicorn --factory helpdesk.main:create_default_app`
 - The triage assistant: `python -m helpdesk.triage` (the mock, scripted); `--real "..."` calls Anthropic's API
 - Red team: `python -m helpdesk.injections run`, and `flag "text"`
-- Golden sets, judges and the promotion gate: `python -m helpdesk.evals`, `helpdesk.judge` and `helpdesk.gate`, each with `check`; `--help` lists the rest (`--real` is billed and needs `--max-usd`)
-- Knowledge base: `python -m helpdesk.kb eval` checks retrieval against `python/evals/kb_questions.json`; also `query`, `cite`, `chunks`, `size`
+- Golden sets, judges and the promotion gate: `python -m helpdesk.evals`, `helpdesk.judge` and `helpdesk.gate`, each with `check`; `--help` lists the rest (`--real` is billed and needs `--max-usd`); `python -m helpdesk.calls FILE` sums up `gate run --record FILE`
+- Knowledge base: `python -m helpdesk.kb eval` checks retrieval; also `query`, `cite`, `chunks`, `size`
 - Tools: `python -m helpdesk.tools list`, `schema`, `call` and `compare`
 - Patterns: `python -m helpdesk.patterns revise`, `batch` and `compare`
 - Approvals: `python -m helpdesk.approvals list --as sam`; also `show`, `approve`, `reject`, `log`
@@ -70,7 +70,7 @@ TypeScript, from `ts/`:
 - Type-check: `npm run typecheck`
 - Import rules: `npm run lint` (ESLint, with the lab's own rule in `scripts/eslint-rules/`) and `npm run deps` (dependency-cruiser)
 - Test: `npm test`
-- Try the CLI: `npm run cli -- tickets open` (`--url` or `HELPDESK_URL` sets the server)
+- Try the CLI: `npm run cli -- tickets open`
 
 Scripts, from the repository root. Each has a test file beside it: run `node --test` on that file.
 
@@ -82,7 +82,7 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 - `node tools/progress.mjs [path]` shows the work list and the last log entry, and fails if a done item's test doesn't exist (chapter 10).
 - `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it (`--list` lists them; `--only PREFIX` runs a group); when you add a guard, add its entry (chapter 24).
 - `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command, with limits (chapter 25).
-- For readers, each described in its header and the README: `tools/harness-inventory.mjs`, `tools/rework.mjs`.
+- For readers, each described in its header and the README: `tools/harness-inventory.mjs`, `tools/rework.mjs`, `tools/measure.mjs`.
 
 ## Rules
 

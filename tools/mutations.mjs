@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 25 and 31
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 26 and 31
 // are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter
 // 1's tally's check for missing fields; the guards from earlier chapters were broken by hand when
 // they were built (CHANGELOG.md records each time) and are the next candidates to add.
@@ -74,6 +74,10 @@ const GATING = "python/src/helpdesk/assistant/gating.py";
 const GATE = "python/src/helpdesk/gate.py";
 const BUDGET = "python/src/helpdesk/model/budget.py";
 const gateTest = (name) => pytest(`tests/test_gate.py::${name}`);
+const CALLS = "python/src/helpdesk/model/calls.py";
+const callsTest = (name) => pytest(`tests/test_calls.py::${name}`);
+const SILENCED_MJS = "tools/silenced.mjs";
+const SILENCED_TESTS = "tools/silenced.test.mjs";
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -82,6 +86,8 @@ const FAKE_FITNESS = "python/tests/fitness/test_tests_fake_the_model_client.py";
 const FAKE_FITNESS_TEST = "tests/fitness/test_tests_fake_the_model_client.py";
 const PROGRESS = "tools/progress.mjs";
 const progressTest = (name) => nodeTest("tools/progress.test.mjs", name);
+const MEASURE = "tools/measure.mjs";
+const MEASURE_TESTS = "tools/measure.test.mjs";
 const COST = "python/src/helpdesk/model/cost.py";
 const costTest = (name) => pytest(`tests/test_cost.py::${name}`);
 // The real lock check, on this repository as setup left it.
@@ -853,8 +859,8 @@ export const MUTATIONS = [
   {
     guard: "fix loop: an attempt that changes nothing ends the loop",
     file: "tools/fix-loop.mjs",
-    find: "if (withoutTimes(checks.output) === withoutTimes(previous.output)) {",
-    replace: "if (false) {",
+    find: "  if (unchanged) {",
+    replace: "  if (false) {",
     run: nodeTest(LOOP_TESTS, "stops at once when an attempt"),
   },
   {
@@ -3081,8 +3087,8 @@ export const MUTATIONS = [
   {
     guard: "gate: a run the cap stopped fails",
     file: GATE,
-    find: "        print(\"A gate that didn't finish fails, and nothing is promoted.\")\n        return 1",
-    replace: "        print(\"A gate that didn't finish fails, and nothing is promoted.\")\n        return 0",
+    find: "        say_recorded(log)\n        return 1",
+    replace: "        say_recorded(log)\n        return 0",
     run: gateTest("test_a_gate_the_cap_stops_fails_and_promotes_nothing"),
   },
   {
@@ -3196,6 +3202,238 @@ export const MUTATIONS = [
     find: '"suite_min_cases": 10',
     replace: '"suite_min_cases": 2',
     run: gateTest("test_the_check_passes_on_the_repository"),
+  },
+  // Chapter 26: the call record, the fix loop's record and silenced rules, and the measurements.
+  {
+    guard: "calls: a refusal is a failure, though it arrives as a response",
+    file: CALLS,
+    find: '    if stop_reason == "refusal":\n        return "refusal"',
+    replace: '    if False:\n        return "refusal"',
+    run: callsTest("test_a_refusal_and_a_cut_off_answer_are_failures_though_they_arrive_as_responses"),
+  },
+  {
+    guard: "calls: an answer cut off at its limit is a failure",
+    file: CALLS,
+    find: '    if stop_reason in ("max_tokens", "model_context_window_exceeded"):',
+    replace: "    if stop_reason in ():",
+    run: callsTest("test_a_refusal_and_a_cut_off_answer_are_failures_though_they_arrive_as_responses"),
+  },
+  {
+    guard: "calls: an error is recorded before it's raised again",
+    file: BUDGET,
+    find: '            write("error", None, type(error).__name__, (0.0, 0.0, False))\n            raise',
+    replace: "            raise",
+    run: callsTest("test_an_error_is_recorded_with_its_type_and_still_raised"),
+  },
+  {
+    guard: "calls: a call the cap refuses is recorded",
+    file: BUDGET,
+    find: '            write("over the cap", None, None, (0.0, 0.0, False))\n            raise',
+    replace: "            raise",
+    run: callsTest("test_a_call_the_cap_refuses_is_recorded_and_never_made"),
+  },
+  {
+    guard: "calls: the record holds a fingerprint of the request, never the request",
+    file: BUDGET,
+    find: "                    request=fingerprint(request),",
+    replace: "                    request=request,",
+    run: callsTest("test_the_record_holds_a_fingerprint_of_the_request_and_none_of_its_text"),
+  },
+  {
+    guard: "calls: the provider's token counts are marked as the provider's",
+    file: BUDGET,
+    find: '                    tokens_from="provider" if reported else "estimate" if stop else "none",',
+    replace: '                    tokens_from="estimate",',
+    run: callsTest("test_every_call_through_a_recording_budget_is_one_line_with_its_tokens_and_cost"),
+  },
+  {
+    guard: "calls: a line that isn't a call is refused",
+    file: CALLS,
+    find: "        if not isinstance(found, dict) or sorted(found) != sorted(NAMES):",
+    replace: "        if not isinstance(found, dict):",
+    run: callsTest("test_a_line_that_isnt_a_call_is_refused_with_its_number"),
+  },
+  {
+    guard: "calls: the summary names each kind of failure",
+    file: CALLS,
+    find: '    failed = [c for c in calls if c.outcome != "ok"]',
+    replace: "    failed = []",
+    run: callsTest("test_the_summary_counts_by_part_and_model_and_names_each_kind_of_failure"),
+  },
+  {
+    guard: "gate: each suite's calls are recorded under its name",
+    file: GATE,
+    find: "        budget.part = suite\n",
+    replace: "",
+    run: callsTest("test_a_gate_run_records_every_call_it_counts"),
+  },
+  {
+    guard: "fix loop: an attempt that silences a rule stops the loop",
+    file: "tools/fix-loop.mjs",
+    find: "  if (silenced.length) {\n    const passing",
+    replace: "  if (false) {\n    const passing",
+    run: nodeTest(LOOP_TESTS, "stops when the agent silences a rule"),
+  },
+  {
+    guard: "fix loop: a silenced line already in the tree isn't the agent's",
+    file: "tools/fix-loop.mjs",
+    find: "const silenced = newlyAdded(silencedBefore, workingSilenced(root));",
+    replace: "const silenced = workingSilenced(root);",
+    run: nodeTest(LOOP_TESTS, "a silenced line already in the working tree"),
+  },
+  {
+    guard: "fix loop: --record writes a line for every attempt",
+    file: "tools/fix-loop.mjs",
+    find: "  record({ attempt, failing: failed, outcome, still_failing: failing(checks.output), silenced, checks_changed: changed });\n",
+    replace: "",
+    run: nodeTest(LOOP_TESTS, "--record writes one line per attempt"),
+  },
+  {
+    guard: "fix loop: the record says what each attempt did",
+    file: "tools/fix-loop.mjs",
+    find: '      ? "silenced a rule"',
+    replace: '      ? "fixed"',
+    run: nodeTest(LOOP_TESTS, "--record writes one line per attempt"),
+  },
+  {
+    guard: "silenced: a new file the agent writes counts too",
+    file: SILENCED_MJS,
+    find: 'run(["ls-files", "--others", "--exclude-standard", "-z"])',
+    replace: 'run(["ls-files", "--cached", "-z"])',
+    run: nodeTest(LOOP_TESTS, "stops when the agent silences a rule"),
+  },
+  {
+    guard: "silenced: a noqa comment is recognized",
+    file: SILENCED_MJS,
+    find: "    String.raw`#\\s*noqa\\b`, // ruff and flake8\n",
+    replace: "",
+    run: nodeTest(SILENCED_TESTS, "each way of switching a rule off"),
+  },
+  {
+    guard: "silenced: a word in an ordinary line isn't a silenced rule",
+    file: SILENCED_MJS,
+    find: "String.raw`#\\s*noqa\\b`",
+    replace: "String.raw`noqa\\b`",
+    run: nodeTest(SILENCED_TESTS, "ordinary lines that mention the words"),
+  },
+  {
+    guard: "silenced: Markdown lines don't count",
+    file: SILENCED_MJS,
+    find: '} else if (file && !MARKDOWN.test(file) && line.startsWith("+")) {',
+    replace: '} else if (file && line.startsWith("+")) {',
+    run: nodeTest(SILENCED_TESTS, "a diff's added lines"),
+  },
+  {
+    guard: "silenced: a line added twice counts twice",
+    file: SILENCED_MJS,
+    find: "    if (n > 0) {",
+    replace: "    if (left.has(line)) {",
+    run: nodeTest(SILENCED_TESTS, "only lines the second list adds count"),
+  },
+  {
+    guard: "measure: a revert is a rework fix whose subject starts with revert",
+    file: MEASURE,
+    find: "reverts: reworkFixes.filter((f) => REVERT.test(f.subject.trim())).length,",
+    replace: "reverts: counted.fixes.filter((f) => REVERT.test(f.subject.trim())).length,",
+    run: nodeTest(MEASURE_TESTS, "a revert of recent agent work"),
+  },
+  {
+    guard: "measure: silenced lines count only in agent changes",
+    file: MEASURE,
+    find: "  for (const h of agentHashes) {",
+    replace: "  for (const h of added.keys()) {",
+    run: nodeTest(MEASURE_TESTS, "lines that silence a rule count only"),
+  },
+  {
+    guard: "measure: a drift fix changes documentation and nothing else",
+    file: MEASURE,
+    find: "c.files.every((f) => MARKDOWN.test(f))",
+    replace: "c.files.some((f) => MARKDOWN.test(f))",
+    run: nodeTest(MEASURE_TESTS, "a fix to documentation alone"),
+  },
+  {
+    guard: "measure: a known failure is a fix whose subject names it",
+    file: MEASURE,
+    find: "counted.fixes.filter((f) => f.subject.toLowerCase().includes(text.toLowerCase())).length",
+    replace: "counted.fixes.filter((f) => f.subject.includes(text)).length",
+    run: nodeTest(MEASURE_TESTS, "a known failure counts every fix"),
+  },
+  {
+    guard: "measure: the window ends at --at",
+    file: MEASURE,
+    find: "const history = readHistory(root, start - within * DAY, { ignore, rev });",
+    replace: 'const history = readHistory(root, start - within * DAY, { ignore, rev: "HEAD" });',
+    run: nodeTest(MEASURE_TESTS, "the window ends at --at"),
+  },
+  {
+    guard: "measure: CI counts only runs on agent changes",
+    file: MEASURE,
+    find: "const mine = runs.filter((r) => agentHashes.has(r.headSha));",
+    replace: "const mine = runs;",
+    run: nodeTest(MEASURE_TESTS, "CI's pass rate counts runs"),
+  },
+  {
+    guard: "measure: a cancelled or skipped run says nothing about the code",
+    file: MEASURE,
+    find: "const judged = passed + mine.filter((r) => FAILED.has(r.conclusion)).length;",
+    replace: "const judged = mine.length;",
+    run: nodeTest(MEASURE_TESTS, "CI's pass rate counts runs"),
+  },
+  {
+    guard: "measure: review time counts pull requests merged in the window",
+    file: MEASURE,
+    find: "return merged >= start && merged <= end;",
+    replace: "return true;",
+    run: nodeTest(MEASURE_TESTS, "review time is the median"),
+  },
+  {
+    guard: "measure: review time counts pull requests with an agent change",
+    file: MEASURE,
+    find: ".filter((p) => agentHashes.has(p.mergeCommit?.oid) || (p.commits ?? []).some((c) => agentHashes.has(c.oid)))",
+    replace: ".filter(() => true)",
+    run: nodeTest(MEASURE_TESTS, "review time is the median"),
+  },
+  {
+    guard: "measure: spend outside the window isn't counted",
+    file: MEASURE,
+    find: 'return at >= start && at <= end && typeof l.usd === "number";',
+    replace: 'return typeof l.usd === "number";',
+    run: nodeTest(MEASURE_TESTS, "spend inside the window"),
+  },
+  {
+    guard: "measure: silencing a rule and changing a check both count against the loop",
+    file: MEASURE,
+    find: 'silencedOrChanged: n("silenced a rule") + n("changed the checks"),',
+    replace: 'silencedOrChanged: n("silenced a rule"),',
+    run: nodeTest(MEASURE_TESTS, "the loop's record counts each attempt"),
+  },
+  {
+    guard: "measure: a change isn't called with fewer than 30 on a side",
+    file: MEASURE,
+    find: "  if (beforeWhole < FEWEST || nowWhole < FEWEST) return { tooFew: true };\n",
+    replace: "",
+    run: nodeTest(MEASURE_TESTS, "a change in a rate is called only"),
+  },
+  {
+    guard: "measure: a change is more than noise only when its interval leaves out zero",
+    file: MEASURE,
+    find: 'const verdict = c.low > 0 || c.high < 0 ? "more than noise" : "within noise";',
+    replace: 'const verdict = "more than noise";',
+    run: nodeTest(MEASURE_TESTS, "a change in a rate is called only"),
+  },
+  {
+    guard: "measure: --against uses the baseline's window length",
+    file: MEASURE,
+    find: 'const days = whole(args, "--days", baseline?.days ?? 90);',
+    replace: 'const days = whole(args, "--days", 90);',
+    run: nodeTest(MEASURE_TESTS, "--against reports both windows"),
+  },
+  {
+    guard: "measure: --against counts the baseline's known failures again",
+    file: MEASURE,
+    find: "known: known.length ? known : Object.keys(baseline?.known ?? {}),",
+    replace: "known,",
+    run: nodeTest(MEASURE_TESTS, "--against reports both windows"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

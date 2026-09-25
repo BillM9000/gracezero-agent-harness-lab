@@ -16,3 +16,6 @@ ts/node_modules/
 boundaries/java/target/
 boundaries/dotnet/bin/
 boundaries/dotnet/obj/
+
+# What the measurements write (chapter 26): call records, fix-loop records, baselines
+records/

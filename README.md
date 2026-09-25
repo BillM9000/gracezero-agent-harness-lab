@@ -27,6 +27,7 @@ The companion lab for a plain-English book on AI platform engineering by Bill Mc
 - **The job-postings sample from chapter 1**: <!-- claim: postings -->45 coded United States postings, the script that counts them, and a template for coding your own.
 - **A harness inventory** (`node tools/harness-inventory.mjs <path>`): lists the evidence any repository's files give for each of the eight parts of a harness from chapter 4.
 - **A week-one measurement** (chapter 31): `node tools/rework.mjs <path>` reads any repository's git history and shows, by folder, how often fixes landed on recent agent work and how long after the change, so you know where to look first. `node tools/rework-demo.mjs <folder>` builds a small history to try it on.
+- **Measuring a harness** (chapter 26): `node tools/measure.mjs <path>` measures a harness over a window of its history, against a baseline saved earlier: rework and reverts on agent changes, lines that silence a rule, fixes to documentation alone, and, from exported records, CI's pass rate on agent changes, review time and AI spend per change, saying whether a change in a rate is more than noise. `python -m helpdesk.gate run --record FILE` writes a line for every model call, however it ended, and `python -m helpdesk.calls FILE` sums it up; `node tools/fix-loop.mjs --record FILE` writes what each attempt did about a failed check, and the loop now stops an attempt that silences a rule instead of fixing the code.
 - **One command to set up and one to check** (chapter 5): `node setup.mjs` and `node check.mjs`, the same two commands CI runs.
 - **An API contract generated from the code** (chapter 7): `contracts/openapi.json` comes from the Python models, the TypeScript client's types come from the contract, and `node check.mjs` fails if either falls behind.
 - **A work list and a session log** (chapter 10): `progress/features.json` says what's done and what's next, each done item naming the test that proves it, and `progress/log.md` records what each session did and how it checked it. `node tools/progress.mjs` shows both.
@@ -34,7 +35,7 @@ The companion lab for a plain-English book on AI platform engineering by Bill Mc
 - **An instruction-file check** (chapter 6): `node tools/instruction-files.mjs <path>` reports what each instruction file puts in front of an agent at the start of a session, counting the files it imports, and flags a file over budget, an import that doesn't load, and a `CLAUDE.md` that hides an `AGENTS.md`.
 - **Chapter 2's toys and tools**: a toy tokenizer and next-word model that show why token counts and answers vary, a cost calculator for conversations that resend their history, and a check that refuses to treat a refused or cut-off answer as finished.
 
-Coming chapter by chapter: measuring a harness.
+Coming chapter by chapter: gateways, cost and model routing.
 
 ## Quick start
 

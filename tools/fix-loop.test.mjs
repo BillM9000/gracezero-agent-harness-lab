@@ -158,6 +158,61 @@ test("refuses without an agent command, outside a repository root, or with a sil
   assert.equal(loop(temporary("not-a-repo-"), "--agent", "node x.mjs").code, 2);
 });
 
+// Chapter 26: an attempt that switches a rule off, and the record of every attempt.
+const SILENCER = 'writeFileSync("app.txt", "ok\\n"); writeFileSync("app.py", "import os  # noqa: F401\\n");';
+
+test("stops when the agent silences a rule instead of fixing the code, and names the line", () => {
+  const root = repository();
+  AGENTS.silencer = SILENCER;
+  const fake = agent("silencer");
+  const { code, output } = loop(root, "--agent", fake.command);
+  assert.equal(code, 1);
+  assert.match(output, /the agent silenced a rule instead of fixing the code, and with that the checks pass:\n {2}app\.py: import os {2}# noqa: F401\nStopping: a person needs to review that\./);
+  assert.doesNotMatch(output, /pass after/);
+});
+
+test("a silenced line already in the working tree before the attempt isn't the agent's", () => {
+  const root = repository();
+  writeFileSync(join(root, "old.py"), "import os  # noqa: F401\n");
+  const fake = agent("fixer");
+  const { code, output } = loop(root, "--agent", fake.command);
+  assert.equal(code, 0, output);
+  assert.match(output, /the fast checks pass after 1 attempt\./);
+});
+
+test("the prompt says that silencing a rule stops the run too", () => {
+  const fake = agent("fixer");
+  loop(repository(), "--agent", fake.command);
+  assert.match(fake.prompt(), /So does switching a rule off in the code/);
+});
+
+test("--record writes one line per attempt: what failed and what the attempt did about it", () => {
+  AGENTS.silencer = SILENCER;
+  const outcomes = {};
+  for (const kind of ["fixer", "busy", "idle", "cheater", "silencer"]) {
+    const record = join(temporary("record-"), "records", "fix-loop.jsonl");
+    loop(repository(), "--agent", agent(kind).command, "--record", record);
+    const lines = readFileSync(record, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+    assert.ok(lines.every((line) => line.failing.join() === "Stub check" && typeof line.at === "string"));
+    outcomes[kind] = lines.map((line) => line.outcome);
+    if (kind === "silencer") assert.deepEqual(lines[0].silenced, ["app.py: import os  # noqa: F401"]);
+    if (kind === "cheater") assert.deepEqual(lines[0].checks_changed, ["check.mjs"]);
+  }
+  assert.deepEqual(outcomes, {
+    fixer: ["fixed"],
+    busy: ["still failing", "still failing", "still failing"],
+    idle: ["no progress"],
+    cheater: ["changed the checks"],
+    silencer: ["silenced a rule"],
+  });
+});
+
+test("without --record the loop writes no record", () => {
+  const root = repository();
+  loop(root, "--agent", agent("fixer").command);
+  assert.equal(existsSync(join(root, "records")), false);
+});
+
 // The holes a review found (2026-09-26): what the protected list didn't cover, and a commit, which
 // takes an attempt's changes out of the working tree a person reviews.
 const FIXED = 'writeFileSync("app.txt", "ok\\n");';

@@ -216,6 +216,12 @@
       "description": "Teams adopt the platform as a product: a golden path a new team starts from that passes every check on its first commit, and standards whose use and overrides are measured (chapter 29).",
       "status": "done",
       "proof": "python/tests/test_golden_path.py::test_a_use_case_started_on_the_golden_path_passes_every_check_from_its_first_commit"
+    },
+    {
+      "id": "templates",
+      "description": "Each of Appendix B's templates passes the check it was written for, or runs, and fails when a violation is planted, so a reader copies something that works; the workflow templates stay the lab's own workflows, trimmed (Appendix B).",
+      "status": "done",
+      "proof": "tools/templates.test.mjs::the lint rule template agrees with the lab's own rule on the lab's code"
     }
   ]
 }

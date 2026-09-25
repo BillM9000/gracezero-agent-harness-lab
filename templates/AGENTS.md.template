@@ -1,0 +1,38 @@
+# AGENTS.md
+
+For any coding agent or person working here. `CLAUDE.md` imports this file, so every tool reads the same rules.
+
+## What this is
+
+<One or two sentences: what the project is, and who uses it.>
+
+## Layout
+
+| Path | What it is |
+|---|---|
+| `<folder>/` | <What it holds, and what it may import.> |
+| `progress/` | The work list (`features.json`) and the session log (`log.md`); see below. |
+
+## Starting a session
+
+1. Get your bearings: `git log --oneline -10`, and `node tools/progress.mjs` for what's done, what's next and what the last session left.
+2. Run `<setup command>` and `<check command>`, so you know everything passes first.
+3. Work on one item from `progress/features.json`. Mark it done only when a test proves it, and name that test as its proof.
+4. Before you stop, add a dated entry at the top of `progress/log.md`: what changed, how you checked it, and what comes next.
+
+## Commands
+
+Everything, from the repository root:
+
+- Set up: `<setup command>`
+- Check: `<check command>` (every check; CI runs the same command)
+- Check quickly: `<fast check command>` (no test suites; the full run counts)
+
+## Rules
+
+1. <A rule no check can express, and why it matters.>
+2. <A rule a check enforces, in one line, and the command that enforces it.>
+3. A change is done when `<check command>` passes. Record it in `CHANGELOG.md` in the same commit.
+4. No secrets in the repository.
+5. Keep this file a map, under 200 lines and about 4,000 estimated tokens (`<check command>` measures). Put detail where the tasks that need it meet it (an error message, a test).
+6. When a check fails, fix what it reports. Never weaken, skip or delete a check, test or rule to get a pass; if a check is wrong, stop and say why.

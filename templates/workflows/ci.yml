@@ -1,0 +1,44 @@
+name: ci
+
+# The full checks on every push to main and every pull request, except a change to Markdown and
+# nothing else, which docs.yml checks instead (chapter 24). This is the lab's own
+# .github/workflows/ci.yml, trimmed; tools/templates.test.mjs fails if they drift apart.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md"]
+  pull_request:
+    paths-ignore: ["**.md"]
+
+# A newer push to the same branch cancels the older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # TEMPLATE: the systems your readers or users run on, and the Python you test with...
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.14"]
+        # TEMPLATE: ...and once with the oldest Python your package declares it supports.
+        include:
+          - os: ubuntu-latest
+            python: "3.12"
+    runs-on: ${{ matrix.os }}
+    # GitHub's default is 360 minutes. A run that hangs should cost half an hour at most.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      # TEMPLATE: the toolchains your checks need, at the versions you test with.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      # TEMPLATE: the same two commands a person runs, so CI and a laptop can't disagree.
+      - run: node setup.mjs
+      - run: node check.mjs

@@ -27,10 +27,11 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | `ts/` | TypeScript client and CLI for the API. `src/api-types.ts` is generated from the contract. Import rules: `eslint.config.js` and `.dependency-cruiser.cjs`. |
 | `boundaries/` | The helpdesk's layer rule in Go, Java and .NET (chapter 16). Only CI runs them. |
 | `postings/` | Chapter 1's job-postings sample, tally script and template. |
-| `tools/` | Scripts the chapters build; each that checks something has a test beside it. See Scripts below. |
+| `tools/` | Scripts the chapters build; each that checks something has a test beside it. |
+| `templates/` | Appendix B's templates, proved by `tools/templates.test.mjs`. |
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
 | `progress/` | The work list (`features.json`) and the session log (`log.md`); see below. |
-| `.github/workflows/` | CI: `ci.yml` (every check), `docs.yml` (Markdown-only changes), `nightly.yml` (`node tools/mutate.mjs`, chapter 24; retirement dates, 23). |
+| `.github/workflows/` | CI: `ci.yml` (every check), `docs.yml` (Markdown-only changes), `nightly.yml` (mutations, chapter 24; retirement dates, 23). |
 | `.claude/settings.json` | Claude Code's settings: deny rules, a guard before shell commands and a Stop hook, both in `tools/hooks/` (chapters 19, 25). |
 
 ## Starting a session

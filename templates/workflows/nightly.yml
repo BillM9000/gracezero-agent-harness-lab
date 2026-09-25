@@ -1,0 +1,26 @@
+name: nightly
+
+# Breaks every guard in tools/mutations.mjs, one at a time, and requires a test to catch each
+# (chapter 24). It takes minutes, so it runs once a day and on request. This is the lab's own
+# .github/workflows/nightly.yml, trimmed; tools/templates.test.mjs fails if they drift apart.
+on:
+  schedule:
+    # Off the hour: scheduled runs can be delayed, and some dropped, at busy times.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  mutations:
+    runs-on: ubuntu-latest
+    # TEMPLATE: room for the whole list, which only grows.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: node setup.mjs
+      - run: node tools/mutate.mjs

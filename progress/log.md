@@ -6,6 +6,17 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`; on the working tree, `node tools/mutate.mjs --list` prints every entry and the total. Trust the count, not a number here.
 
+## 2026-09-25: Appendix B, templates
+
+- `templates/`: a skeleton `AGENTS.md.template` with `CLAUDE.md.template` (the lab's own `CLAUDE.md`), a work list and session log (`templates/progress/`), the three CI workflows trimmed (`templates/workflows/`), a lint rule (`lint_rule.py`), a fitness test (`test_fitness.py`), a judge's rubric (`rubric.json`) and chapter 31's assessment checklist.
+- `tools/templates.test.mjs`: 14 tests that run each template against the check it was written for, plant a violation in each, and fail when a workflow template drifts from `.github/workflows/`. `node check.mjs` runs it with the script tests.
+- 13 new mutation entries (494), all applied and caught on the working tree before commit, each file put back byte for byte.
+- `AGENTS.md`: a row for `templates/`, and five trims to stay within 4,000 estimated tokens (3,994).
+- Work list: `templates` done, proved by `tools/templates.test.mjs`.
+- Checked with: `node check.mjs` and `node tools/progress.mjs .`.
+- Not run: `--real`, for any command; nothing here calls a model. The workflow templates on GitHub: the lab has no remote.
+- Next: Appendices C and D, the glossary, the sources list, the quick-reference card and the front matter.
+
 ## 2026-09-25: chapter 29, rolling it out to teams
 
 - `python/golden-path/`: the golden path's `template.toml` (the model, limits and read-only tools it gives, the intake answers, what it leaves to the team, the platform's standard text, the golden state's three checks, and example answers) and the two files it writes, `agent.tmpl` and `usecase.tmpl`.

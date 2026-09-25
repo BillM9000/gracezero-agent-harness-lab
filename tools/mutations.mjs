@@ -1,9 +1,10 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
 // must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 29 and 31
-// are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter
-// 1's tally's check for missing fields; the guards from earlier chapters were broken by hand when
-// they were built (CHANGELOG.md records each time) and are the next candidates to add.
+// are here, Appendix B's templates, the script tests' git runner (tools/git-run.mjs), chapter 7's
+// consumer test and chapter 1's tally's check for missing fields; the guards from earlier chapters
+// were broken by hand when they were built (CHANGELOG.md records each time) and are the next
+// candidates to add.
 
 const pytest = (...tests) => ({ cwd: "python", python: ["-m", "pytest", "-q", "-p", "no:cacheprovider", ...tests] });
 const vitest = (file, name) => ({ cwd: "ts", vitest: [file, "-t", name] });
@@ -107,6 +108,8 @@ const goldenTest = (name) => pytest(`tests/test_golden_path.py::${name}`);
 const LOCK_CHECK = { node: [LOCKFILES] };
 const approvals = (name) => pytest(`${APPROVALS}::${name}`);
 const guardTest = (name) => nodeTest(GUARD_TESTS, name);
+// Appendix B's templates, each proved by tools/templates.test.mjs.
+const templatesTest = (name) => nodeTest("tools/templates.test.mjs", name);
 // The git runner the script tests build their repositories with, proved by tools/git-run.test.mjs.
 const GIT_RUN = "tools/git-run.mjs";
 const gitRunTest = (name) => nodeTest("tools/git-run.test.mjs", name);
@@ -4721,6 +4724,99 @@ export const MUTATIONS = [
     find: "xfail_strict = true",
     replace: "xfail_strict = false",
     run: pytest("tests/test_pytest_settings.py::test_an_expected_failure_that_passes_fails_the_run"),
+  },
+
+  // Appendix B: the templates, each still working and still able to fail.
+  {
+    guard: "templates: the CLAUDE.md template imports AGENTS.md",
+    file: "templates/CLAUDE.md.template",
+    find: "@AGENTS.md\n",
+    replace: "",
+    run: templatesTest("the AGENTS.md template"),
+  },
+  {
+    guard: "templates: the work list's done item names a test that exists",
+    file: "templates/progress/features.json",
+    find: '"proof": "test_fitness.py::test_a_route_without_a_response_model_is_caught"',
+    replace: '"proof": "test_fitness.py::test_a_route_without_a_response_model_is_found"',
+    run: templatesTest("the work list template passes"),
+  },
+  {
+    guard: "templates: the ci workflow's job has a timeout",
+    file: "templates/workflows/ci.yml",
+    find: "    timeout-minutes: 30\n",
+    replace: "",
+    run: templatesTest("the docs template runs on exactly"),
+  },
+  {
+    guard: "templates: the docs workflow runs on what the ci workflow skips",
+    file: "templates/workflows/docs.yml",
+    find: '    branches: [main]\n    paths: ["**.md"]',
+    replace: '    branches: [main]\n    paths: ["docs/**"]',
+    run: templatesTest("the docs template runs on exactly"),
+  },
+  {
+    guard: "templates: the workflows run only checks the lab has",
+    file: "templates/workflows/docs.yml",
+    find: "      - run: node tools/doc-claims.mjs .\n",
+    replace: "      - run: node tools/doc-claim.mjs .\n",
+    run: templatesTest("every command the workflow templates run"),
+  },
+  {
+    guard: "templates: a workflow template stays the lab's own, trimmed",
+    file: "templates/workflows/ci.yml",
+    find: "      - uses: actions/checkout@v7",
+    replace: "      - uses: actions/checkout@v6",
+    run: templatesTest("each workflow template is the lab's own"),
+  },
+  {
+    guard: "templates: the lint rule follows a response it was assigned",
+    file: "templates/lint_rule.py",
+    find: "            self.scopes[-1].update(t.id for t in node.targets if isinstance(t, ast.Name))",
+    replace: "            pass",
+    run: templatesTest("the lint rule template agrees"),
+  },
+  {
+    guard: "templates: the lint rule keeps walking inside an attribute",
+    file: "templates/lint_rule.py",
+    find: "        # Keep walking: without this, response.text.strip() would hide the read inside it.\n        self.generic_visit(node)\n",
+    replace: "",
+    run: templatesTest("the lint rule template fails a planted read"),
+  },
+  {
+    guard: "templates: the lint rule fails an exception with no reason",
+    file: "templates/lint_rule.py",
+    find: "        elif not reason:\n",
+    replace: "        elif False:\n",
+    run: templatesTest("the lint rule template fails a planted read"),
+  },
+  {
+    guard: "templates: the lint rule refuses to pass having read nothing",
+    file: "templates/lint_rule.py",
+    find: "        return 2\n",
+    replace: "        return 0\n",
+    run: templatesTest("the lint rule template refuses"),
+  },
+  {
+    guard: "templates: the fitness test's exemption list gives the one route its reason",
+    file: "templates/test_fitness.py",
+    find: '    "health": "returns a fixed status with no fields a client depends on; its return type describes it",\n',
+    replace: "",
+    run: templatesTest("the fitness test template"),
+  },
+  {
+    guard: "templates: the fitness test reads the decorator's arguments",
+    file: "templates/test_fitness.py",
+    find: '                and not any(keyword.arg == "response_model" for keyword in decorator.keywords)\n',
+    replace: "",
+    run: templatesTest("the fitness test template"),
+  },
+  {
+    guard: "templates: the rubric has the fields the judge's loader requires",
+    file: "templates/rubric.json",
+    find: '"fail": "it states or promises',
+    replace: '"fails": "it states or promises',
+    run: templatesTest("the rubric template loads"),
   },
 
   // Chapter 1: the tally counts only data it can trust.

@@ -1,0 +1,19 @@
+{
+  "id": "<the file's name, without .json>",
+  "subject": "<what is judged, in words that follow 'You are judging': a reply that a member of staff will send to a customer>",
+  "given": "<what the writer was given, the judge's ground truth: the tool results the writer was given>",
+  "criteria": [
+    {
+      "id": "supported",
+      "question": "Is every claim and promise in the reply supported by the data the writer was given?",
+      "pass": "everything it tells the customer is in that data or follows plainly from it",
+      "fail": "it states or promises something that data doesn't support, such as a refund, a date or a cause, whether or not the sentence cites a passage"
+    },
+    {
+      "id": "<one-word-id>",
+      "question": "<One narrow question that two people reading the same text would answer the same way.>",
+      "pass": "<what a text that passes does, in words that follow 'It passes when'>",
+      "fail": "<what a text that fails does, in words that follow 'It fails when', naming the failures you have seen>"
+    }
+  ]
+}

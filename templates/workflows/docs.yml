@@ -1,0 +1,30 @@
+name: docs
+
+# A change to Markdown alone runs the checks that read documents, and nothing that needs installing
+# (chapter 24). Skipping these too would let a broken claim through. This is the lab's own
+# .github/workflows/docs.yml, trimmed; tools/templates.test.mjs fails if they drift apart.
+on:
+  push:
+    branches: [main]
+    paths: ["**.md"]
+  pull_request:
+    paths: ["**.md"]
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      # TEMPLATE: every check that reads your documents: the instruction files' budget, what the
+      # documentation claims, and the work list.
+      - run: node tools/instruction-files.mjs . --max-tokens 4000
+      - run: node tools/doc-claims.mjs .
+      - run: node tools/progress.mjs .

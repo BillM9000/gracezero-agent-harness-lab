@@ -1,0 +1,17 @@
+{
+  "about": "The work list, in priority order. An item is done only when its proof test exists and passes: node tools/progress.mjs checks that the test exists, and the full check runs it. Work on one item at a time. Change an item's status and proof; never delete or reword an item to make the list look finished.",
+  "features": [
+    {
+      "id": "fitness-test",
+      "description": "A fitness test finds every route that declares no response model, and says how to fix it.",
+      "status": "done",
+      "proof": "test_fitness.py::test_a_route_without_a_response_model_is_caught"
+    },
+    {
+      "id": "next-item",
+      "description": "<What the next item does, in one sentence a test could prove.>",
+      "status": "todo",
+      "proof": null
+    }
+  ]
+}

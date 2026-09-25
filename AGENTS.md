@@ -26,7 +26,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
 | `ts/` | TypeScript client and CLI for the API. `src/api-types.ts` is generated from the contract. Import rules: `eslint.config.js` and `.dependency-cruiser.cjs`. |
 | `boundaries/` | The helpdesk's layer rule in Go, Java and .NET (chapter 16). Only CI runs them. |
-| `postings/` | Chapter 1's job-postings sample, tally script and template. |
+| `postings/` | The job-postings sample, its scripts (chapters 1, 32) and a template. |
 | `tools/` | Scripts the chapters build; each that checks something has a test beside it. |
 | `templates/` | Appendix B's kit (`templates/README.md`), proved by `tools/templates.test.mjs`. |
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
@@ -60,7 +60,7 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Run: `uvicorn --factory helpdesk.main:create_default_app`
 - The triage assistant: `python -m helpdesk.triage` (the mock, scripted); `--real "..."` calls Anthropic's API
 - Red team: `python -m helpdesk.injections run` (also `flag`)
-- Golden sets, judges and the gate: `python -m helpdesk.evals`, `helpdesk.judge` and `helpdesk.gate`, each with `check`; `--help` lists the rest (`--real` is billed and needs `--max-usd`); `helpdesk.calls FILE` sums a `gate run --record FILE`
+- Golden sets, judges and the gate: `python -m helpdesk.evals`, `helpdesk.judge` and `helpdesk.gate`, each with `check`; `--help` lists the rest (`--real` is billed and needs `--max-usd`); `helpdesk.calls FILE` sums a run's `--record`
 - The gateway: `python -m helpdesk.gateway check`, `demo` and `report FILE`; real calls go in `records/gateway.jsonl`
 - Use cases: `python -m helpdesk.readiness check` (also `triage`, `fingerprint`); `python -m helpdesk.golden_path new NAME` starts one (also `check`, `report`)
 - The gap check: `python -m helpdesk.spec_review BRIEF --out GAPS.json` (also `check`)
@@ -87,7 +87,7 @@ Scripts, from the root; each has a test beside it, for `node --test`.
 - `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it (`--list` lists them; `--only PREFIX` runs a group); when you add a guard, add its entry (chapter 24).
 - `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command, with limits (chapter 25).
 - The kit's checks: `node tools/kit.mjs`, `tools/features-lock.mjs` and `tools/claims.mjs`.
-- For readers (see the README): `tools/harness-inventory.mjs`, `tools/rework.mjs`, `tools/weekly.mjs`, `tools/measure.mjs`.
+- For readers (see the README): `postings/skills.mjs`, `tools/harness-inventory.mjs`, `tools/rework.mjs`, `tools/weekly.mjs`, `tools/measure.mjs`.
 
 ## Rules
 

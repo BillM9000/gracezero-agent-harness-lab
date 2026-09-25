@@ -1,0 +1,61 @@
+{
+  "about": "Chapter 32's map from the skills the postings sample codes to the book's chapters, the lab files that build each one, the checks in node check.mjs that prove them, and what the lab alone can't show. Read by postings/skills.mjs, which refuses to print anything if a skill is left out, a path isn't in the repository or a check isn't one node check.mjs runs. The counts come from the sample every time; nothing here is a count.",
+  "parts": [
+    { "id": "I", "name": "Getting Started", "chapters": [1, 2, 3, 4, 5] },
+    { "id": "II", "name": "Context", "chapters": [6, 7, 8, 9, 10] },
+    { "id": "III", "name": "Tools", "chapters": [11, 12, 13, 14] },
+    { "id": "IV", "name": "Guardrails", "chapters": [15, 16, 17, 18, 19, 20] },
+    { "id": "V", "name": "Evaluation", "chapters": [21, 22, 23] },
+    { "id": "VI", "name": "Feedback Loops", "chapters": [24, 25] },
+    { "id": "VII", "name": "Running It", "chapters": [26, 27, 28, 29, 30, 31] },
+    { "id": "VIII", "name": "Your Career", "chapters": [32, 33] },
+    { "id": "Appendices", "name": "Appendices", "chapters": ["A"] }
+  ],
+  "start": {
+    "enablement": { "steps": ["VII", "IV", "V"], "note": "chapter 1's table: Part VII, then Parts IV and V" },
+    "coding-agents": { "steps": ["II", "IV", "VI"], "note": "chapter 1's table: Parts II, IV and VI" },
+    "product-agents": { "steps": ["III", "V", 19], "note": "chapter 1's table: Parts III and V, then chapter 19" },
+    "applied": { "steps": ["III", "V"], "note": "chapter 1's table: Parts III and V" },
+    "infrastructure": { "steps": [], "note": "chapter 1's table sends this kind of job to other books; the chapters below cover the rest of what these postings ask for" }
+  },
+  "notCovered": {
+    "servingOrTraining": "not in this book: chapter 1 names other books",
+    "kubernetes": "not in this book"
+  },
+  "chapters": [
+    { "chapter": 1, "title": "What an AI Platform Engineer Does", "builds": [], "lab": ["postings/tally.mjs"], "checks": ["Script tests"] },
+    { "chapter": 2, "title": "AI Models, Just Enough", "builds": ["costControl"], "lab": ["python/src/helpdesk/model/cost.py", "python/src/helpdesk/model/stops.py"], "checks": ["Python tests (pytest)"] },
+    { "chapter": 3, "title": "What Makes an Agent", "builds": ["agents"], "lab": ["python/src/helpdesk/assistant/agent.py", "python/src/helpdesk/triage.py"], "checks": ["Python tests (pytest)"], "unproven": "the assistant on a real model: python -m helpdesk.triage --real is billed" },
+    { "chapter": 4, "title": "Anatomy of a Harness", "builds": ["codingAgents"], "lab": ["tools/harness-inventory.mjs"], "checks": ["Script tests"] },
+    { "chapter": 5, "title": "Setting Up the Companion Repo", "builds": ["python"], "lab": ["setup.mjs", "check.mjs", "python/src/helpdesk/model/mock.py"], "checks": ["Setup's path limit (tools/install-paths.mjs)"] },
+    { "chapter": 6, "title": "Instruction Files That Stay Small", "builds": ["codingAgents"], "lab": ["AGENTS.md", "tools/instruction-files.mjs"], "checks": ["Instruction files (tools/instruction-files.mjs)"] },
+    { "chapter": 7, "title": "The Repository as Source of Truth", "builds": ["codingAgents", "typescriptOrJavascript"], "lab": ["python/src/helpdesk/contract.py", "contracts/openapi.json"], "checks": ["API contract (python -m helpdesk.contract)", "TypeScript API types (npm run api-types)"] },
+    { "chapter": 8, "title": "Keeping Documentation Honest", "builds": ["codingAgents"], "lab": ["tools/doc-claims.mjs"], "checks": ["Documentation claims (tools/doc-claims.mjs)"] },
+    { "chapter": 9, "title": "Retrieval Without the Hype", "builds": ["retrieval"], "lab": ["python/src/helpdesk/services/retrieval.py", "python/src/helpdesk/services/citations.py", "python/evals/kb_questions.json"], "checks": ["Knowledge-base retrieval (python -m helpdesk.kb eval)"], "unproven": "search by meaning: the lab's embeddings are a stand-in that captures spelling" },
+    { "chapter": 10, "title": "Long-Running Work", "builds": ["codingAgents"], "lab": ["progress/features.json", "tools/progress.mjs"], "checks": ["Work list (tools/progress.mjs)"] },
+    { "chapter": 11, "title": "Designing Tools for Agents", "builds": ["agents", "security"], "lab": ["python/src/helpdesk/assistant/tools.py", "python/src/helpdesk/services/access.py"], "checks": ["Python tests (pytest)"], "unproven": "which tool set a real model uses better (chapter 21's table)" },
+    { "chapter": 12, "title": "Building an MCP Server", "builds": ["mcp"], "lab": ["python/src/helpdesk/mcp_server.py", "python/src/helpdesk/mcp_client.py"], "checks": ["Python tests (pytest)"] },
+    { "chapter": 13, "title": "Governing MCP Servers Across an Organization", "builds": ["mcp", "security", "guardrails"], "lab": ["python/catalog/servers.toml", "python/src/mcp_governance/"], "checks": ["MCP server catalog (python -m mcp_governance)"], "unproven": "a real authorization server: the lab's tokens come from a test issuer" },
+    { "chapter": 14, "title": "Multi-Agent Patterns", "builds": ["agents"], "lab": ["python/src/helpdesk/assistant/team.py", "python/src/helpdesk/assistant/revise.py"], "checks": ["Python tests (pytest)"], "unproven": "one agent against the team on a real model (chapter 21's table)" },
+    { "chapter": 15, "title": "Fitness Functions and Structural Tests", "builds": ["guardrails", "python"], "lab": ["python/tests/fitness/"], "checks": ["Python tests (pytest)"] },
+    { "chapter": 16, "title": "Boundary Rules", "builds": ["guardrails", "python", "typescriptOrJavascript", "go", "java", "dotnet"], "lab": ["python/pyproject.toml", "ts/.dependency-cruiser.cjs", "boundaries/"], "checks": ["Python import rules (lint-imports)", "TypeScript import rules (eslint)", "TypeScript dependency rules (dependency-cruiser)"], "unproven": "the Go, Java and .NET rules run only in CI" },
+    { "chapter": 17, "title": "Custom Linters That Teach", "builds": ["guardrails", "python", "typescriptOrJavascript"], "lab": ["python/src/helpdesk_lint/model_text.py", "ts/scripts/eslint-rules/cli-output-through-write.ts"], "checks": ["Python model-text rule (python -m helpdesk_lint)", "TypeScript import rules (eslint)"] },
+    { "chapter": 18, "title": "Policy Engines", "builds": ["guardrails", "costControl", "gateway"], "lab": ["python/agents/policy.toml", "python/src/agent_policy/rules.py"], "checks": ["Agent definitions (python -m agent_policy)"] },
+    { "chapter": 19, "title": "Permissions, Sandboxes and Human Approval", "builds": ["humanApproval", "guardrails", "security"], "lab": ["python/src/helpdesk/services/proposals.py", "python/src/helpdesk/services/decisions.py", "tools/hooks/destructive-guard.mjs"], "checks": ["Python tests (pytest)", "Script tests"], "unproven": "whether a real model's redraft acts on the reviewer's reason (chapter 21's table)" },
+    { "chapter": 20, "title": "The Agent Attack Surface", "builds": ["security"], "lab": ["python/src/helpdesk/services/untrusted.py", "python/evals/injections.json", "python/agents/models.toml"], "checks": ["Lock files (tools/lockfiles.mjs)", "Agent definitions (python -m agent_policy)"], "unproven": "how often a real model obeys the red-team tickets (chapter 21's table)" },
+    { "chapter": 21, "title": "Evaluating Output That Changes Every Run", "builds": ["evaluation"], "lab": ["python/evals/tasks.json", "python/src/helpdesk/assistant/grading.py"], "checks": ["Golden sets (python -m helpdesk.evals check)"], "unproven": "a real model's pass rates: on the mock the runs check the machinery" },
+    { "chapter": 22, "title": "Model Judges", "builds": ["evaluation"], "lab": ["python/evals/rubrics/reply.json", "python/evals/judged.json", "python/src/helpdesk/assistant/judging.py"], "checks": ["Model judges (python -m helpdesk.judge check)"], "unproven": "how often a real judge agrees with the labels (chapter 22's table)" },
+    { "chapter": 23, "title": "Evaluations as a Gate", "builds": ["evaluation", "costControl"], "lab": ["python/src/helpdesk/gate.py", "python/evals/promoted.json", "python/src/helpdesk/model/budget.py"], "checks": ["Promotion gate (python -m helpdesk.gate check)"], "unproven": "a promotion on a real model: the lab's record was promoted on the mock (chapter 23's table)" },
+    { "chapter": 24, "title": "What Belongs in CI When Agents Write the Code", "builds": ["codingAgents"], "lab": ["tools/mutate.mjs", "tools/mutations.mjs", ".github/workflows/ci.yml"], "checks": ["Script tests"], "unproven": "the workflows themselves, which run only on GitHub's runners" },
+    { "chapter": 25, "title": "Closing the Loop", "builds": ["codingAgents"], "lab": ["tools/hooks/stop-check.mjs", "tools/fix-loop.mjs"], "checks": ["Script tests"], "unproven": "the hook in a live session, and a real coding agent in the loop (chapter 26's table)" },
+    { "chapter": 26, "title": "Measuring a Harness", "builds": ["aiObservability", "costControl"], "lab": ["tools/measure.mjs", "python/src/helpdesk/model/calls.py"], "checks": ["Script tests"], "unproven": "a record of real calls: the lab's are the mock's (chapter 26's table)" },
+    { "chapter": 27, "title": "Gateways, Cost and Model Routing", "builds": ["costControl", "aiObservability", "gateway"], "lab": ["python/src/helpdesk/model/gateway.py", "python/agents/policy.toml"], "checks": ["Model gateway (python -m helpdesk.gateway check)"], "unproven": "a real call through the gateway (chapter 27's table)" },
+    { "chapter": 28, "title": "The Central AI Team", "builds": ["guardrails"], "lab": ["python/usecases/readiness.toml", "python/src/readiness/rules.py"], "checks": ["Use-case readiness (python -m helpdesk.readiness check)"] },
+    { "chapter": 29, "title": "Rolling It Out to Teams", "builds": ["guardrails"], "lab": ["python/golden-path/template.toml", "python/src/golden_path/rules.py"], "checks": ["Golden path (python -m helpdesk.golden_path check)"] },
+    { "chapter": 30, "title": "Zero to Prod: One Path from a Request to Production", "builds": [], "lab": ["templates/ask/intake-brief.md", "templates/agree/features.json", "templates/prove/claims.json", "python/src/helpdesk/spec_review.py", "tools/claims.mjs"], "checks": ["Script tests", "Spec review (python -m helpdesk.spec_review check)"], "unproven": "the path run on a real project with a real model: the lab runs it on the helpdesk and the mock" },
+    { "chapter": 31, "title": "Walking Into a Harness Someone Else Built", "builds": ["codingAgents"], "lab": ["tools/rework.mjs"], "checks": ["Script tests"] },
+    { "chapter": 32, "title": "Skills, Learning Path and Portfolio", "builds": [], "lab": ["postings/skills.mjs", "postings/skills-map.json"], "checks": ["Script tests"] },
+    { "chapter": 33, "title": "Interviewing for AI Platform Roles", "builds": [], "lab": [], "checks": [] },
+    { "chapter": "A", "title": "The Same Harness in Five Tools", "builds": ["codingAgents"], "lab": [], "checks": [] }
+  ]
+}

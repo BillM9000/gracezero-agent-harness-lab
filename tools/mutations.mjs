@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14 and 16 to 31 are
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14 and 16 to 32 are
 // here, Appendix B's templates, the script tests' git runner (tools/git-run.mjs), chapter 7's
 // consumer test and chapter 1's tally's check for missing fields; the guards from earlier chapters
 // were broken by hand when they were built (CHANGELOG.md records each time) and are the next
@@ -107,6 +107,8 @@ const readinessTest = (name) => pytest(`tests/test_readiness.py::${name}`);
 const GOLDEN_RULES = "python/src/golden_path/rules.py";
 const GOLDEN = "python/src/helpdesk/golden_path.py";
 const goldenTest = (name) => pytest(`tests/test_golden_path.py::${name}`);
+const SKILLS = "postings/skills.mjs";
+const SKILLS_TESTS = "postings/skills.test.mjs";
 // The real lock check, on this repository as setup left it.
 const LOCK_CHECK = { node: [LOCKFILES] };
 const approvals = (name) => pytest(`${APPROVALS}::${name}`);
@@ -4619,6 +4621,98 @@ export const MUTATIONS = [
     find: "        if made != kept:",
     replace: "        if False:",
     run: specTest("test_the_check_passes_and_fails_when_the_example_drifts_from_the_mock"),
+  },
+  // Chapter 32: the skills map.
+  {
+    guard: "skills: only the kind's own postings are counted",
+    file: SKILLS,
+    find: "sample.postings.filter((p) => p.type === type || (also && p.alsoType === type))",
+    replace: "sample.postings.filter((p) => true || (also && p.alsoType === type))",
+    run: nodeTest(SKILLS_TESTS, "enablement counts as chapter 1 says"),
+  },
+  {
+    guard: "skills: --also counts the second kind",
+    file: SKILLS,
+    find: "p.type === type || (also && p.alsoType === type)",
+    replace: "p.type === type || (false && p.alsoType === type)",
+    run: nodeTest(SKILLS_TESTS, "--also counts the second kind"),
+  },
+  {
+    guard: "skills: every skill is built by some chapter or said not to be",
+    file: SKILLS,
+    find: "if (!built && !excused) problems.push",
+    replace: "if (false) problems.push",
+    run: nodeTest(SKILLS_TESTS, "a skill no chapter builds"),
+  },
+  {
+    guard: "skills: the signals come from the sample's codebook",
+    file: SKILLS,
+    find: "const SIGNALS = Object.keys(sample.codebook ?? {})",
+    replace: "const SIGNALS = Object.keys(JSON.parse(readFileSync(join(HERE, \"sample-2026-09-22.json\"), \"utf8\")).codebook)",
+    run: nodeTest(SKILLS_TESTS, "a signal added to the codebook"),
+  },
+  {
+    guard: "skills: a skill can't be both built and excused",
+    file: SKILLS,
+    find: "if (built && excused) problems.push",
+    replace: "if (false) problems.push",
+    run: nodeTest(SKILLS_TESTS, "a skill both built and excused"),
+  },
+  {
+    guard: "skills: every lab path is in the repository",
+    file: SKILLS,
+    find: "      if (inRepo(path)) continue;",
+    replace: "      continue;",
+    run: nodeTest(SKILLS_TESTS, "a lab path that isn't in the repository"),
+  },
+  {
+    guard: "skills: every check is one node check.mjs runs",
+    file: SKILLS,
+    find: "if (!labels.has(label)) problems.push",
+    replace: "if (false) problems.push",
+    run: nodeTest(SKILLS_TESTS, "a check node check.mjs doesn't run"),
+  },
+  {
+    guard: "skills: every chapter sits in one part",
+    file: SKILLS,
+    find: "if (n !== 1) problems.push",
+    replace: "if (n > 1 && false) problems.push",
+    run: nodeTest(SKILLS_TESTS, "every chapter sits in exactly one part"),
+  },
+  {
+    guard: "skills: the table's steps name parts or chapters",
+    file: SKILLS,
+    find: "        problems.push(`start.${t}: ${JSON.stringify(step)} is neither a part nor a chapter in the map.`);",
+    replace: "",
+    run: nodeTest(SKILLS_TESTS, "the table's steps must name parts or chapters"),
+  },
+  {
+    guard: "skills: the sample's codes must be true or false",
+    file: SKILLS,
+    find: "if (typeof p[key] !== \"boolean\") problems.push",
+    replace: "if (false) problems.push",
+    run: nodeTest(SKILLS_TESTS, "a posting whose codes aren't true or false"),
+  },
+  {
+    guard: "skills: a chapter goes under its most-asked signal",
+    file: SKILLS,
+    find: "asked.sort((a, b) => count(b) - count(a))[0]",
+    replace: "asked.sort((a, b) => count(a) - count(b))[0]",
+    run: nodeTest(SKILLS_TESTS, "the other chapters go under the most-asked signal"),
+  },
+  {
+    guard: "skills: the path follows chapter 1's table",
+    file: SKILLS,
+    find: "for (const step of start.steps) {",
+    replace: "for (const step of [].concat(start.steps).reverse()) {",
+    run: nodeTest(SKILLS_TESTS, "the path starts with Part I"),
+  },
+  {
+    guard: "skills: --evidence says what the lab alone can't show",
+    file: SKILLS,
+    find: "    if (ch.unproven) console.log",
+    replace: "    if (false) console.log",
+    run: nodeTest(SKILLS_TESTS, "--evidence names the checks"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

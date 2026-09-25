@@ -88,6 +88,7 @@ const CHECKS = [
     [
       "--test",
       "postings/tally.test.mjs",
+      "postings/skills.test.mjs",
       "tools/harness-inventory.test.mjs",
       "tools/install-paths.test.mjs",
       "tools/lockfiles.test.mjs",

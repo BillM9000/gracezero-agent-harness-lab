@@ -25,6 +25,17 @@ What each working session did, newest first. Add an entry at the end of every se
 - Then `node tools/mutate.mjs` on a fresh clone at `338df39`: all 494 caught in 24.9 minutes, and the tree unchanged.
 - Next: Appendices C and D, the glossary, the sources list, the quick-reference card and the front matter.
 
+## 2026-09-25: chapter 32, skills, learning path and portfolio
+
+- `postings/skills-map.json`: each chapter's number and title, the skills it builds (the sample codebook's signals and languages), its main lab files, the checks in `node check.mjs` that show the work, and what the lab alone can't show; the book's parts; chapter 1's "Where to start" table for each kind of job; and the two signals no chapter builds (`servingOrTraining`, `kubernetes`). It holds no counts.
+- `postings/skills.mjs FILE --type KIND`: counts what the sample's postings of one kind ask for, names the chapters that build each skill, and lays out a path: Part I, chapter 1's table, then the other chapters under the most-asked signal they build. `--also` counts the second kind; `--evidence` adds each chapter's files, checks and limits. It prints nothing if the map leaves a skill out, names a file git doesn't track or a check `node check.mjs --list` doesn't print, puts a chapter in two parts, or if a posting's codes aren't true or false.
+- `postings/skills.test.mjs`, 14 tests, in the script tests; 13 new mutation entries (461), all applied and caught on the working tree before commit.
+- `AGENTS.md` trimmed first (seven command lines shortened), then the script added beside the tally: 3,998 of 4,000 estimated tokens. The README's closing line, stale since chapter 27, now points at `CHANGELOG.md`.
+- Work list: `skills-map` done, proved by `postings/skills.test.mjs`.
+- Checked with: `node check.mjs` (all 26 checks passed) and `node tools/progress.mjs .`.
+- Not run: `--real`, for any command; nothing here calls a model.
+- Next: chapter 33.
+
 ## 2026-09-25: chapter 29, rolling it out to teams
 
 - `python/golden-path/`: the golden path's `template.toml` (the model, limits and read-only tools it gives, the intake answers, what it leaves to the team, the platform's standard text, the golden state's three checks, and example answers) and the two files it writes, `agent.tmpl` and `usecase.tmpl`.

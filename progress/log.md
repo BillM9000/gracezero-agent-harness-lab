@@ -6,6 +6,17 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`; on the working tree, `node tools/mutate.mjs --list` prints every entry and the total. Trust the count, not a number here.
 
+## 2026-09-25: chapter 27, gateways, cost and model routing
+
+- `helpdesk/model/gateway.py`: one front door for every call to a provider. It checks the team's month and its share of the rate limits before each call, routes to the cheapest model on the job's route, moves to another deployment or model when one is down or a model refuses, caches identical requests from one team when the route allows, and records every attempt with the team, the route and the deployment.
+- `python -m helpdesk.gateway`: every `--real` call goes through the lab's gateway (`for_agent`); `check` is the 24th check; `demo` runs a made-up organization through it; `report FILE` sums a record by team and route. `agents/policy.toml` has `[teams]`, and the policy's new `team` rule refuses an owner that isn't one.
+- `python -m helpdesk.model.cost --cache` and `--keep` price prompt caching and trimming.
+- 44 new Python tests (568); 44 new mutations (397) and one updated, all applied and caught on the working tree before commit.
+- Work list: `model-gateway` done, proved by `tests/fitness/test_one_door_to_the_provider.py`; `central-ai-team` (chapter 28) added.
+- Checked with: `node check.mjs` (all 24 checks passed) and `node tools/progress.mjs .`.
+- Not run: `--real`, for any command, so no real call has gone through the gateway. The first paid run of any `--real` command will write `records/gateway.jsonl`; `python -m helpdesk.gateway report ../records/gateway.jsonl` sums it up.
+- Next: `central-ai-team` (chapter 28).
+
 ## 2026-09-25: chapter 26, measuring a harness
 
 - `helpdesk/model/calls.py` and `python -m helpdesk.calls`: a record of every model call, however it ended, with a fingerprint of the system prompt and tools, never the conversation. `python -m helpdesk.gate run --record FILE` writes one.

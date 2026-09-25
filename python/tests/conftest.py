@@ -17,6 +17,20 @@ TODAY = "2026-09-24"
 os.environ[TODAY_VARIABLE] = TODAY
 
 
+@pytest.fixture(autouse=True)
+def gateway_record(tmp_path, monkeypatch):
+    """Chapter 27: a test that builds the real client with a fake goes through the lab's gateway,
+    which records every call. Each test gets its own record and its own gateway, so no test's calls
+    count against another's team budget, and none lands in the repository's records/ folder."""
+    from helpdesk import gateway
+
+    path = tmp_path / "gateway-record" / "gateway.jsonl"
+    monkeypatch.setenv(gateway.RECORD_VARIABLE, str(path))
+    gateway._GATEWAYS.clear()
+    yield path
+    gateway._GATEWAYS.clear()
+
+
 @pytest.fixture
 def conn(tmp_path):
     connection = connect(tmp_path / "helpdesk-test.db")

@@ -1,7 +1,7 @@
 // One command to run every check in the repository: node check.mjs
 //
 // Runs the Python lint, format, import-rule, model-text-rule, agent-policy, MCP-catalog, retrieval,
-// golden-set, model-judge, promotion-gate and test checks, a check that the API contract and the TypeScript types generated from it are
+// golden-set, model-judge, promotion-gate, model-gateway and test checks, a check that the API contract and the TypeScript types generated from it are
 // current, the TypeScript type-check, import rules and tests, the Node script tests, a check that setup.mjs's
 // Windows path limit still fits the installed packages, a check that every pinned package has its
 // hashes and that what's installed matches the lock files, a budget for the instruction files, a check
@@ -56,6 +56,9 @@ const CHECKS = [
   // evals/promoted.json matches what the model is given, so a change to a prompt, a model, a tool or
   // a golden set fails here until the gate has passed with it. No model runs here.
   ["Promotion gate (python -m helpdesk.gate check)", tool("python"), ["-m", "helpdesk.gate", "check"], { cwd: python }],
+  // The model gateway (chapter 27): every team has a budget and limits, and every model a route can
+  // send a call to is approved, tracked, not retiring and deployed somewhere. No model runs here.
+  ["Model gateway (python -m helpdesk.gateway check)", tool("python"), ["-m", "helpdesk.gateway", "check"], { cwd: python }],
   // The contract is generated from the Python code, and the TypeScript types from the contract.
   // These two run before the type-check, so drift is reported as drift before it shows up as type errors.
   ["API contract (python -m helpdesk.contract)", tool("python"), ["-m", "helpdesk.contract", "check", "../contracts/openapi.json"], { cwd: python }],

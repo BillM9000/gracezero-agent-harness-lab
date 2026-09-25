@@ -248,9 +248,9 @@ def main() -> int:
         demos["injected"] = (INJECTED_TASK.format(ticket=ticket_id), obeying_script(ticket_id))
     model: ModelClient
     if args.real:
-        from helpdesk.model.anthropic_client import AnthropicModel
+        from helpdesk import gateway  # chapter 27: every real call goes through the one front door
 
-        model = AnthropicModel(model=agent["model"], max_tokens=agent["max_tokens"])
+        model = gateway.for_agent(agent)
         task, label = args.task or demos[args.demo][0], f"Anthropic API ({agent['model']})"
     else:
         task, script = demos[args.demo]

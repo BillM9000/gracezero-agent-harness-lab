@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from helpdesk.model.types import Message, ModelResponse, ToolCall, ToolSpec, Usage
+from helpdesk.model.types import Message, ModelResponse, ToolCall, ToolSpec, Unavailable, Usage
 
 # The model Anthropic's models page suggested starting with on 2026-09-22.
 DEFAULT_MODEL = "claude-opus-5-5"
@@ -34,6 +34,34 @@ STRICT_UNSUPPORTED = (
     "maxItems",
 )
 MAX_STRICT_TOOLS = 20
+
+
+def unavailable_kind(error: Exception) -> str | None:
+    """Whether an error means the provider can't answer now, so another deployment or model may
+    (chapter 27). Anthropic's errors page, read 2026-09-25: 429 rate_limit_error, 500 api_error and
+    529 overloaded_error, plus no connection at all. By the time the SDK raises one, it has already
+    retried it twice (DEFAULT_MAX_RETRIES in anthropic 1.8.0). Anything else, such as a malformed
+    request, would fail the same way anywhere, and is raised as it is."""
+    status = getattr(error, "status_code", None)
+    if status == 429:
+        return "rate limited"
+    if status == 529:
+        return "overloaded"
+    if isinstance(status, int) and status >= 500:
+        return "server error"
+    if status is None and any(kind.__name__ == "APIConnectionError" for kind in type(error).__mro__):
+        return "no connection"
+    return None
+
+
+def retry_after(error: Exception) -> float | None:
+    """The wait the provider asked for, in seconds. A 429 at a monthly spend cap has none, and
+    keeps failing until the month turns (Anthropic's rate limits page)."""
+    headers = getattr(getattr(error, "response", None), "headers", None) or {}
+    try:
+        return float(headers.get("retry-after"))
+    except (TypeError, ValueError):
+        return None
 
 
 class AnthropicModel:
@@ -64,7 +92,13 @@ class AnthropicModel:
                     "malformed argument does real harm as strict."
                 )
             request["tools"] = [tool_to_api(t) for t in tools]
-        response = self._client.messages.create(**request)
+        try:
+            response = self._client.messages.create(**request)
+        except Exception as error:
+            kind = unavailable_kind(error)
+            if kind is None:
+                raise
+            raise Unavailable(kind, retry_after(error)) from error
         used = getattr(response, "usage", None)
         return ModelResponse(
             stop_reason=response.stop_reason,
@@ -77,6 +111,8 @@ class AnthropicModel:
             raw=response.content,
             # What the provider counted, so a budget (chapter 23) adds up billed tokens, not guesses.
             usage=Usage(used.input_tokens, used.output_tokens) if used is not None else None,
+            # The SDK's name for the provider's request-id header (Anthropic's errors page).
+            request_id=getattr(response, "_request_id", None),
         )
 
 

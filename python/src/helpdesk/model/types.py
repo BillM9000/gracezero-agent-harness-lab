@@ -85,6 +85,20 @@ class ModelResponse:
     tool_calls: tuple[ToolCall, ...] = ()
     raw: Any = None
     usage: Usage | None = None
+    # The provider's own id for the call, so a line in a record can be matched with its logs and
+    # its support desk (chapter 27). A mock has none.
+    request_id: str | None = None
+
+
+class Unavailable(RuntimeError):
+    """The provider can't answer this call now: overloaded, rate limited, a server error or no
+    connection. Another deployment of the model, or another model, may (chapter 27). retry_after is
+    the wait in seconds the provider asked for, when it said."""
+
+    def __init__(self, kind: str, retry_after: float | None = None) -> None:
+        super().__init__(kind)
+        self.kind = kind
+        self.retry_after = retry_after
 
 
 class ModelClient(Protocol):

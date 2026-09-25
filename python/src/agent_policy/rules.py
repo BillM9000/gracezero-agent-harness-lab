@@ -36,6 +36,8 @@ RULES = {
     # Chapter 20: models as components with a retirement date.
     "retired": "a model that has retired, so requests to it fail",
     "retiring": "a model that is deprecated, or may retire within the policy's notice",
+    # Chapter 27: what an agent spends is its owner's, against the team's monthly budget.
+    "team": "an owner that isn't a team the platform knows, so nothing limits what it spends",
 }
 
 
@@ -201,6 +203,20 @@ def check(
             found.append(Violation(key, "empty", f"is empty. {why}"))
         else:
             usable[key] = definition[key]
+
+    # Chapter 27: the owner pays, so the owner must be a team with a budget the gateway can hold.
+    owner = usable.get("owner")
+    teams: dict[str, Any] = policy["teams"]
+    if owner is not None and owner not in teams:
+        close = difflib.get_close_matches(owner, list(teams), n=1)
+        hint = (
+            f"Did you mean {shown(close[0])}?" if close else f"The teams are {', '.join(map(shown, teams))}."
+        )
+        reason = (
+            f"{shown(owner)} isn't a team the platform knows, so nothing would limit what this agent "
+            f"spends. {hint} A new team needs a monthly budget under [teams] in agents/policy.toml."
+        )
+        found.append(Violation("owner", "team", reason))
 
     approved: dict[str, dict[str, float]] = policy["models"]
     model = usable.get("model")

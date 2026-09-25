@@ -202,6 +202,12 @@
     {
       "id": "model-gateway",
       "description": "Every model call goes through one gateway that holds the keys, limits rates and tokens, routes by cost and capability, caches, falls back, and attributes cost to a team (chapter 27).",
+      "status": "done",
+      "proof": "python/tests/fitness/test_one_door_to_the_provider.py::test_only_the_gateway_builds_a_provider_client"
+    },
+    {
+      "id": "central-ai-team",
+      "description": "A new use case reaches production through intake and a readiness gate with a named technical sign-off, built on the platform's shared capabilities (chapter 28).",
       "status": "todo",
       "proof": null
     }

@@ -1,0 +1,11 @@
+# expect: fail
+# reasons: owner
+# The owner isn't a team with a budget, so the gateway would have nothing to hold its spending to
+# (chapter 27).
+name = "triage"
+owner = "support"
+model = "claude-opus-5-5"
+max_tokens = 16000
+max_turns = 6
+tools = ["get_ticket", "search_kb"]
+system = "Triage helpdesk tickets and draft replies for staff to review."

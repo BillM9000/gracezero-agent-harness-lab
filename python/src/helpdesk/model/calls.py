@@ -27,8 +27,21 @@ from dataclasses import asdict, dataclass, fields
 from datetime import UTC, datetime
 from pathlib import Path
 
-# How a call ended. Everything but "ok" is a failure a dashboard should count.
-OUTCOMES = ("ok", "refusal", "cut off", "error", "over the cap")
+# How a call ended. Everything but "ok" and "cached" is a failure a dashboard should count. The last
+# four are the gateway's (chapter 27): a provider that couldn't answer, a team over its rate or its
+# month's budget, and an answer served from the gateway's cache with no call made.
+OUTCOMES = (
+    "ok",
+    "refusal",
+    "cut off",
+    "error",
+    "over the cap",
+    "unavailable",
+    "rate limited",
+    "over the budget",
+    "cached",
+)
+ANSWERED = ("ok", "cached")
 
 
 def outcome_of(stop_reason: str) -> str:
@@ -61,6 +74,12 @@ class Call:
     usd: float
     ms: int
     prompt: str  # fingerprint() of the system prompt and tools, never the conversation
+    # Written by the gateway (chapter 27): who asked, for which job, where the call went, and the
+    # provider's id for it. Empty on lines a budget wrote.
+    team: str = ""
+    route: str = ""
+    deployment: str = ""
+    request_id: str | None = None
 
 
 class CallLog:
@@ -130,7 +149,7 @@ def summary(calls: Iterable[Call], chars_per_token: float) -> list[str]:
                 f"{round(sum(c.input_tokens for c in group)):,}",
                 f"{round(sum(c.output_tokens for c in group)):,}",
                 f"${sum(c.usd for c in group):.2f}",
-                f"{sum(c.outcome != 'ok' for c in group):,}",
+                f"{sum(c.outcome not in ANSWERED for c in group):,}",
             )
         )
     runs = {c.run for c in calls}
@@ -152,7 +171,7 @@ def summary(calls: Iterable[Call], chars_per_token: float) -> list[str]:
         )
     else:
         lines.append("Tokens: the provider's own counts.")
-    failed = [c for c in calls if c.outcome != "ok"]
+    failed = [c for c in calls if c.outcome not in ANSWERED]
     if not failed:
         lines.append("Failed: none (no refusals, cut-off answers, errors or calls over the cap).")
     else:

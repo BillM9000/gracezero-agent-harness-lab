@@ -124,7 +124,12 @@ def test_the_summary_counts_by_part_and_model_and_names_each_kind_of_failure(tmp
     assert "3 calls from 1 run of test." in out
     assert "tasks  claude-opus-5-5      3" in out
     assert "Failed: 1 cut off, 1 refusal." in out
-    assert set(OUTCOMES) == {"ok", "refusal", "cut off", "error", "over the cap"}
+    assert set(OUTCOMES) == {"ok", "refusal", "cut off", "error", "over the cap"} | {
+        "unavailable",
+        "rate limited",
+        "over the budget",
+        "cached",
+    }
 
 
 def test_a_line_that_isnt_a_call_is_refused_with_its_number(tmp_path):

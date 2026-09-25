@@ -53,6 +53,7 @@ def test_the_check_finds_an_alias():
 def test_every_model_named_in_the_code_and_the_definitions_is_pinned_and_tracked():
     files = sorted((PYTHON / "src").rglob("*.py"))
     files += [p for p in sorted((PYTHON / "agents").glob("*.toml")) if p != REGISTRY]
+    files += sorted((PYTHON / "gateway").glob("*.toml"))  # the gateway demo's routes (chapter 27)
     known = known_models()
     problems = [
         f"{path.relative_to(PYTHON).as_posix()}, {problem}"

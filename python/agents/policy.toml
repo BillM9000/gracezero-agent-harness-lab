@@ -35,6 +35,16 @@ retirement_notice_days = 90
 draft_reply = "staff"
 close_ticket = "lead"
 
+# Chapter 27: the teams that may own an agent. Each has what it may spend in a calendar month (UTC)
+# and its share of the organization's rate limits, and the gateway (python -m helpdesk.gateway)
+# checks both before every call it makes for them. An agent's owner must be one of these. Anthropic's
+# Start tier allows 1,000 requests and 2,000,000 input tokens a minute on the lab's models (rate
+# limits page, read 2026-09-25); one team gets a tenth and a fifth of that.
+[teams.support-tools]
+monthly_usd = 50.0
+requests_per_minute = 100
+input_tokens_per_minute = 400000
+
 # The models an agent may use, from any provider agents/models.toml has a section for, with each
 # one's output price per million tokens (Anthropic's pricing page, read 2026-09-25; OpenAI's, read
 # 2026-10-01). A test checks the prices against src/helpdesk/model/cost.py, and another that each is

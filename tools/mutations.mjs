@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 26 and 31
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 27 and 31
 // are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter
 // 1's tally's check for missing fields; the guards from earlier chapters were broken by hand when
 // they were built (CHANGELOG.md records each time) and are the next candidates to add.
@@ -88,6 +88,10 @@ const PROGRESS = "tools/progress.mjs";
 const progressTest = (name) => nodeTest("tools/progress.test.mjs", name);
 const MEASURE = "tools/measure.mjs";
 const MEASURE_TESTS = "tools/measure.test.mjs";
+const GATEWAY = "python/src/helpdesk/model/gateway.py";
+const LAB_GATEWAY = "python/src/helpdesk/gateway.py";
+const gatewayTest = (name) => pytest(`tests/test_gateway.py::${name}`);
+const TRIAGE = "python/src/helpdesk/triage.py";
 const COST = "python/src/helpdesk/model/cost.py";
 const costTest = (name) => pytest(`tests/test_cost.py::${name}`);
 // The real lock check, on this repository as setup left it.
@@ -3256,7 +3260,7 @@ export const MUTATIONS = [
   {
     guard: "calls: the summary names each kind of failure",
     file: CALLS,
-    find: '    failed = [c for c in calls if c.outcome != "ok"]',
+    find: '    failed = [c for c in calls if c.outcome not in ANSWERED]',
     replace: "    failed = []",
     run: callsTest("test_the_summary_counts_by_part_and_model_and_names_each_kind_of_failure"),
   },
@@ -3448,6 +3452,315 @@ export const MUTATIONS = [
     find: "known: known.length ? known : Object.keys(baseline?.known ?? {}),",
     replace: "known,",
     run: nodeTest(MEASURE_TESTS, "--against reports both windows"),
+  },
+  // Chapter 27: the model gateway, the team rule, and prompt caching and trimming.
+  {
+    guard: "gateway: the cheapest model on the route is tried first",
+    file: GATEWAY,
+    find: "        return sorted(route.models, key=lambda model: price(model, sent, max_tokens))",
+    replace: "        return list(route.models)",
+    run: gatewayTest("test_the_cheapest_model_on_the_route_answers_and_the_line_names_who_pays"),
+  },
+  {
+    guard: "gateway: a model that isn't on the route is never tried",
+    file: GATEWAY,
+    find: "        for model in models:\n            for deployment in g.deployments[model]:",
+    replace: "        for model in [*models, *g.deployments]:\n            for deployment in g.deployments[model]:",
+    run: gatewayTest("test_a_model_that_isnt_on_the_route_is_never_tried_however_cheap"),
+  },
+  {
+    guard: "gateway: a deployment that failed rests before it is tried again",
+    file: GATEWAY,
+    find: "                if g.cooling.get(deployment, 0.0) > g.clock.time():",
+    replace: "                if False:",
+    run: gatewayTest("test_a_deployment_that_is_down_rests_and_the_same_model_answers_elsewhere"),
+  },
+  {
+    guard: "gateway: a deployment rests as long as the provider asked",
+    file: GATEWAY,
+    find: "                    g.cooling[deployment] = g.clock.time() + (down.retry_after or g.cool_for)",
+    replace: "                    g.cooling[deployment] = g.clock.time() + g.cool_for",
+    run: gatewayTest("test_a_deployment_rests_for_as_long_as_the_provider_asked"),
+  },
+  {
+    guard: "gateway: a refusal goes to the next model on the route",
+    file: GATEWAY,
+    find: '                if outcome == "refusal":',
+    replace: "                if False:",
+    run: gatewayTest("test_a_refusal_goes_to_the_next_model_on_the_route"),
+  },
+  {
+    guard: "gateway: a refusal never goes to the same model elsewhere",
+    file: GATEWAY,
+    find: '                    tried.append(f"{model} at {deployment.name}, refused")\n                    break',
+    replace: '                    tried.append(f"{model} at {deployment.name}, refused")\n                    continue',
+    run: gatewayTest("test_with_no_other_model_on_the_route_the_refusal_is_the_answer"),
+  },
+  {
+    guard: "gateway: an error that isn't an outage is raised, not routed around",
+    file: GATEWAY,
+    find: '                    self.write("error", model, deployment.name, error=type(error).__name__)\n                    raise',
+    replace: '                    self.write("error", model, deployment.name, error=type(error).__name__)\n                    continue',
+    run: gatewayTest("test_an_error_that_isnt_an_outage_is_recorded_and_raised_without_a_fallback"),
+  },
+  {
+    guard: "gateway: an error is recorded before it's raised",
+    file: GATEWAY,
+    find: '                    self.write("error", model, deployment.name, error=type(error).__name__)\n',
+    replace: "",
+    run: gatewayTest("test_an_error_that_isnt_an_outage_is_recorded_and_raised_without_a_fallback"),
+  },
+  {
+    guard: "gateway: the team's month is checked before the call",
+    file: GATEWAY,
+    find: "            g.check_budget(team, max(price(m, sent, self.max_tokens) for m in models))\n",
+    replace: "",
+    run: gatewayTest("test_a_call_that_could_take_the_team_past_its_month_is_refused_before_it_is_made"),
+  },
+  {
+    guard: "gateway: the month is checked at the dearest model the route could try",
+    file: GATEWAY,
+    find: "            g.check_budget(team, max(price(m, sent, self.max_tokens) for m in models))",
+    replace: "            g.check_budget(team, price(models[0], sent, self.max_tokens))",
+    run: gatewayTest("test_a_call_that_could_take_the_team_past_its_month_is_refused_before_it_is_made"),
+  },
+  {
+    guard: "gateway: the month counts the next call at its worst",
+    file: GATEWAY,
+    find: "        if spent + worst > team.monthly_usd:",
+    replace: "        if spent > team.monthly_usd:",
+    run: gatewayTest("test_a_call_that_could_take_the_team_past_its_month_is_refused_before_it_is_made"),
+  },
+  {
+    guard: "gateway: the month's spend is read back from the record",
+    file: GATEWAY,
+    find: "        if log.path.exists():",
+    replace: "        if False:",
+    run: gatewayTest("test_the_months_spend_is_read_back_from_the_record_and_a_new_month_starts_at_zero"),
+  },
+  {
+    guard: "gateway: a new month starts at zero",
+    file: GATEWAY,
+    find: "        return self.spent.get((team, month_of(self.clock.time())), 0.0)",
+    replace: "        return sum(usd for (who, _), usd in self.spent.items() if who == team)",
+    run: gatewayTest("test_the_months_spend_is_read_back_from_the_record_and_a_new_month_starts_at_zero"),
+  },
+  {
+    guard: "gateway: a short wait for room in the minute is waited",
+    file: GATEWAY,
+    find: "            if wait > self.wait_up_to:",
+    replace: "            if True:",
+    run: gatewayTest("test_a_short_wait_for_room_in_the_minute_is_waited_and_a_long_one_is_refused"),
+  },
+  {
+    guard: "gateway: a long wait is refused, not waited",
+    file: GATEWAY,
+    find: "            if wait > self.wait_up_to:",
+    replace: "            if False:",
+    run: gatewayTest("test_a_short_wait_for_room_in_the_minute_is_waited_and_a_long_one_is_refused"),
+  },
+  {
+    guard: "gateway: requests a minute are counted",
+    file: GATEWAY,
+    find: "                len(window) < team.requests_per_minute\n                and ",
+    replace: "",
+    run: gatewayTest("test_a_short_wait_for_room_in_the_minute_is_waited_and_a_long_one_is_refused"),
+  },
+  {
+    guard: "gateway: the minute counts the provider's tokens",
+    file: GATEWAY,
+    find: "                entry[1] = used[0]  # the minute counts what the provider counted, not the estimate\n",
+    replace: "",
+    run: gatewayTest("test_the_minute_counts_the_providers_tokens_not_the_estimate"),
+  },
+  {
+    guard: "gateway: a request bigger than the whole minute is refused at once",
+    file: GATEWAY,
+    find: "        if tokens > team.input_tokens_per_minute:",
+    replace: "        if False:",
+    run: gatewayTest("test_a_request_bigger_than_the_teams_whole_minute_is_refused_at_once"),
+  },
+  {
+    guard: "gateway: a call the gateway refuses is recorded",
+    file: GATEWAY,
+    find: "            self.write(refused.outcome, models[0], error=type(refused).__name__)\n",
+    replace: "",
+    run: gatewayTest("test_a_short_wait_for_room_in_the_minute_is_waited_and_a_long_one_is_refused"),
+  },
+  {
+    guard: "gateway: an identical request is answered from the cache",
+    file: GATEWAY,
+    find: "            if hit is not None and hit[0] > g.clock.time():",
+    replace: "            if False:",
+    run: gatewayTest("test_an_identical_request_is_answered_from_the_cache_with_no_call_and_no_cost"),
+  },
+  {
+    guard: "gateway: a cached answer expires",
+    file: GATEWAY,
+    find: "            if hit is not None and hit[0] > g.clock.time():",
+    replace: "            if hit is not None:",
+    run: gatewayTest("test_an_identical_request_is_answered_from_the_cache_with_no_call_and_no_cost"),
+  },
+  {
+    guard: "gateway: the cache is per team",
+    file: GATEWAY,
+    find: '        text = "\\n".join((team.name, route.name, str(max_tokens), request))',
+    replace: '        text = "\\n".join((route.name, str(max_tokens), request))',
+    run: gatewayTest("test_the_cache_is_per_team_and_any_difference_in_the_request_misses_it"),
+  },
+  {
+    guard: "gateway: only a finished answer is cached",
+    file: GATEWAY,
+    find: '                if key is not None and outcome == "ok":',
+    replace: "                if key is not None:",
+    run: gatewayTest("test_only_a_finished_answer_is_cached"),
+  },
+  {
+    guard: "calls: a cached answer isn't a failure",
+    file: CALLS,
+    find: 'ANSWERED = ("ok", "cached")',
+    replace: 'ANSWERED = ("ok",)',
+    run: gatewayTest("test_a_cached_answer_is_not_a_failure_in_the_summary"),
+  },
+  {
+    guard: "adapter: 529 is an overload, which another deployment may not share",
+    file: ADAPTER,
+    find: '    if status == 529:\n        return "overloaded"\n',
+    replace: "",
+    run: gatewayTest("test_an_outage_from_the_provider_becomes_unavailable_with_its_wait"),
+  },
+  {
+    guard: "adapter: 429 is a rate limit, which another deployment may not share",
+    file: ADAPTER,
+    find: "    if status == 429:",
+    replace: "    if False:",
+    run: gatewayTest("test_an_outage_from_the_provider_becomes_unavailable_with_its_wait"),
+  },
+  {
+    guard: "adapter: no connection is an outage",
+    file: ADAPTER,
+    find: '    if status is None and any(kind.__name__ == "APIConnectionError" for kind in type(error).__mro__):',
+    replace: "    if False:",
+    run: gatewayTest("test_an_outage_from_the_provider_becomes_unavailable_with_its_wait"),
+  },
+  {
+    guard: "adapter: a request the provider rejects is raised as it is",
+    file: ADAPTER,
+    find: "    if isinstance(status, int) and status >= 500:",
+    replace: "    if isinstance(status, int):",
+    run: gatewayTest("test_a_request_the_provider_rejects_is_raised_as_it_is"),
+  },
+  {
+    guard: "adapter: the provider's retry-after is passed on",
+    file: ADAPTER,
+    find: '        return float(headers.get("retry-after"))',
+    replace: "        return None",
+    run: gatewayTest("test_an_outage_from_the_provider_becomes_unavailable_with_its_wait"),
+  },
+  {
+    guard: "adapter: the provider's request id is passed on",
+    file: ADAPTER,
+    find: '            request_id=getattr(response, "_request_id", None),',
+    replace: "            request_id=None,",
+    run: gatewayTest("test_the_adapter_passes_on_the_providers_request_id"),
+  },
+  {
+    guard: "policy: an agent's owner is a team with a budget",
+    file: AGENT_RULES,
+    find: "    if owner is not None and owner not in teams:",
+    replace: "    if False:",
+    run: fixture("fail-unknown-team"),
+  },
+  {
+    guard: "lab gateway: each agent's route is its definition's model",
+    file: LAB_GATEWAY,
+    find: '    routes = [Route(d["name"], (d["model"],)) for d in definitions()]',
+    replace: '    routes = [Route(d["name"], tuple(policy["models"])) for d in definitions()]',
+    run: gatewayTest("test_each_agents_route_is_the_model_its_definition_names"),
+  },
+  {
+    guard: "lab gateway: a definition whose model isn't on its route is refused",
+    file: LAB_GATEWAY,
+    find: '    if route is not None and definition["model"] not in route.models:',
+    replace: "    if False:",
+    run: gatewayTest("test_a_definition_whose_model_isnt_on_its_route_is_refused"),
+  },
+  {
+    guard: "lab gateway: check names a route to an unapproved model",
+    file: LAB_GATEWAY,
+    find: '            if model not in policy["models"]:',
+    replace: "            if False:",
+    run: gatewayTest("test_the_check_names_a_route_to_an_unapproved_retiring_or_undeployed_model"),
+  },
+  {
+    guard: "lab gateway: check names a route to a model near retirement",
+    file: LAB_GATEWAY,
+    find: "            if retiring is not None:",
+    replace: "            if False:",
+    run: gatewayTest("test_the_check_names_an_approved_model_near_retirement"),
+  },
+  {
+    guard: "lab gateway: check --today checks retirement as of that day",
+    file: LAB_GATEWAY,
+    find: "            retiring = lifecycle(model, policy, models, on or today())",
+    replace: "            retiring = lifecycle(model, policy, models, today())",
+    run: gatewayTest("test_the_check_as_of_a_later_day_names_every_route_to_a_model_near_retirement"),
+  },
+  {
+    guard: "lab gateway: check names a model with no deployment",
+    file: LAB_GATEWAY,
+    find: "            if model not in deployed:",
+    replace: "            if False:",
+    run: gatewayTest("test_the_check_names_a_route_to_an_unapproved_retiring_or_undeployed_model"),
+  },
+  {
+    guard: "lab gateway: check names a team without a budget",
+    file: LAB_GATEWAY,
+    find: "        if team.monthly_usd <= 0 or team.requests_per_minute < 1 or team.input_tokens_per_minute < 1:",
+    replace: "        if False:",
+    run: gatewayTest("test_the_check_names_a_team_without_a_budget"),
+  },
+  {
+    guard: "lab gateway: a real run goes through the gateway",
+    file: EVALS,
+    find: "    model = gateway.for_agent(definition, client)",
+    replace: '    model = gateway.anthropic(client)(gateway.Deployment("anthropic", definition["model"]), definition["max_tokens"])',
+    run: gatewayTest("test_a_real_run_goes_through_the_gateway_and_is_recorded_for_the_owners_team"),
+  },
+  {
+    guard: "fitness: a provider client built outside the gateway is found",
+    file: TRIAGE,
+    find: "        model = gateway.for_agent(agent)",
+    replace: '        model = AnthropicModel(model=agent["model"], max_tokens=agent["max_tokens"])',
+    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_only_the_gateway_builds_a_provider_client"),
+  },
+  {
+    guard: "cost: with caching, each turn reads the last request from the cache",
+    file: COST,
+    find: "            read = before  # the last request, whole, is the start of this one",
+    replace: "            read = 0",
+    run: costTest("test_with_caching_each_turn_reads_the_last_request_and_writes_the_rest"),
+  },
+  {
+    guard: "cost: a request under the model's minimum isn't cached",
+    file: COST,
+    find: " and sent >= CACHE_MIN_TOKENS[model]:",
+    replace: ":",
+    run: costTest("test_a_request_shorter_than_the_models_minimum_is_not_cached"),
+  },
+  {
+    guard: "cost: trimming keeps only the last exchanges",
+    file: COST,
+    find: "        kept = n - 1 if keep is None else min(n - 1, keep)",
+    replace: "        kept = n - 1",
+    run: costTest("test_trimming_sends_only_the_last_exchanges_and_is_priced_apart_from_caching"),
+  },
+  {
+    guard: "cost: caching and trimming are priced apart",
+    file: COST,
+    find: "    if cache and keep is not None:",
+    replace: "    if False:",
+    run: costTest("test_trimming_sends_only_the_last_exchanges_and_is_priced_apart_from_caching"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

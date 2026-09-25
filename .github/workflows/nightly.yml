@@ -22,7 +22,11 @@ permissions:
 jobs:
   mutations:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Every entry in the list, and the list only grows. It was 30 minutes until chapter 36, when full
+    # runs had reached 22 to 29 minutes on one Windows machine, and this job has never been timed
+    # on GitHub's runners. tools/mutate.test.mjs fails when the list outgrows it.
+    # It was 90 until the list passed 728 entries, the most that 90 leaves room for.
+    timeout-minutes: 100
     env:
       HELPDESK_PYTHON: python
     steps:

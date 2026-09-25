@@ -9,7 +9,7 @@
     { "id": "VI", "name": "Feedback Loops", "chapters": [24, 25] },
     { "id": "VII", "name": "Running It", "chapters": [26, 27, 28, 29, 30, 31] },
     { "id": "VIII", "name": "Your Career", "chapters": [32, 33] },
-    { "id": "IX", "name": "Quick Lists", "chapters": [34, 35] },
+    { "id": "IX", "name": "Quick Lists", "chapters": [34, 35, 36] },
     { "id": "Appendices", "name": "Appendices", "chapters": ["A"] }
   ],
   "start": {
@@ -59,6 +59,7 @@
     { "chapter": 33, "title": "Interviewing for AI Platform Roles", "question": "\"How do you know?\", asked after any of the others.", "builds": [], "lab": [], "checks": [] },
     { "chapter": 34, "title": "Ten Failure Modes and How to Catch Them", "question": "\"What are the most common ways AI agents fail, and how would you catch each one automatically?\"", "builds": [], "lab": ["tools/fix-loop.mjs", "tools/stand-in-agent.mjs"], "checks": ["Script tests"], "unproven": "a real agent choosing which side of a failed comparison to change: the stand-in's choice is scripted" },
     { "chapter": 35, "title": "Ten Guardrails Worth Adding First", "question": "\"Your team is starting with AI agents and has no guardrails yet. Which would you add first, and in what order?\"", "builds": [], "lab": ["tools/mutate.mjs", "tools/mutations.mjs", "tools/harness-inventory.mjs"], "checks": ["Script tests"], "unproven": "which order pays best for a given team: the order is judgment, and a ranking of that team's own failures by frequency times cost (chapter 31) should overrule it" },
+    { "chapter": 36, "title": "Ten Questions to Ask in Your First Week", "question": "\"Before you changed anything in our agent setup, what would you want to know?\"", "builds": [], "lab": ["tools/instruction-files.mjs", "tools/measure.mjs", ".github/workflows/nightly.yml"], "checks": ["Script tests"], "unproven": "whether the ten questions find a harness's gaps sooner than measuring it does: the list is judgment, and its checks have been tried only on this lab" },
     { "chapter": "A", "title": "The Same Harness in Five Tools", "builds": ["codingAgents"], "lab": [], "checks": [] }
   ]
 }

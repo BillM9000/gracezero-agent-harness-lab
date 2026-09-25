@@ -109,6 +109,26 @@ test("every entry in the repository's own list changes text that is in its file 
   assert.deepEqual(stale, []);
 });
 
+// The nightly job runs every entry, and the list only grows, so a run can outgrow the job's timeout
+// without any check failing (chapter 36). Nobody has timed the job on GitHub's runners yet, so this
+// allows 5 minutes for setup and 7 seconds an entry: about twice the slowest rate seen on one
+// Windows machine, 476 entries in 29.1 minutes. When it fails, raise the timeout.
+test("the nightly job runs every entry, with a timeout that leaves room for them all", async () => {
+  const root = join(dirname(RUNNER), "..");
+  const { MUTATIONS } = await import(pathToFileURL(join(root, "tools", "mutations.mjs")).href);
+  const workflow = readFileSync(join(root, ".github", "workflows", "nightly.yml"), "utf8").replaceAll("\r\n", "\n");
+  const jobs = (workflow.split(/^jobs:\n/m)[1] ?? "").split(/^(?= {2}[\w-]+:\n)/m);
+  const job = jobs.find((text) => /^ {6}- run: node tools\/mutate\.mjs$/m.test(text));
+  assert.ok(job, "no job in .github/workflows/nightly.yml runs `node tools/mutate.mjs`, the whole list");
+  const minutes = Number(job.match(/^ {4}timeout-minutes: (\d+)$/m)?.[1] ?? 0);
+  const needed = Math.ceil((5 * 60 + MUTATIONS.length * 7) / 60);
+  assert.ok(
+    minutes >= needed,
+    `nightly.yml's mutation job stops at ${minutes} minutes, and ${MUTATIONS.length} entries need about ${needed}. ` +
+      "Raise its timeout-minutes, and say why in the comment above it.",
+  );
+});
+
 // --only (chapter 24): one guard's entries, by the start of their names.
 const TWO = [
   { guard: "evenness: two is even", file: "guard.mjs", find: "n % 2 === 0", replace: "true", run: RUN_TEST },

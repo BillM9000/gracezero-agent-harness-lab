@@ -233,6 +233,14 @@
 - Not run: any real model; nothing here calls one. The workflow templates on GitHub (the lab has no remote).
 - `node tools/mutate.mjs` on a fresh clone at `338df39`: 494 of 494 caught in 24.9 minutes, and the tree unchanged.
 
+## 2026-09-25, chapter 36 lab
+
+- **The nightly job's timeout, raised from 30 to 90 minutes.** `.github/workflows/nightly.yml`'s `mutations` job runs every entry in `tools/mutations.mjs`, and full runs of `node tools/mutate.mjs` had reached 22.6 to 29.1 minutes on one Windows machine (chapters 33 to 35's runs), against a job that stopped at 30. The job has never run on GitHub's runners (the lab has no remote), so their speed is unknown; 90 leaves about three times the slowest local run. A comment above the value says why. Nothing else in the lab pinned the 30: no test read the workflow, `tools/doc-claims.mjs` counts no timeout, and the README and `AGENTS.md` name no minutes for it. `ci.yml`'s main job still stops at 30, and the `retirement` job at 15.
+- **A test that fails when the list outgrows the job.** `tools/mutate.test.mjs` finds the job in `nightly.yml` that runs `node tools/mutate.mjs` with no options, and fails when there is none, or when its `timeout-minutes` is under 5 minutes for setup plus 7 seconds an entry (about twice the slowest local rate, 476 entries in 29.1 minutes). With 481 entries that's 62 minutes; at 30 it fails and says to raise the timeout.
+- **Chapter 36 in the skills map:** Part IX gains chapter 36, with its likely question, building no signal, so `--questions` lists it under "Any kind of job".
+- `tools/mutate.test.mjs`: 1 new test (13); `postings/skills.test.mjs` updated (the rest of the path now ends with 36). 2 new entries in `tools/mutations.mjs` (481), one setting the job's timeout back to 30 and one narrowing its command to `--only "guard:"`, both applied and caught on the working tree before commit, and the file put back byte for byte; its header now says chapters 16 to 36. The README says what chapter 36 added. `AGENTS.md` unchanged. Work list: `nightly-headroom` done.
+- Not run: any real model; nothing here calls one. The nightly job itself, on any runner.
+
 ## 2026-09-25, chapter 35 lab
 
 - **`node tools/mutate.mjs --only PREFIX`** runs only the entries in `tools/mutations.mjs` whose name starts with the prefix, so one guardrail's planted breaks can be run in seconds instead of all of them in half an hour. It can be given more than once, and the root can come before or after it. A prefix that selects no entry refuses the run, exit 1, before anything changes, and lists the groups the names start with: a mistyped prefix would otherwise check nothing and report every mutation caught. The last line says how many of all the entries ran. Chapter 35 names the prefixes for each of its ten guardrails.

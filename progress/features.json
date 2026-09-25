@@ -242,6 +242,12 @@
       "proof": "tools/mutate.test.mjs::an --only that selects nothing refuses before anything runs, and lists the groups"
     },
     {
+      "id": "nightly-headroom",
+      "description": "The nightly job runs every planted break, with a timeout that leaves room for the whole list; a test fails when the list outgrows the job or the job stops running all of it (chapter 36).",
+      "status": "done",
+      "proof": "tools/mutate.test.mjs::the nightly job runs every entry, with a timeout that leaves room for them all"
+    },
+    {
       "id": "templates",
       "description": "Each of Appendix B's templates passes the check it was written for, or runs, and fails when a violation is planted, so a reader copies something that works; the workflow templates stay the lab's own workflows, trimmed (Appendix B).",
       "status": "done",

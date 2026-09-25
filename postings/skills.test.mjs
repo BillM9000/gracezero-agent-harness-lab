@@ -82,7 +82,7 @@ test("the other chapters go under the most-asked signal they build", () => {
   const run = skills(SAMPLE, "--type", "product-agents");
   assert.equal(run.status, 0, run.stderr);
   assert.match(run.stdout, / {3}- 4 of 5: retrieval 9; aiObservability 26, 27\n {3}- 3 of 5: security 20\n/);
-  assert.match(run.stdout, /4\. Then the rest, in book order: 30, 32, 33, 34, 35\./);
+  assert.match(run.stdout, /4\. Then the rest, in book order: 30, 32, 33, 34, 35, 36\./);
 });
 
 test("--evidence names the checks and what the lab alone can't show", () => {

@@ -1,6 +1,6 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14 and 16 to 34 are
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14 and 16 to 36 are
 // here, Appendix B's templates, the script tests' git runner (tools/git-run.mjs), chapter 7's
 // consumer test and chapter 1's tally's check for missing fields; the guards from earlier chapters
 // were broken by hand when they were built (CHANGELOG.md records each time) and are the next
@@ -700,6 +700,21 @@ export const MUTATIONS = [
     find: "    counts.set(group, (counts.get(group) ?? 0) + 1);",
     replace: "    counts.set(group, 1);",
     run: nodeTest("tools/mutate.test.mjs", "--list prints every entry"),
+  },
+  // Chapter 36: the nightly job that runs this list.
+  {
+    guard: "nightly: the job's timeout leaves room for every entry",
+    file: ".github/workflows/nightly.yml",
+    find: "    timeout-minutes: 100\n",
+    replace: "    timeout-minutes: 30\n",
+    run: nodeTest("tools/mutate.test.mjs", "the nightly job runs every entry"),
+  },
+  {
+    guard: "nightly: the job runs the whole list",
+    file: ".github/workflows/nightly.yml",
+    find: "      - run: node tools/mutate.mjs\n",
+    replace: '      - run: node tools/mutate.mjs --only "guard:"\n',
+    run: nodeTest("tools/mutate.test.mjs", "the nightly job runs every entry"),
   },
 
   // Chapter 35's second guardrail, after the 2026-09-30 review: the cheap checks in one command, and

@@ -25,6 +25,17 @@ What each working session did, newest first. Add an entry at the end of every se
 - Then `node tools/mutate.mjs` on a fresh clone at `338df39`: all 494 caught in 24.9 minutes, and the tree unchanged.
 - Next: Appendices C and D, the glossary, the sources list, the quick-reference card and the front matter.
 
+## 2026-09-25: chapter 36, ten questions to ask in your first week
+
+- `.github/workflows/nightly.yml`: the mutation job stops at 90 minutes, not 30; full runs had reached 22 to 29 minutes locally, and the job has never been timed on GitHub's runners.
+- `tools/mutate.test.mjs`: a test fails when no nightly job runs the whole list, or when its timeout is under 5 minutes plus 7 seconds an entry.
+- `postings/skills-map.json`: chapter 36 in Part IX, with its likely question.
+- 2 new mutation entries (481), both applied and caught on the working tree before commit.
+- Work list: `nightly-headroom` done, proved by `tools/mutate.test.mjs`.
+- Checked with: `node check.mjs` and `node tools/progress.mjs .`.
+- Not run: `--real`, for any command; nothing here calls a model. The nightly job itself.
+- Next: Appendices B to D, the glossary, the sources list, the quick-reference card and the front matter.
+
 ## 2026-09-25: chapter 35, ten guardrails worth adding first
 
 - `tools/mutate.mjs --only PREFIX`: runs only the mutation entries whose name starts with the prefix, any number of times; a prefix that selects nothing refuses the run (exit 1) and lists the groups.

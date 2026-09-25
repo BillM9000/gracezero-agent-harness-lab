@@ -121,6 +121,7 @@
 - **`python -m helpdesk.judge check`, the 22nd check:** the rubrics load, every reply is labeled pass or fail on every criterion, every criterion has a pass and a fail, every reply's citations hold, every scripted verdict names a labeled reply, every one of 12 malformed answers is refused, and the counts tell a judge that copies the labels from one that passes everything.
 - The mock plays `python/evals/judge-mock.json`: the person's label, except where the lab scripted a false pass, a false fail, an unknown and a malformed answer. Its numbers test the machinery, never a model. `--real` is billed and hasn't run.
 - `tests/test_judge.py` (49), and `tests/test_agent_policy.py`'s command test now expects four definitions: 469 Python tests. 26 new entries in `tools/mutations.mjs` (289), each applied and caught before commit. `AGENTS.md`: three lines shortened, then the judges added; 3,992 of its 4,000 estimated tokens. The README says what chapter 22 added.
+- `node tools/mutate.mjs` on the committed tree at `5c6e5e0`: 289 of 289 caught in 14.6 minutes, and the tree unchanged. Then one scripted reason in `judge-mock.json` reworded to match its draft (the second draft thanks and apologizes once; it said "apologizes twice").
 
 ## 2026-09-24, chapter 21 lab
 

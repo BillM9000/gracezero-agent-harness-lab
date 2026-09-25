@@ -31,7 +31,7 @@
     ],
     "verdicts": [
       {"tone": {"verdict": "fail", "reason": "It opens with no greeting and reads as curt."}},
-      {"next-step": {"verdict": "fail", "reason": "It apologizes twice and never says what Ben should do or expect."}},
+      {"next-step": {"verdict": "fail", "reason": "It thanks him and apologizes, and never says what Ben should do or expect."}},
       {"tone": {"verdict": "fail", "reason": "The apology is too brief for a billing mistake.", "quote": "sorry for the confusion"}}
     ]
   },

@@ -14,6 +14,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Work list: `central-ai-team` done, proved by `tests/test_readiness.py`; `rollout-to-teams` (chapter 29) added.
 - Checked with: `node check.mjs` (all 25 checks passed) and `node tools/progress.mjs .`.
 - Not run: `--real`, for any command; nothing here calls a model. The customer digest stays "building" because the lab's promotion covers only the triage assistant.
+- Then `node tools/mutate.mjs` on the committed tree at `9e4fbb5`: all 418 caught in 19.3 minutes, and the tree unchanged.
 - Next: `rollout-to-teams` (chapter 29).
 
 ## 2026-09-25: chapter 27, gateways, cost and model routing

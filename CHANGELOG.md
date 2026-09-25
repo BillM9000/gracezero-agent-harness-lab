@@ -184,6 +184,7 @@
 - **`python -m helpdesk.readiness`** (a composition root): `check`, the lab's 25th check, reviews every use case, shows each item as ok or left, and fails on a malformed record or a use case in production that isn't ready; `triage FILE` prints the score, the tier, the path, the items before production and what the library lacks; `fingerprint FILE` prints what a reviewer signs off.
 - `tests/test_readiness.py` (30): 598 Python tests. 21 new entries in `tools/mutations.mjs` (418), all applied and caught on the working tree before commit. `AGENTS.md` trimmed first (nine lines shortened), then the folder and the command added: 3,994 of its 4,000 estimated tokens. The README says what chapter 28 added. Work list: `central-ai-team` done; `rollout-to-teams` (chapter 29) added.
 - Not run: any real model; nothing here calls one.
+- `node tools/mutate.mjs` on the committed tree at `9e4fbb5`: 418 of 418 caught in 19.3 minutes, and the tree unchanged.
 
 ## 2026-09-25, chapter 27 lab
 

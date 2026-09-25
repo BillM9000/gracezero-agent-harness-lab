@@ -11,7 +11,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - `helpdesk/model/calls.py` and `python -m helpdesk.calls`: a record of every model call, however it ended, with a fingerprint of the system prompt and tools, never the conversation. `python -m helpdesk.gate run --record FILE` writes one.
 - `tools/fix-loop.mjs --record FILE`: what each attempt did about a failed check. The loop now stops an attempt that silences a rule (`tools/silenced.mjs`); `tools/stand-in-agent.mjs --silence` shows it.
 - `tools/measure.mjs`: rework, reverts, silenced rules, drift fixes and known failures from git history; the fix loop's record, CI runs, pull requests and spend from `records/`; `--save` and `--against` a baseline, with an interval for the change in a rate. `tools/measure-demo.mjs` builds a history to try it on.
-- 13 new Python tests (524); 22 new script tests (127); 33 new mutations (353) and two updated, all 35 applied and caught on the working tree before commit.
+- 13 new Python tests (524); 23 new script tests (128); 33 new mutations (353) and two updated, all 35 applied and caught on the working tree before commit.
 - Work list: `measure-harness` done, proved by `tools/measure.test.mjs`; `model-gateway` (chapter 27) added.
 - Checked with: `node check.mjs` (all 23 checks passed) and `node tools/progress.mjs .`.
 - Not run: `--real`, for any command. A record of a real model's calls (its own token counts, refusals and errors) waits for the paid gate run: `python -m helpdesk.gate run --real --max-usd 15 --promote --record ../records/calls.jsonl`. `gh run list` and `gh pr list` against a real repository: the lab has no remote, so the demo writes their shape.

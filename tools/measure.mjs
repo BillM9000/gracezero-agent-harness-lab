@@ -31,7 +31,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isAgent, isFix, readHistory, rework } from "./rework.mjs";
-import { addedLines, silenced } from "./silenced.mjs";
+import { addedLines, SILENCED, silenced } from "./silenced.mjs";
 
 const DAY = 24 * 60 * 60;
 const MARKDOWN = /\.md$/i;
@@ -204,6 +204,17 @@ export function describe(name, c) {
   return `${name}: ${way} ${Math.abs(Math.round(100 * c.d))} points (95% interval ${points(c.low)} to ${points(c.high)}): ${verdict}.`;
 }
 
+// A long line, cut to fit, keeping what made it count: the file, and the text from just before
+// the match.
+export function clip(text, width = 96) {
+  let line = text.replace(/\s{3,}/g, "  "); // a comment aligned far to the right
+  if (line.length <= width) return line;
+  const start = line.indexOf(": ") + 2;
+  const at = line.slice(start).search(SILENCED);
+  if (at > 24) line = `${line.slice(0, start)}...${line.slice(start + at - 20)}`;
+  return line.length > width ? `${line.slice(0, width - 3)}...` : line;
+}
+
 // The rows of the table: a label, and what to print for a measure (null when not measured).
 function rows(m, where) {
   const missing = (name) => `not measured: no ${where}/${name}`;
@@ -257,10 +268,6 @@ export function report({ result: m, silencedLines }, where, baseline = null) {
   }
   if (silencedLines.length) {
     lines.push("", "Lines that silence a rule, as counted (read them before you believe the count):");
-    const clip = (text) => {
-      const line = text.replace(/\s{3,}/g, "  "); // a comment aligned far to the right
-      return line.length > 96 ? `${line.slice(0, 93)}...` : line;
-    };
     for (const line of silencedLines.slice(0, 8)) lines.push(`  ${clip(line)}`);
     if (silencedLines.length > 8) lines.push(`  and ${silencedLines.length - 8} more`);
   }

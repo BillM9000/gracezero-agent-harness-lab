@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
-import { change, ciMeasures, describe, loopMeasures, main, measure, reviewMeasures, spendMeasures } from "./measure.mjs";
+import { change, ciMeasures, clip, describe, loopMeasures, main, measure, reviewMeasures, spendMeasures } from "./measure.mjs";
 
 const made = [];
 after(() => {
@@ -201,4 +201,12 @@ test("a records folder is optional, and says what wasn't measured", () => {
   mkdirSync(join(root, "records"));
   writeFileSync(join(root, "records", "fix-loop.jsonl"), `${JSON.stringify({ outcome: "fixed", failing: ["x"] })}\n`);
   assert.match(main([root]), /violations sent back to an agent +1\n {2}its next change fixed the code +1/);
+});
+
+test("a long line is cut to fit, keeping the file and what made it count", () => {
+  const long = `src/a.py: ${"x".repeat(120)}  # noqa: F401`;
+  const cut = clip(long);
+  assert.ok(cut.length <= 96, cut);
+  assert.match(cut, /^src\/a\.py: \.\.\..*# noqa: F401$/);
+  assert.equal(clip("src/b.py: import os  # noqa: F401"), "src/b.py: import os  # noqa: F401");
 });

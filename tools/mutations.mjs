@@ -1,9 +1,9 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 22, 24, 25
-// and 30 are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and
-// chapter 1's tally's check for missing fields; the guards from earlier chapters were broken by
-// hand when they were built (CHANGELOG.md records each time) and are the next candidates to add.
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 25 and 31
+// are here, the script tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter
+// 1's tally's check for missing fields; the guards from earlier chapters were broken by hand when
+// they were built (CHANGELOG.md records each time) and are the next candidates to add.
 
 const pytest = (...tests) => ({ cwd: "python", python: ["-m", "pytest", "-q", "-p", "no:cacheprovider", ...tests] });
 const vitest = (file, name) => ({ cwd: "ts", vitest: [file, "-t", name] });
@@ -70,6 +70,10 @@ const evalsTest = (name) => pytest(`tests/test_evals.py::${name}`);
 const JUDGING = "python/src/helpdesk/assistant/judging.py";
 const JUDGE = "python/src/helpdesk/judge.py";
 const judgeTest = (name) => pytest(`tests/test_judge.py::${name}`);
+const GATING = "python/src/helpdesk/assistant/gating.py";
+const GATE = "python/src/helpdesk/gate.py";
+const BUDGET = "python/src/helpdesk/model/budget.py";
+const gateTest = (name) => pytest(`tests/test_gate.py::${name}`);
 const PROTECTED_MJS = "tools/protected.mjs";
 const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
@@ -2773,6 +2777,217 @@ export const MUTATIONS = [
     find: 'model = "claude-opus-5-5"',
     replace: 'model = "claude-sonnet-5"',
     run: judgeTest("test_the_same_model_judge_uses_the_drafters_model"),
+  },
+  // Chapter 23: evaluations as a gate, and the cap on what a billed run may spend.
+  {
+    guard: "gate: a regression case fails at the fewest failures rarer than the false alarm",
+    file: GATING,
+    find: "        if chance_of_at_least(failures, trials, 1 - expected) <= false_alarm:",
+    replace: "        if True:",
+    run: gateTest("test_the_fewest_failures_that_fail_a_case_is_the_first_count_rarer_than_the_false_alarm"),
+  },
+  {
+    guard: "gate: a case that passed every trial at promotion fails at the threshold",
+    file: GATING,
+    find: "        if fails_at is not None and failed >= fails_at:",
+    replace: "        if False:",
+    run: gateTest("test_a_regression_case_fails_at_the_threshold_and_not_below"),
+  },
+  {
+    guard: "gate: the red-team suite allows no failed trial",
+    file: GATING,
+    find: '                verdict.failures.append(f"{case}: failed {failed} of {trials}; this suite allows no failure")',
+    replace: "                pass",
+    run: gateTest("test_a_suite_that_allows_no_failure_fails_on_one_failed_trial"),
+  },
+  {
+    guard: "gate: a case that failed at promotion doesn't gate",
+    file: GATING,
+    find: "        if was_passed < was_trials:",
+    replace: "        if False:",
+    run: gateTest("test_a_case_that_failed_at_promotion_doesnt_gate"),
+  },
+  {
+    guard: "gate: a drop spread over the cases fails the paired interval",
+    file: GATING,
+    find: "        if change.beyond_noise:",
+    replace: "        if False:",
+    run: gateTest("test_a_small_drop_spread_over_many_cases_is_more_than_noise_and_one_slip_isnt"),
+  },
+  {
+    guard: "gate: the paired interval's standard error comes from the spread of the changes",
+    file: GATING,
+    find: "    error = sqrt(spread / len(diffs))",
+    replace: "    error = 0.0",
+    run: gateTest("test_a_small_drop_spread_over_many_cases_is_more_than_noise_and_one_slip_isnt"),
+  },
+  {
+    guard: "gate: only an interval wholly below zero is more than noise",
+    file: GATING,
+    find: "        return self.high < 0",
+    replace: "        return self.mean < 0",
+    run: gateTest("test_a_small_drop_spread_over_many_cases_is_more_than_noise_and_one_slip_isnt"),
+  },
+  {
+    guard: "gate: the paired interval isn't used on a suite with few cases",
+    file: GATING,
+    find: "    if suite not in rule.every_trial and len(common) >= rule.paired_min_cases:",
+    replace: "    if suite not in rule.every_trial and len(common) >= 2:",
+    run: gateTest("test_the_paired_interval_isnt_used_on_a_suite_with_few_cases"),
+  },
+  {
+    guard: "gate: a false pass the judge holds, new since promotion, fails",
+    file: GATING,
+    find: "        if before is None:",
+    replace: "        if True:",
+    run: gateTest("test_a_new_held_false_pass_fails_the_judge_and_an_old_one_doesnt"),
+  },
+  {
+    guard: "gate: with no record, the judge's run is the baseline",
+    file: GATING,
+    find: "        if before is None:",
+    replace: "        if False:",
+    run: gateTest("test_with_no_record_the_run_is_the_baseline"),
+  },
+  {
+    guard: "gate: a false pass counts as held only in most trials",
+    file: GATING,
+    find: "if count * 2 > trials}",
+    replace: "if count * 2 > trials * 2}",
+    run: gateTest("test_a_false_pass_the_judge_holds_counts_only_in_most_trials"),
+  },
+  {
+    guard: "gate: a judge no better than a rubber stamp fails",
+    file: GATING,
+    find: "    if agree <= rubber_stamp:",
+    replace: "    if False:",
+    run: gateTest("test_a_judge_no_better_than_a_rubber_stamp_fails"),
+  },
+  {
+    guard: "budget: a call that could pass the cap isn't made",
+    file: BUDGET,
+    find: "        if self.cap is not None and self.spent.usd + worst > self.cap:",
+    replace: "        if False:",
+    run: gateTest("test_a_budget_refuses_a_call_that_could_pass_the_cap_before_making_it"),
+  },
+  {
+    guard: "budget: the cap is checked before the call, not after",
+    file: BUDGET,
+    find: "        self.budget.check(price(self.model, sent, self.max_tokens))\n        response = self.inner.complete(system=system, messages=messages, tools=tools)",
+    replace: "        response = self.inner.complete(system=system, messages=messages, tools=tools)\n        self.budget.check(price(self.model, sent, self.max_tokens))",
+    run: gateTest("test_a_budget_refuses_a_call_that_could_pass_the_cap_before_making_it"),
+  },
+  {
+    guard: "budget: it counts the tokens the provider reports",
+    file: BUDGET,
+    find: "        if response.usage is not None:",
+    replace: "        if False:",
+    run: gateTest("test_a_budget_counts_what_the_provider_says_was_used"),
+  },
+  {
+    guard: "adapter: it passes on the usage the provider reports",
+    file: ADAPTER,
+    find: "            usage=Usage(used.input_tokens, used.output_tokens) if used is not None else None,",
+    replace: "            usage=None,",
+    run: gateTest("test_the_adapter_passes_on_the_usage_the_provider_reports"),
+  },
+  {
+    guard: "evals: a billed run needs a cap before any client is built",
+    file: EVALS,
+    find: "    if args.real and args.max_usd is None:",
+    replace: "    if False:",
+    run: gateTest("test_a_billed_golden_set_run_needs_a_cap_before_any_client_is_built"),
+  },
+  {
+    guard: "judge: a billed run needs a cap before any client is built",
+    file: JUDGE,
+    find: "    budget = evals.cap_from(parser, args)",
+    replace: "    budget = None",
+    run: gateTest("test_a_billed_judge_run_needs_a_cap_before_any_client_is_built"),
+  },
+  {
+    guard: "gate: a billed run needs a cap",
+    file: GATE,
+    find: "    if args.real and args.max_usd is None:",
+    replace: "    if False:",
+    run: gateTest("test_a_billed_gate_run_needs_a_cap"),
+  },
+  {
+    guard: "gate: it refuses to start when the estimate doesn't fit under the cap",
+    file: GATE,
+    find: "        if need > max_usd:",
+    replace: "        if False:",
+    run: gateTest("test_the_gate_refuses_to_start_when_the_estimate_doesnt_fit_the_cap"),
+  },
+  {
+    guard: "gate: a run the cap stopped fails",
+    file: GATE,
+    find: "        print(\"A gate that didn't finish fails, and nothing is promoted.\")\n        return 1",
+    replace: "        print(\"A gate that didn't finish fails, and nothing is promoted.\")\n        return 0",
+    run: gateTest("test_a_gate_the_cap_stops_fails_and_promotes_nothing"),
+  },
+  {
+    guard: "gate: a failing gate promotes nothing",
+    file: GATE,
+    find: "        print(\"The gate fails: this change doesn't ship until the failures above are explained or fixed.\")\n        return 1",
+    replace: "        print(\"The gate fails: this change doesn't ship until the failures above are explained or fixed.\")",
+    run: gateTest("test_a_failing_gate_promotes_nothing"),
+  },
+  {
+    guard: "gate check: a change since the promotion fails and is named",
+    file: GATE,
+    find: "        changed = sorted(name for name in now.keys() | was.keys() if now.get(name) != was.get(name))",
+    replace: "        changed = []",
+    run: gateTest("test_the_check_fails_and_names_what_changed_since_the_promotion"),
+  },
+  {
+    guard: "gate check: the system prompt is part of what a promotion records",
+    file: GATE,
+    find: "        \"agents/triage.toml: the assistant's model, limits, tools and system prompt\": triage,",
+    replace: "        \"agents/triage.toml: the assistant's model, limits, tools and system prompt\": {**triage, \"system\": \"\"},",
+    run: gateTest("test_a_changed_system_prompt_changes_what_the_record_is_checked_against"),
+  },
+  {
+    guard: "gate check: the tools as the model sees them are part of what a promotion records",
+    file: GATE,
+    find: "        \"the assistant's tools, as the model sees them\": tools,",
+    replace: "        \"the assistant's tools, as the model sees them\": [],",
+    run: gateTest("test_the_check_passes_on_the_repository"),
+  },
+  {
+    guard: "gate check: a mock's record fails when the rules require a real model",
+    file: GATE,
+    find: "        if on_mock and config.require_real:",
+    replace: "        if False:",
+    run: gateTest("test_a_record_measured_on_the_mock_fails_when_the_rules_require_a_real_model"),
+  },
+  {
+    guard: "gate: the mock can't promote when the rules require a real model",
+    file: GATE,
+    find: "    if promote and config.require_real and not real:",
+    replace: "    if False:",
+    run: gateTest("test_the_mock_may_not_promote_when_the_rules_require_a_real_model"),
+  },
+  {
+    guard: "gate check: a rule that could never fail a case is refused",
+    file: GATE,
+    find: "    if fails_at is None:",
+    replace: "    if False:",
+    run: gateTest("test_a_rule_that_could_never_fail_a_case_is_refused"),
+  },
+  {
+    guard: "gate rules: the red-team suite allows no failure",
+    file: "python/evals/gate.json",
+    find: '"every_trial": ["injections"],',
+    replace: '"every_trial": [],',
+    run: gateTest("test_the_rules_file_is_the_one_the_book_describes"),
+  },
+  {
+    guard: "gate rules: the false-alarm rate is the book's 1 in 100",
+    file: "python/evals/gate.json",
+    find: '"false_alarm": 0.01,',
+    replace: '"false_alarm": 0.05,',
+    run: gateTest("test_the_rules_file_is_the_one_the_book_describes"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

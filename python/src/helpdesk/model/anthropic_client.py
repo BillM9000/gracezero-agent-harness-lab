@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from helpdesk.model.types import Message, ModelResponse, ToolCall, ToolSpec
+from helpdesk.model.types import Message, ModelResponse, ToolCall, ToolSpec, Usage
 
 # The model Anthropic's models page suggested starting with on 2026-09-22.
 DEFAULT_MODEL = "claude-opus-5-5"
@@ -65,6 +65,7 @@ class AnthropicModel:
                 )
             request["tools"] = [tool_to_api(t) for t in tools]
         response = self._client.messages.create(**request)
+        used = getattr(response, "usage", None)
         return ModelResponse(
             stop_reason=response.stop_reason,
             text="".join(block.text for block in response.content if block.type == "text"),
@@ -74,6 +75,8 @@ class AnthropicModel:
                 if block.type == "tool_use"
             ),
             raw=response.content,
+            # What the provider counted, so a budget (chapter 23) adds up billed tokens, not guesses.
+            usage=Usage(used.input_tokens, used.output_tokens) if used is not None else None,
         )
 
 

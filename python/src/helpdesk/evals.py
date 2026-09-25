@@ -15,8 +15,8 @@ python -m helpdesk.evals team                    Sam's batch by one agent and by
 
 --trials sets how many times each task runs, and --k which pass@k and pass^k to report. --real
 calls Anthropic's API instead of the mock, with the model in each agent's definition, and needs a
-credential the SDK can find: every trial is a billed run. Without --real, nothing here calls a
-model, and each run works in a fresh copy of the sample helpdesk.
+credential the SDK can find and a cap, --max-usd (chapter 23): every trial is a billed run. Without
+--real, nothing here calls a model, and each run works in a fresh copy of the sample helpdesk.
 
 The mock only knows the scripts in the golden sets. It plays a task's reference solution, or with
 --vary SEED, the reference 7 trials in 10 and one of the task's scripted mistakes otherwise, drawn
@@ -66,6 +66,7 @@ from helpdesk.assistant.tools import Toolbox
 from helpdesk.data.db import connect, init_schema
 from helpdesk.data.seed import seed
 from helpdesk.kb import CHARS_PER_TOKEN
+from helpdesk.model.budget import Budget, BudgetReached
 from helpdesk.model.mock import MockCall, MockModel
 from helpdesk.model.stops import IncompleteResponse
 from helpdesk.model.types import Message, ModelClient, ModelResponse, ToolCall, ToolSpec
@@ -100,12 +101,16 @@ class Recorded:
         return self.inner.complete(system=system, messages=messages, tools=tools)
 
 
-def real_model(definition: Mapping[str, Any], client: Any = None) -> ModelClient:
+def real_model(
+    definition: Mapping[str, Any], client: Any = None, budget: Budget | None = None
+) -> ModelClient:
     """The definition's model on Anthropic's API. Tests pass a fake client; without one, the SDK
-    looks for a credential, and every call is billed."""
+    looks for a credential, and every call is billed. A budget counts every call and refuses one
+    that could take the command past its cap (chapter 23)."""
     from helpdesk.model.anthropic_client import AnthropicModel
 
-    return AnthropicModel(client, model=definition["model"], max_tokens=definition["max_tokens"])
+    model = AnthropicModel(client, model=definition["model"], max_tokens=definition["max_tokens"])
+    return model if budget is None else budget.wrap(model, definition["model"], definition["max_tokens"])
 
 
 # Picks the script a trial's mock plays: the reference, or one of the mistakes.
@@ -443,8 +448,10 @@ def mock_choice(pick: Picker) -> Callable[[Prepared], ModelClient]:
     return choose
 
 
-def real_choice(definition: Mapping[str, Any]) -> Callable[[Prepared], ModelClient]:
-    model = real_model(definition)
+def real_choice(
+    definition: Mapping[str, Any], budget: Budget | None = None
+) -> Callable[[Prepared], ModelClient]:
+    model = real_model(definition, budget=budget)
     return lambda prepared: model
 
 
@@ -696,12 +703,12 @@ def scripted_team() -> dict[str, Callable[[str], ModelClient]]:
     }
 
 
-def real_team(client: Any = None) -> dict[str, Callable[[str], ModelClient]]:
+def real_team(client: Any = None, budget: Budget | None = None) -> dict[str, Callable[[str], ModelClient]]:
     orchestrator, worker, _ = patterns.definitions()
     return {
-        "one agent": lambda _: real_model(worker, client),
-        "orchestrator": lambda _: real_model(orchestrator, client),
-        "worker": lambda _: real_model(worker, client),
+        "one agent": lambda _: real_model(worker, client, budget),
+        "orchestrator": lambda _: real_model(orchestrator, client, budget),
+        "worker": lambda _: real_model(worker, client, budget),
     }
 
 
@@ -809,6 +816,7 @@ def main(argv: list[str] | None = None) -> int:
         command.add_argument(
             "--real", action="store_true", help="call Anthropic's API; every trial is billed"
         )
+        add_cap(command)
         if name != "team":
             command.add_argument("--k", type=int, default=K, help=f"the k in pass@k and pass^k (default {K})")
             command.add_argument(
@@ -820,6 +828,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "check":
         return check_suites()
+    budget = cap_from(parser, args)
     if args.trials < 1:
         parser.error("--trials must be 1 or more")
     if getattr(args, "vary", None) is not None and args.real:
@@ -827,22 +836,59 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run" and args.suite != "tasks" and args.which != "triage":
         parser.error("only evals/tasks.json has references for the narrow set")
     if args.real:
-        print("Calling Anthropic's API: every trial below is a billed run.\n")
-    if args.command == "team":
-        line = model_line(args.real, None, patterns.definitions()[1])
-        if not args.real:
-            line = "Model: the mock, playing chapter 14's scripts, so every trial is the same."
-        return run_team_compare(args.trials, real_team if args.real else scripted_team, line)
-    definition = triage_definition()
-    choose = (
-        real_choice(definition)
-        if args.real
-        else mock_choice(reference_only if args.vary is None else stand_in(args.vary))
+        print(f"Calling Anthropic's API: every trial below is billed, capped at ${args.max_usd:.2f}.\n")
+    try:
+        if args.command == "team":
+            line = model_line(args.real, None, patterns.definitions()[1])
+            if not args.real:
+                line = "Model: the mock, playing chapter 14's scripts, so every trial is the same."
+            models = (lambda: real_team(budget=budget)) if args.real else scripted_team
+            return run_team_compare(args.trials, models, line)
+        definition = triage_definition()
+        choose = (
+            real_choice(definition, budget)
+            if args.real
+            else mock_choice(reference_only if args.vary is None else stand_in(args.vary))
+        )
+        line = model_line(args.real, args.vary, definition)
+        if args.command == "compare":
+            return run_compare(args.trials, args.k, choose, line)
+        return run_suite(args.suite, args.which, args.trials, args.k, choose, line)
+    except BudgetReached as stop:
+        return stopped_at_cap(stop)
+
+
+# --- The cap every billed command takes (chapter 23).
+
+
+def add_cap(command: argparse.ArgumentParser) -> None:
+    command.add_argument(
+        "--max-usd",
+        type=float,
+        metavar="DOLLARS",
+        help="with --real, the most the command may spend; it stops before a call that could pass it",
     )
-    line = model_line(args.real, args.vary, definition)
-    if args.command == "compare":
-        return run_compare(args.trials, args.k, choose, line)
-    return run_suite(args.suite, args.which, args.trials, args.k, choose, line)
+
+
+def cap_from(parser: argparse.ArgumentParser, args: argparse.Namespace) -> Budget | None:
+    """A billed run needs a cap, and a cap only means something on a billed run. Checked before any
+    client is built, so a run without a cap never reaches the API."""
+    if args.real and args.max_usd is None:
+        parser.error(
+            "--real is billed, so it needs a cap: add --max-usd DOLLARS. python -m helpdesk.gate "
+            "estimate shows what the gate's run would cost."
+        )
+    if args.max_usd is not None and not args.real:
+        parser.error("--max-usd caps a billed run: use it with --real, or leave it out on the mock")
+    if args.max_usd is not None and args.max_usd <= 0:
+        parser.error("--max-usd must be more than 0")
+    return Budget(args.max_usd, CHARS_PER_TOKEN) if args.real else None
+
+
+def stopped_at_cap(stop: BudgetReached) -> int:
+    print(f"\nThe cap stopped the run: {stop}")
+    print("The results so far are incomplete, so none are reported.")
+    return 1
 
 
 if __name__ == "__main__":

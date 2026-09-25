@@ -51,9 +51,9 @@ DEFINITION = {"system": "You grade one piece of writing."}
 def no_real_client(monkeypatch):
     real = evals.real_model
 
-    def only_with_a_fake(definition: Any, client: Any = None) -> Any:
+    def only_with_a_fake(definition: Any, client: Any = None, budget: Any = None) -> Any:
         assert client is not None, "a test tried to build the real model client without a fake"
-        return real(definition, client)
+        return real(definition, client, budget)
 
     monkeypatch.setattr(evals, "real_model", only_with_a_fake)
 

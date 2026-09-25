@@ -11,9 +11,12 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 
-# US dollars per million tokens (input, output), from Anthropic's models overview, read 2026-09-22.
-# Prices change: check the pricing page before relying on them. Caching (chapter 27) lowers the
-# price of resent input; it does not stop it being sent.
+# US dollars per million tokens (input, output), from each provider's pricing page, read on the day
+# PROVIDERS gives: Anthropic's models overview on 2026-09-22, checked against its pricing page on
+# 2026-09-25, and OpenAI's pricing page on 2026-10-01 (its standard tier's short-context rates).
+# Prices change: read the page again before relying on them, and change them here (agents/policy.toml's
+# output prices must match; a test checks). Caching (chapter 27) lowers the price of resent input; it
+# does not stop it being sent.
 PRICES = {
     "claude-fable-5-1": (10.0, 50.0),
     "claude-opus-5-5": (4.0, 20.0),

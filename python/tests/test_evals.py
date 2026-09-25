@@ -39,9 +39,9 @@ PASSAGE = (
 def no_real_client(monkeypatch):
     real = evals.real_model
 
-    def only_with_a_fake(definition: Any, client: Any = None) -> Any:
+    def only_with_a_fake(definition: Any, client: Any = None, budget: Any = None) -> Any:
         assert client is not None, "a test tried to build the real model client without a fake"
-        return real(definition, client)
+        return real(definition, client, budget)
 
     monkeypatch.setattr(evals, "real_model", only_with_a_fake)
 
@@ -332,7 +332,7 @@ def test_a_team_run_with_a_worker_cut_off_fails(monkeypatch):
 
 def test_vary_and_real_together_are_refused():
     with pytest.raises(SystemExit):
-        evals.main(["run", "--vary", "1", "--real"])
+        evals.main(["run", "--vary", "1", "--real", "--max-usd", "1"])
 
 
 def test_the_real_path_sends_the_definitions_model(capsys):

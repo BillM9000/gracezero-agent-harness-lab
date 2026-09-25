@@ -19,7 +19,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
 | `python/agents/` | Agent definitions, the platform's policy for them and the models' retirement dates (`models.toml`), checked by `python/src/agent_policy/` (chapters 18, 20). |
 | `python/catalog/` | Approved MCP servers and their rules' data, checked by `python/src/mcp_governance/`, also home of the HTTP server's token checks and audit log (chapter 13). |
-| `python/src/helpdesk/main.py`, `triage.py`, `kb.py`, `tools.py`, `mcp_server.py`, `patterns.py`, `approvals.py`, `injections.py`, `evals.py`, `judge.py` | Composition roots: the web service and the commands below. |
+| The modules directly in `python/src/helpdesk/` | Composition roots: the web service (`main.py`) and the commands below. |
 | `python/tests/` | Tests. `tests/guardrails/` proves each guardrail catches what it claims to; `tests/fitness/` checks properties of the code as a whole (chapter 15). |
 | `contracts/openapi.json` | The API contract, generated from the Python models by `python -m helpdesk.contract`. |
 | `ts/` | TypeScript client and command-line tool for the API. `src/api-types.ts` is generated from the contract. Import rules: `eslint.config.js` and `.dependency-cruiser.cjs`. |
@@ -28,7 +28,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | `tools/` | Scripts the chapters build; each that checks something has a test beside it. See Scripts below. |
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
 | `progress/` | The work list (`features.json`) and the session log (`log.md`). See Starting a session below. |
-| `.github/workflows/` | CI: `ci.yml` (every check), `docs.yml` (Markdown-only changes), `nightly.yml` (`node tools/mutate.mjs`, chapter 24). |
+| `.github/workflows/` | CI: `ci.yml` (every check), `docs.yml` (Markdown-only changes), `nightly.yml` (`node tools/mutate.mjs`, chapter 24; retirement dates, 23). |
 | `.claude/settings.json` | Claude Code's settings: deny rules, a guard before shell commands and a Stop hook, both in `tools/hooks/` (chapters 19 and 25). |
 
 ## Starting a session
@@ -43,7 +43,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (`python/.venv`, the pinned packages, `npm ci`)
-- Check: `node check.mjs` (all <!-- claim: checks -->22 checks; CI runs the same command). Model retirement dates are checked as of the latest `read` in `python/agents/models.toml`; `AGENT_POLICY_TODAY=YYYY-MM-DD` sets another.
+- Check: `node check.mjs` (all <!-- claim: checks -->23 checks; CI runs the same command). Model retirement dates are checked as of the latest `read` in `python/agents/models.toml`; `AGENT_POLICY_TODAY=YYYY-MM-DD` sets another.
 - Check quickly: `node check.mjs --fast` (no test suites; the full run counts)
 - After changing a pin: `node tools/lockfiles.mjs hashes`, `node setup.mjs`, then `node tools/install-paths.mjs`.
 - After changing a request or response model: `node tools/regenerate.mjs`, then fix what `node check.mjs` reports.
@@ -57,7 +57,7 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Run: `uvicorn --factory helpdesk.main:create_default_app` (`HELPDESK_DB` sets the database file)
 - The triage assistant: `python -m helpdesk.triage` (the mock, scripted); `--real "..."` calls Anthropic's API
 - Red team: `python -m helpdesk.injections run`, and `flag "text"`
-- Golden sets and judges: `python -m helpdesk.evals check` and `python -m helpdesk.judge check`; `--help` lists the rest (`--real` is billed)
+- Golden sets, judges and the promotion gate: `python -m helpdesk.evals`, `helpdesk.judge` and `helpdesk.gate`, each with `check`; `--help` lists the rest (`--real` is billed and needs `--max-usd`)
 - Knowledge base: `python -m helpdesk.kb eval` checks retrieval against `python/evals/kb_questions.json`; also `query`, `cite`, `chunks`, `size`
 - Tools: `python -m helpdesk.tools list`, `schema`, `call` and `compare`
 - Patterns: `python -m helpdesk.patterns revise`, `batch` and `compare`

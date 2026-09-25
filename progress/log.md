@@ -6,6 +6,17 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
 
+## 2026-09-25: chapter 23, evaluations as a gate
+
+- `helpdesk/assistant/gating.py` (which differences are regressions and which are noise), `helpdesk/model/budget.py` (the cap) and `helpdesk/gate.py` (`check`, `estimate`, `run`, `run --promote`); `python/evals/gate.json` holds the rules' numbers and `python/evals/promoted.json` the record, promoted on the mock.
+- `python -m helpdesk.gate check` is the 23rd check. Every `--real` in `helpdesk.evals`, `helpdesk.judge` and `helpdesk.gate` now needs `--max-usd`, checked before any client is built.
+- `.github/workflows/nightly.yml` has a second job, `retirement`, that runs `python -m agent_policy`. Not run: the lab's CI never has.
+- 42 new Python tests (511 in all); 30 new mutations (320), each applied and caught before commit.
+- Work list: `evals-gate` done, proved by `tests/test_gate.py`; `measure-harness` (chapter 26) added.
+- Checked with: `node check.mjs` (all 23 checks passed) and `node tools/progress.mjs .`.
+- Not run: `--real`, for any command. Whether a real model passes the gate, and what a real run costs, wait for a paid run: `python -m helpdesk.gate run --real --max-usd 15 --promote`.
+- Next: `measure-harness` (chapter 26).
+
 ## 2026-09-24: chapter 22, model judges
 
 - `helpdesk/assistant/judging.py`: rubrics, one criterion a call in a fresh conversation, the writer's tool results as the judge's data, verdicts checked against a schema generated from `Verdict` (a malformed one, a refusal or a cut-off answer is an error, never a pass), agreement with a person's labels, the second slot, and the revise loop with a judge. `python -m helpdesk.judge` has `check`, `calibrate`, `compare`, `revise` and `doc`, all on the mock unless `--real`.

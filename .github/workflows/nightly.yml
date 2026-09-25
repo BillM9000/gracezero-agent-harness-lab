@@ -2,7 +2,8 @@ name: nightly
 
 # Breaks every guard in tools/mutations.mjs, one at a time, and requires a test to catch each
 # (chapter 24). It takes minutes rather than seconds, so it runs once a day and on request, not on
-# every push. It runs on the latest commit of the default branch.
+# every push. It runs on the latest commit of the default branch. A second job checks the agent
+# definitions against the models' retirement dates (chapter 23).
 on:
   schedule:
     # 04:17 UTC. GitHub's documentation says scheduled runs can be delayed, and some dropped, at busy
@@ -27,3 +28,24 @@ jobs:
           node-version: "24"
       - run: node setup.mjs
       - run: node tools/mutate.mjs
+
+  # A model's retirement date arrives without a commit (chapter 20), and a quiet repository runs no
+  # checks, so the policy that reads the calendar runs every night too. When it fails, the model
+  # swap it asks for is a change like any other: it ships through the promotion gate (chapter 23).
+  # A job of its own, so a failure here doesn't stop the mutation run, or the other way round.
+  retirement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HELPDESK_PYTHON: python
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: node setup.mjs
+      - run: .venv/bin/python -m agent_policy
+        working-directory: python

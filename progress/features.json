@@ -190,6 +190,12 @@
     {
       "id": "evals-gate",
       "description": "The golden sets and the judge gate a change: a regression suite in CI, a promotion gate, and what each run costs (chapter 23).",
+      "status": "done",
+      "proof": "python/tests/test_gate.py::test_the_check_fails_and_names_what_changed_since_the_promotion"
+    },
+    {
+      "id": "measure-harness",
+      "description": "The harness is measured against a baseline: rule violations, CI pass rate on agent changes, rework and reverts, cost per merged change and drift incidents, with the AI calls' tokens, cost and failures recorded (chapter 26).",
       "status": "todo",
       "proof": null
     }

@@ -71,11 +71,20 @@ class Message:
 
 
 @dataclass(frozen=True)
+class Usage:
+    """The tokens a provider says one call used. A mock has none; a budget then estimates them."""
+
+    input_tokens: int
+    output_tokens: int
+
+
+@dataclass(frozen=True)
 class ModelResponse:
     stop_reason: StopReason
     text: str = ""
     tool_calls: tuple[ToolCall, ...] = ()
     raw: Any = None
+    usage: Usage | None = None
 
 
 class ModelClient(Protocol):

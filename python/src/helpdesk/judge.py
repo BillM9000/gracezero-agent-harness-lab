@@ -12,9 +12,9 @@ python -m helpdesk.judge doc ../AGENTS.md          an instruction file against r
 
 --judge same uses agents/judge.toml, the triage assistant's own model in a fresh context; --judge
 second uses agents/judge-second.toml, another model. --real calls Anthropic's API with the model in
-the definition, and needs a credential the SDK can find: every call is billed, and the book hasn't
-run it. Without --real, nothing here calls a model: the mock plays evals/judge-mock.json, whose
-verdicts the lab chose, so its numbers test the machinery and never measure a model.
+the definition, and needs a credential the SDK can find and a cap, --max-usd (chapter 23): every
+call is billed. Without --real, nothing here calls a model: the mock plays evals/judge-mock.json,
+whose verdicts the lab chose, so its numbers test the machinery and never measure a model.
 """
 
 from __future__ import annotations
@@ -44,6 +44,7 @@ from helpdesk.assistant.judging import (
     second_slot,
 )
 from helpdesk.assistant.tools import triage_tools
+from helpdesk.model.budget import Budget, BudgetReached
 from helpdesk.model.mock import MockModel
 from helpdesk.model.stops import IncompleteResponse, final_text
 from helpdesk.model.types import ModelClient, ModelResponse, ToolCall
@@ -169,12 +170,16 @@ class Calibration:
         return sum(t[reply.id].of(criterion).outcome == reply.person[criterion] for t in self.trials)
 
 
-def calibrate(which: str, trials: int, real: bool, client: Any = None) -> Calibration:
+def calibrate(
+    which: str, trials: int, real: bool, client: Any = None, budget: Budget | None = None
+) -> Calibration:
+    """Judge every labeled reply `trials` times. A budget, when given, counts every call, the
+    mock's too, and caps the billed ones (chapter 23)."""
     rubric, replies = labeled()
     found = definition(which)
     counted = Counted()
     plays = scripts()["calibrate"][which]
-    shared = counted.wrap(evals.real_model(found, client)) if real else None
+    shared = counted.wrap(evals.real_model(found, client, budget)) if real else None
     results = []
     for _ in range(trials):
         by_reply = {}
@@ -185,7 +190,10 @@ def calibrate(which: str, trials: int, real: bool, client: Any = None) -> Calibr
                     return shared
                 label = plays_label(reply.person[criterion.id])
                 play = plays.get(reply.id, {}).get(criterion.id, label)
-                return counted.wrap(MockModel([scripted(criterion, play)]))
+                mock: ModelClient = MockModel([scripted(criterion, play)])
+                if budget is not None:
+                    mock = budget.wrap(mock, found["model"], found["max_tokens"])
+                return counted.wrap(mock)
 
             by_reply[reply.id] = judge(model_for, found, rubric, reply.reply, reply.given)
         results.append(by_reply)
@@ -243,9 +251,9 @@ def describe(which: str) -> str:
     return "the drafter's own model in a fresh context" if which == "same" else "a second model"
 
 
-def run_calibrate(which: str, trials: int, real: bool) -> int:
+def run_calibrate(which: str, trials: int, real: bool, budget: Budget | None = None) -> int:
     found = definition(which)
-    result = calibrate(which, trials, real)
+    result = calibrate(which, trials, real, budget=budget)
     labels = len(result.replies) * len(result.rubric.criteria)
     print(
         f"Labeled replies: evals/{LABELED.name}, {len(result.replies)} replies, "
@@ -275,8 +283,8 @@ def run_calibrate(which: str, trials: int, real: bool) -> int:
     return 0
 
 
-def run_compare(trials: int, real: bool) -> int:
-    results = {which: calibrate(which, trials, real) for which in JUDGES}
+def run_compare(trials: int, real: bool, budget: Budget | None = None) -> int:
+    results = {which: calibrate(which, trials, real, budget=budget) for which in JUDGES}
     first = results["same"]
     print(
         f"Labeled replies: evals/{LABELED.name}, {len(first.replies)} replies, "
@@ -334,15 +342,15 @@ def verdict_lines(judgments: tuple[Judgment, ...]) -> list[str]:
     return lines + [f"  {j.criterion}: {j.outcome}. {j.why}" for j in judgments if j.outcome != "pass"]
 
 
-def run_revise(which: str, max_rounds: int, real: bool) -> int:
+def run_revise(which: str, max_rounds: int, real: bool, budget: Budget | None = None) -> int:
     found = definition(which)
     triage = evals.triage_definition()
     rubric = load_rubric(RUBRICS / "reply.json")
     play = scripts()["revise"]
     drafter_count, judge_count = Counted(), Counted()
     if real:
-        drafter = drafter_count.wrap(evals.real_model(triage))
-        shared = judge_count.wrap(evals.real_model(found))
+        drafter = drafter_count.wrap(evals.real_model(triage, budget=budget))
+        shared = judge_count.wrap(evals.real_model(found, budget=budget))
 
         def judge_for(round_number: int, criterion: Criterion) -> ModelClient:
             return shared
@@ -403,13 +411,13 @@ def run_revise(which: str, max_rounds: int, real: bool) -> int:
 # --- A document.
 
 
-def run_doc(path: Path, which: str, real: bool) -> int:
+def run_doc(path: Path, which: str, real: bool, budget: Budget | None = None) -> int:
     found = definition(which)
     rubric = load_rubric(RUBRICS / "instructions.json")
     text = path.read_text(encoding="utf-8")
     counted = Counted()
     play = scripts()["doc"]
-    shared = counted.wrap(evals.real_model(found)) if real else None
+    shared = counted.wrap(evals.real_model(found, budget=budget)) if real else None
 
     def model_for(criterion: Criterion) -> ModelClient:
         if shared is not None:
@@ -595,6 +603,7 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("calibrate", "compare", "revise", "doc"):
         command = commands.add_parser(name)
         command.add_argument("--real", action="store_true", help="call Anthropic's API; every call is billed")
+        evals.add_cap(command)
         if name != "compare":
             command.add_argument("--judge", choices=list(JUDGES), default="same", help="which judge")
         if name in ("calibrate", "compare"):
@@ -608,19 +617,23 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "check":
         return check_all()
+    budget = evals.cap_from(parser, args)
     if getattr(args, "trials", 1) < 1:
         parser.error("--trials must be 1 or more")
     if getattr(args, "max_rounds", 1) < 1:
         parser.error("--max-rounds must be 1 or more")
     if args.real:
-        print("Calling Anthropic's API: every call below is a billed run.\n")
-    if args.command == "calibrate":
-        return run_calibrate(args.judge, args.trials, args.real)
-    if args.command == "compare":
-        return run_compare(args.trials, args.real)
-    if args.command == "revise":
-        return run_revise(args.judge, args.max_rounds, args.real)
-    return run_doc(args.path, args.judge, args.real)
+        print(f"Calling Anthropic's API: every call below is billed, capped at ${args.max_usd:.2f}.\n")
+    try:
+        if args.command == "calibrate":
+            return run_calibrate(args.judge, args.trials, args.real, budget)
+        if args.command == "compare":
+            return run_compare(args.trials, args.real, budget)
+        if args.command == "revise":
+            return run_revise(args.judge, args.max_rounds, args.real, budget)
+        return run_doc(args.path, args.judge, args.real, budget)
+    except BudgetReached as stop:
+        return evals.stopped_at_cap(stop)
 
 
 if __name__ == "__main__":

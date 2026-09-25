@@ -15,6 +15,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Work list: `templates` done, proved by `tools/templates.test.mjs`.
 - Checked with: `node check.mjs` and `node tools/progress.mjs .`.
 - Not run: `--real`, for any command; nothing here calls a model. The workflow templates on GitHub: the lab has no remote.
+- Then `node tools/mutate.mjs` on a fresh clone at `338df39`: all 494 caught in 24.9 minutes, and the tree unchanged.
 - Next: Appendices C and D, the glossary, the sources list, the quick-reference card and the front matter.
 
 ## 2026-09-25: chapter 29, rolling it out to teams

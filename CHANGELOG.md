@@ -237,6 +237,7 @@
 - **`node postings/skills.mjs FILE --type KIND --questions`** adds, after the path, each chapter's question under the signal it builds that most of the kind's postings ask for (the same rule the path uses to rank chapters, now one function, `topSignal`), most-asked first; the chapters that build no signal (1, 5, 32 and 33) under "Any kind of job"; and, in one line, the chapters whose signals none of these postings asks for (for infrastructure, 4, 6, 7, 8, 10, 24, 25 and 31). The output says the postings list requirements, not questions. The script refuses a map in which a numbered chapter has no question.
 - `postings/skills.test.mjs`: 5 new tests, 20 in all. 6 new entries in `tools/mutations.mjs` (468); all 20 skills entries applied and caught on the working tree before commit. The README says what chapter 33 added. `AGENTS.md` unchanged. Work list: `interview-questions` done.
 - Not run: any real model; nothing here calls one.
+- `node tools/mutate.mjs` on the committed tree at `7fdd287`: 468 of 468 caught in 26.3 minutes, and the tree unchanged.
 
 ## 2026-09-25, chapter 32 lab
 

@@ -33,6 +33,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Work list: `interview-questions` done, proved by `postings/skills.test.mjs`.
 - Checked with: `node check.mjs` (all 26 checks passed) and `node tools/progress.mjs .`.
 - Not run: `--real`, for any command; nothing here calls a model.
+- Then `node tools/mutate.mjs` on the committed tree at `7fdd287`: all 468 caught in 26.3 minutes, and the tree unchanged.
 - Next: chapters 34 to 36, the quick lists; the book's checker compares each chapter's question with this map, so a chapter that changes its question changes the map too.
 
 ## 2026-09-25: chapter 32, skills, learning path and portfolio

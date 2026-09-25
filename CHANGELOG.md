@@ -246,6 +246,7 @@
 - **Chapter 36 in the skills map:** Part IX gains chapter 36, with its likely question, building no signal, so `--questions` lists it under "Any kind of job".
 - `tools/mutate.test.mjs`: 1 new test (13); `postings/skills.test.mjs` updated (the rest of the path now ends with 36). 2 new entries in `tools/mutations.mjs` (481), one setting the job's timeout back to 30 and one narrowing its command to `--only "guard:"`, both applied and caught on the working tree before commit, and the file put back byte for byte; its header now says chapters 16 to 36. The README says what chapter 36 added. `AGENTS.md` unchanged. Work list: `nightly-headroom` done.
 - Not run: any real model; nothing here calls one. The nightly job itself, on any runner.
+- `node tools/mutate.mjs` on the committed tree at `1c2a632`: 481 of 481 caught in 22.8 minutes, and the tree unchanged.
 
 ## 2026-09-25, chapter 35 lab
 

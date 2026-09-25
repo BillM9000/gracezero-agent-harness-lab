@@ -34,6 +34,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Work list: `nightly-headroom` done, proved by `tools/mutate.test.mjs`.
 - Checked with: `node check.mjs` and `node tools/progress.mjs .`.
 - Not run: `--real`, for any command; nothing here calls a model. The nightly job itself.
+- Then `node tools/mutate.mjs` on the committed tree at `1c2a632`: all 481 caught in 22.8 minutes, and the tree unchanged.
 - Next: Appendices B to D, the glossary, the sources list, the quick-reference card and the front matter.
 
 ## 2026-09-25: chapter 35, ten guardrails worth adding first

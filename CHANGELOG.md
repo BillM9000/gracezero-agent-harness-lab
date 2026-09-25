@@ -244,6 +244,7 @@
 - **Chapter 34 in the skills map:** Part IX, Quick Lists, and chapter 34's entry with its likely question, building no signal, so `--questions` lists it under "Any kind of job".
 - `tools/fix-loop.test.mjs`: 6 new tests (20); `tools/measure.test.mjs`: 1 new test (15); `postings/skills.test.mjs` updated for Part IX (the made-up part in the bad-step test is now X, and the rest of the path ends with 34). 8 new entries in `tools/mutations.mjs`, and two updated whose text moved (the record call, now one field a line, and the measure entry for silenced rules and changed checks, found stale by the first run) (476); every fix loop, measure and skills entry (52) applied and caught on the working tree before commit. The README says what chapter 34 added. `AGENTS.md` unchanged. Work list: `reference-changes` done.
 - Not run: any real model; nothing here calls one. Whether a real coding agent in the loop rewrites a record rather than the code is for chapter 26's pending real run.
+- `node tools/mutate.mjs` on the committed tree at `1faaf1f`: 476 of 476 caught in 29.1 minutes, and the tree unchanged.
 
 ## 2026-09-25, chapter 33 lab
 

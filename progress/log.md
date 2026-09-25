@@ -34,6 +34,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Work list: `reference-changes` done, proved by `tools/fix-loop.test.mjs`.
 - Checked with: `node check.mjs` and `node tools/progress.mjs .`.
 - Not run: `--real`, for any command; nothing here calls a model.
+- Then `node tools/mutate.mjs` on the committed tree at `1faaf1f`: all 476 caught in 29.1 minutes, and the tree unchanged.
 - Next: chapters 35 and 36.
 
 ## 2026-09-25: chapter 33, interviewing for AI platform roles

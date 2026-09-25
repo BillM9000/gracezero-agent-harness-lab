@@ -15,6 +15,7 @@ What each working session did, newest first. Add an entry at the end of every se
 - Work list: `model-gateway` done, proved by `tests/fitness/test_one_door_to_the_provider.py`; `central-ai-team` (chapter 28) added.
 - Checked with: `node check.mjs` (all 24 checks passed) and `node tools/progress.mjs .`.
 - Not run: `--real`, for any command, so no real call has gone through the gateway. The first paid run of any `--real` command will write `records/gateway.jsonl`; `python -m helpdesk.gateway report ../records/gateway.jsonl` sums it up.
+- Then `node tools/mutate.mjs` on the committed tree at `48e1164`: all 397 caught in 18.7 minutes, and the tree unchanged.
 - Next: `central-ai-team` (chapter 28).
 
 ## 2026-09-25: chapter 26, measuring a harness

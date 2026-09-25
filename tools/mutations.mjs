@@ -3233,11 +3233,11 @@ export const MUTATIONS = [
     run: callsTest("test_a_call_the_cap_refuses_is_recorded_and_never_made"),
   },
   {
-    guard: "calls: the record holds a fingerprint of the request, never the request",
+    guard: "calls: the record holds a fingerprint of the prompt and tools, never the conversation",
     file: BUDGET,
-    find: "                    request=fingerprint(request),",
-    replace: "                    request=request,",
-    run: callsTest("test_the_record_holds_a_fingerprint_of_the_request_and_none_of_its_text"),
+    find: "        prompt = fingerprint(prompt_json(system, tools))",
+    replace: "        prompt = fingerprint(request_json(system, messages, tools))",
+    run: callsTest("test_the_record_holds_a_fingerprint_of_the_prompt_and_tools_and_none_of_the_conversation"),
   },
   {
     guard: "calls: the provider's token counts are marked as the provider's",

@@ -1,5 +1,5 @@
 """A record of every model call (chapter 26): one line a call, however it ended, with what it cost
-and a fingerprint of the request instead of the request.
+and a fingerprint of the prompt and tools instead of the conversation.
 
 Everything here runs the mock, or a fake client that raises.
 """
@@ -14,7 +14,7 @@ import pytest
 
 from helpdesk import calls as calls_command
 from helpdesk import gate
-from helpdesk.model.budget import Budget, BudgetReached, request_json
+from helpdesk.model.budget import Budget, BudgetReached, prompt_json
 from helpdesk.model.calls import OUTCOMES, CallLog, fingerprint, outcome_of, read, summary
 from helpdesk.model.mock import MockModel
 from helpdesk.model.types import Message, ModelResponse, Usage
@@ -93,13 +93,18 @@ def test_a_call_the_cap_refuses_is_recorded_and_never_made(tmp_path):
     assert inner.calls == []
 
 
-def test_the_record_holds_a_fingerprint_of_the_request_and_none_of_its_text(tmp_path):
+def test_the_record_holds_a_fingerprint_of_the_prompt_and_tools_and_none_of_the_conversation(tmp_path):
     budget, path = recording(tmp_path)
-    ask(budget.wrap(MockModel([ModelResponse("end_turn", "Done.")]), "claude-opus-5-5", 1000), CUSTOMER)
+    script = [ModelResponse("end_turn", "Done."), ModelResponse("end_turn", "Done.")]
+    model = budget.wrap(MockModel(script), "claude-opus-5-5", 1000)
+    ask(model, CUSTOMER)
+    ask(model, "A different customer, a different question")
     text = path.read_text(encoding="utf-8")
     assert "card number" not in text and "You help." not in text
-    sent = request_json("You help.", [Message("user", CUSTOMER)], ())
-    assert lines(path)[0]["request"] == fingerprint(sent)
+    first, second = lines(path)
+    # The same prompt and tools, whatever the conversation: one fingerprint, the prompt's own.
+    assert first["prompt"] == second["prompt"] == fingerprint(prompt_json("You help.", ()))
+    assert fingerprint(prompt_json("You help, warmly.", ())) != first["prompt"]
 
 
 def test_a_budget_without_a_log_records_nothing(tmp_path):
@@ -134,7 +139,7 @@ def test_a_gate_run_records_every_call_it_counts(tmp_path, capsys):
     assert gate.main(["run", "--suite", "reasons", "--record", str(path)]) == 0
     found = read(path)
     assert len(found) == 45 and {c.part for c in found} == {"reasons"}
-    assert f"Recorded 45 calls in {path}." in capsys.readouterr().out
+    assert f"Recorded 45 calls in {path.as_posix()}." in capsys.readouterr().out
 
 
 def test_the_command_sums_up_a_record(tmp_path, capsys):

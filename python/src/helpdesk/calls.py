@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as error:
             print(error)
             return 1
-    names = ", ".join(str(p) for p in args.files)
+    names = ", ".join(p.as_posix() for p in args.files)
     print(f"{names}: " + "\n".join(summary(calls, CHARS_PER_TOKEN)))
     return 0
 

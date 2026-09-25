@@ -560,7 +560,7 @@ def run_gate(
 
 def say_recorded(log: CallLog | None) -> None:
     if log is not None:
-        print(f"Recorded {log.written:,} calls in {log.path}.")
+        print(f"Recorded {log.written:,} calls in {log.path.as_posix()}.")
 
 
 def check(rules: Path | None = None, record_path: Path | None = None) -> int:

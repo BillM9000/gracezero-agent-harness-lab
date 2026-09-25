@@ -257,7 +257,10 @@ export function report({ result: m, silencedLines }, where, baseline = null) {
   }
   if (silencedLines.length) {
     lines.push("", "Lines that silence a rule, as counted (read them before you believe the count):");
-    const clip = (line) => (line.length > 96 ? `${line.slice(0, 93)}...` : line);
+    const clip = (text) => {
+      const line = text.replace(/\s{3,}/g, "  "); // a comment aligned far to the right
+      return line.length > 96 ? `${line.slice(0, 93)}...` : line;
+    };
     for (const line of silencedLines.slice(0, 8)) lines.push(`  ${clip(line)}`);
     if (silencedLines.length > 8) lines.push(`  and ${silencedLines.length - 8} more`);
   }

@@ -68,6 +68,12 @@ def request_json(system: str, messages: Sequence[Message], tools: Sequence[ToolS
     return as_json(request)
 
 
+def prompt_json(system: str, tools: Sequence[ToolSpec]) -> str:
+    """What the model is given before the conversation: the system prompt and the tools. No turn
+    reaches it, so it holds only plain data."""
+    return json.dumps({"system": system, "tools": [tool_to_api(t) for t in tools]}, ensure_ascii=False)
+
+
 def request_chars(system: str, messages: Sequence[Message], tools: Sequence[ToolSpec]) -> int:
     """Characters of one request (the same measure as helpdesk.patterns.request_size, which a test
     keeps equal)."""
@@ -151,7 +157,7 @@ class _Recorded:
     def complete(
         self, *, system: str, messages: Sequence[Message], tools: Sequence[ToolSpec] = ()
     ) -> ModelResponse:
-        request = request_json(system, messages, tools)
+        prompt = fingerprint(prompt_json(system, tools))
         at, started = now(), time.perf_counter()
 
         def write(outcome: str, stop: str | None, error: str | None, used: tuple[float, float, bool]) -> None:
@@ -171,7 +177,7 @@ class _Recorded:
                     tokens_from="provider" if reported else "estimate" if stop else "none",
                     usd=price(self.capped.model, used_in, used_out),
                     ms=round((time.perf_counter() - started) * 1000),
-                    request=fingerprint(request),
+                    prompt=prompt,
                 )
             )
 

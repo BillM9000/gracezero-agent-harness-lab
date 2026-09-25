@@ -2,15 +2,17 @@
 
 A cap (budget.py) decides whether a call may be made; this file remembers what each call was. One
 JSON line a call, appended as it happens: when, which command and part of it, which model, how it
-ended, the tokens and what they cost, how long it took, and a fingerprint of the request.
+ended, the tokens and what they cost, how long it took, and a fingerprint of the prompt.
 
 How a call ended is the part people leave out. A refusal and an answer cut off at max_tokens both
 arrive as successful responses, so a count of errors never sees them; here each is its own outcome,
 beside errors the client raised and calls the cap refused before they were made.
 
-The record keeps a fingerprint of the request, not the request: what the assistant sends includes
-what customers wrote, and an audit trail that copies it becomes one more place that data lives. The
-fingerprint proves which request a line describes, for anyone who still has the request.
+The record never holds the conversation: what the assistant sends includes what customers wrote,
+and an audit trail that copies it becomes one more place that data lives. It holds a fingerprint of
+what the model was given, the system prompt and the tool definitions, so every call made with the
+same prompt and tools shares it and a record splits cleanly at a prompt change. A hash of the whole
+request would differ on every call, group nothing, and be a step toward keeping the content.
 
 python -m helpdesk.gate run --record FILE writes a record; python -m helpdesk.calls FILE sums it up.
 """
@@ -38,9 +40,9 @@ def outcome_of(stop_reason: str) -> str:
     return "ok"
 
 
-def fingerprint(request: str) -> str:
-    """The first 16 hex digits of the request's SHA-256: enough to match a line to a request."""
-    return hashlib.sha256(request.encode("utf-8")).hexdigest()[:16]
+def fingerprint(text: str) -> str:
+    """The first 16 hex digits of the text's SHA-256: enough to tell one prompt from another."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 @dataclass(frozen=True)
@@ -58,7 +60,7 @@ class Call:
     tokens_from: str  # "provider", "estimate", or "none" for a call that never came back
     usd: float
     ms: int
-    request: str  # fingerprint(), never the request itself
+    prompt: str  # fingerprint() of the system prompt and tools, never the conversation
 
 
 class CallLog:

@@ -1,6 +1,6 @@
 // What one kind of job asks for, and where the book and this lab build each skill (chapter 32).
 //
-//   node postings/skills.mjs <postings.json> --type KIND [--also] [--evidence]
+//   node postings/skills.mjs <postings.json> --type KIND [--also] [--evidence] [--questions]
 //
 // It counts, among the sample's postings of one kind, how many ask for each skill the codebook
 // codes (the thirteen signals and five languages), and names the chapters that build each one from
@@ -9,11 +9,16 @@
 // most, then the rest. --also counts postings that have the kind as their second kind too.
 // --evidence adds, for each chapter on the path, the lab files and the checks in node check.mjs
 // that show the work, and what the lab alone can't show, such as anything that needs a real model.
+// --questions (chapter 33) prints each chapter's likely interview question, word for word from the
+// map, under the skill it builds that most of these postings ask for. The postings list
+// requirements, not questions: the questions are the book's, placed by what the postings ask for.
 //
 // The counts come from the sample on every run; the map holds no counts. Before printing anything,
 // it checks the map against the sample and the repository: every skill is built by some chapter or
-// named as not covered, every lab path is a file git tracks, and every check is one node check.mjs
-// runs. Any problem stops the run, with what to fix, so the map can't quietly fall behind.
+// named as not covered, every lab path is a file git tracks, every check is one node check.mjs
+// runs, and every numbered chapter has its question. Any problem stops the run, with what to fix,
+// so the map can't quietly fall behind. The book's own checker compares each question with its
+// chapter; this script can't see the chapters.
 //
 // Exit codes: 0 printed, 1 the map or the sample has problems (each one is listed), 2 usage.
 import { spawnSync } from "node:child_process";
@@ -37,12 +42,13 @@ const file = args[0];
 const type = option("--type");
 const mapFile = option("--map") ?? join(HERE, "skills-map.json");
 if (!file || file.startsWith("--") || !TYPES.includes(type)) {
-  console.error("usage: node postings/skills.mjs <postings.json> --type KIND [--also] [--evidence]");
+  console.error("usage: node postings/skills.mjs <postings.json> --type KIND [--also] [--evidence] [--questions]");
   console.error(`KIND is one of: ${TYPES.join(", ")}.`);
   process.exit(2);
 }
 const also = args.includes("--also");
 const evidence = args.includes("--evidence");
+const questions = args.includes("--questions");
 
 const sample = JSON.parse(readFileSync(file, "utf8"));
 const map = JSON.parse(readFileSync(mapFile, "utf8"));
@@ -92,6 +98,11 @@ function problemsIn() {
     for (const label of ch.checks) {
       if (!labels.has(label)) problems.push(`${who}: "${label}" isn't a check node check.mjs runs. Copy the name from node check.mjs --list.`);
     }
+    // Every numbered chapter has a "Talking about it in an interview" section; the appendices don't.
+    const needsQuestion = typeof ch.chapter === "number" || "question" in ch;
+    if (needsQuestion && !(typeof ch.question === "string" && ch.question.trim())) {
+      problems.push(`${who} has no likely question. Copy it word for word from the chapter's "Talking about it in an interview" section.`);
+    }
   }
   for (const skill of SKILLS) {
     const built = map.chapters.some((ch) => ch.builds.includes(skill));
@@ -130,6 +141,12 @@ const order = new Map(map.chapters.map((ch, i) => [ch.chapter, i]));
 const byChapter = new Map(map.chapters.map((ch) => [ch.chapter, ch]));
 const builders = (skill) => map.chapters.filter((ch) => ch.builds.includes(skill)).map((ch) => ch.chapter);
 const of = (k) => `${k} of ${posts.length}`;
+// The signal a chapter builds that most of these postings ask for (a tie goes to the signal the
+// codebook lists first), or undefined when these postings ask for none of the signals it builds.
+function topSignal(ch) {
+  const asked = SIGNALS.filter((s) => ch.builds.includes(s) && count(s) > 0);
+  return asked.sort((a, b) => count(b) - count(a))[0];
+}
 
 console.log(`# Skills for ${type} jobs, from ${file}\n`);
 if (also) {
@@ -185,8 +202,7 @@ for (const step of start.steps) {
 const ranked = map.chapters
   .filter((ch) => !used.has(ch.chapter))
   .map((ch) => {
-    const asked = SIGNALS.filter((s) => ch.builds.includes(s) && count(s) > 0);
-    const skill = asked.sort((a, b) => count(b) - count(a))[0];
+    const skill = topSignal(ch);
     return { chapter: ch.chapter, skill, k: skill ? count(skill) : 0 };
   })
   .filter((r) => r.skill)
@@ -215,5 +231,30 @@ if (evidence) {
     if (ch.lab.length) console.log(`  lab: ${ch.lab.join(", ")}`);
     if (ch.checks.length) console.log(`  checks: ${ch.checks.join("; ")}`);
     if (ch.unproven) console.log(`  not shown by the lab: ${ch.unproven}`);
+  }
+}
+
+if (questions) {
+  console.log("\n## Questions these postings suggest\n");
+  console.log("The postings list requirements, not questions. Each line is a chapter's likely question, from its");
+  console.log('"Talking about it in an interview" section, under the skill it builds that most of these postings ask for.\n');
+  const asked = map.chapters.filter((ch) => ch.question);
+  const signalOf = new Map(asked.map((ch) => [ch.chapter, topSignal(ch)]));
+  const bySkill = SIGNALS.filter((s) => asked.some((ch) => signalOf.get(ch.chapter) === s)).sort((a, b) => count(b) - count(a));
+  for (const skill of bySkill) {
+    console.log(`### ${skill}, ${of(count(skill))}\n`);
+    for (const ch of asked.filter((c) => signalOf.get(c.chapter) === skill)) console.log(`- ${ch.chapter}: ${ch.question}`);
+    console.log("");
+  }
+  // Chapters that build no signal the codebook codes (only a language, or nothing) apply to every kind.
+  const everyKind = asked.filter((ch) => !ch.builds.some((s) => SIGNALS.includes(s)));
+  if (everyKind.length) {
+    console.log("### Any kind of job\n");
+    for (const ch of everyKind) console.log(`- ${ch.chapter}: ${ch.question}`);
+    console.log("");
+  }
+  const unasked = asked.filter((ch) => !signalOf.get(ch.chapter) && ch.builds.some((s) => SIGNALS.includes(s)));
+  if (unasked.length) {
+    console.log(`Not listed, because none of these postings asks for what they build: chapters ${unasked.map((ch) => ch.chapter).join(", ")}.`);
   }
 }

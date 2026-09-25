@@ -224,6 +224,12 @@
       "proof": "postings/skills.test.mjs::a skill no chapter builds stops the run"
     },
     {
+      "id": "interview-questions",
+      "description": "Each chapter's likely interview question sits in the skills map, and --questions lists them for a kind of job under the skills its postings ask for most; the map can't leave a chapter's question out (chapter 33).",
+      "status": "done",
+      "proof": "postings/skills.test.mjs::a chapter without its likely question stops the run"
+    },
+    {
       "id": "templates",
       "description": "Each of Appendix B's templates passes the check it was written for, or runs, and fails when a violation is planted, so a reader copies something that works; the workflow templates stay the lab's own workflows, trimmed (Appendix B).",
       "status": "done",

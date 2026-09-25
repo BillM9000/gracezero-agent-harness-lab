@@ -231,6 +231,13 @@
 
 - **`node tools/mutate.mjs --only PREFIX`** runs only the entries in `tools/mutations.mjs` whose name starts with the prefix, so one guardrail's planted breaks can be run in seconds instead of all of them in half an hour. It can be given more than once, and the root can come before or after it. A prefix that selects no entry refuses the run, exit 1, before anything changes, and lists the groups the names start with: a mistyped prefix would otherwise check nothing and report every mutation caught. The last line says how many of all the entries ran. Chapter 35 names the prefixes for each of its ten guardrails.
 
+## 2026-09-25, chapter 33 lab
+
+- **Each chapter's likely interview question, in the skills map.** Every numbered chapter's entry in `postings/skills-map.json` (1 to 33) holds the question from its "Talking about it in an interview" section, word for word; the map's `about` says so. This script can't see the chapters; the book's own checker compares each question with its chapter.
+- **`node postings/skills.mjs FILE --type KIND --questions`** adds, after the path, each chapter's question under the signal it builds that most of the kind's postings ask for (the same rule the path uses to rank chapters, now one function, `topSignal`), most-asked first; the chapters that build no signal (1, 5, 32 and 33) under "Any kind of job"; and, in one line, the chapters whose signals none of these postings asks for (for infrastructure, 4, 6, 7, 8, 10, 24, 25 and 31). The output says the postings list requirements, not questions. The script refuses a map in which a numbered chapter has no question.
+- `postings/skills.test.mjs`: 5 new tests, 20 in all. 6 new entries in `tools/mutations.mjs` (468); all 20 skills entries applied and caught on the working tree before commit. The README says what chapter 33 added. `AGENTS.md` unchanged. Work list: `interview-questions` done.
+- Not run: any real model; nothing here calls one.
+
 ## 2026-09-25, chapter 32 lab
 
 - **A map from skills to chapters.** `postings/skills-map.json` lists every chapter of the book (1 to 33 and Appendix A) with its title, the skills it builds, named by the sample codebook's signals and languages, its main lab files, the checks in `node check.mjs` that show its work, and, where it applies, what the lab alone can't show (anything that needs a real model, a real authorization server, or CI's hosted runners). It also holds the book's parts, chapter 1's "Where to start, by the job you want" table for each kind of job, and the two signals no chapter builds, `servingOrTraining` and `kubernetes`, with the reason. It holds no counts.

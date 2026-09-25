@@ -4728,6 +4728,49 @@ export const MUTATIONS = [
     replace: "${mapFile}: ${problems.length} problem(s)",
     run: nodeTest(SKILLS_TESTS, "the map is named from the repository's root"),
   },
+  // Chapter 33: the likely questions.
+  {
+    guard: "skills: every numbered chapter has its likely question",
+    file: SKILLS,
+    find: "if (needsQuestion && !(typeof ch.question === \"string\" && ch.question.trim())) {",
+    replace: "if (false) {",
+    run: nodeTest(SKILLS_TESTS, "a chapter without its likely question"),
+  },
+  {
+    guard: "skills: --questions groups under the most-asked skill, most-asked first",
+    file: SKILLS,
+    find: ".sort((a, b) => count(b) - count(a));\n  for (const skill of bySkill) {",
+    replace: ".sort((a, b) => count(a) - count(b));\n  for (const skill of bySkill) {",
+    run: nodeTest(SKILLS_TESTS, "--questions puts each chapter's question"),
+  },
+  {
+    guard: "skills: --questions prints each chapter's question word for word",
+    file: SKILLS,
+    find: "for (const ch of asked.filter((c) => signalOf.get(c.chapter) === skill)) console.log(`- ${ch.chapter}: ${ch.question}`);",
+    replace: "for (const ch of asked.filter((c) => signalOf.get(c.chapter) === skill)) console.log(`- ${ch.chapter}: ${ch.title}`);",
+    run: nodeTest(SKILLS_TESTS, "--questions puts each chapter's question"),
+  },
+  {
+    guard: "skills: chapters that build no signal go to every kind of job",
+    file: SKILLS,
+    find: "  if (everyKind.length) {",
+    replace: "  if (false) {",
+    run: nodeTest(SKILLS_TESTS, "--questions gives the chapters that build no signal"),
+  },
+  {
+    guard: "skills: chapters no posting asks about are named, not dropped",
+    file: SKILLS,
+    find: "  if (unasked.length) {",
+    replace: "  if (false) {",
+    run: nodeTest(SKILLS_TESTS, "--questions names the chapters these postings don't ask about"),
+  },
+  {
+    guard: "skills: questions print only with --questions",
+    file: SKILLS,
+    find: "const questions = args.includes(\"--questions\");",
+    replace: "const questions = true;",
+    run: nodeTest(SKILLS_TESTS, "without --questions, no questions are printed"),
+  },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code
   // and data, a tool's configuration anywhere, file-wide silencing, and HEAD watched.

@@ -25,6 +25,16 @@ What each working session did, newest first. Add an entry at the end of every se
 - Then `node tools/mutate.mjs` on a fresh clone at `338df39`: all 494 caught in 24.9 minutes, and the tree unchanged.
 - Next: Appendices C and D, the glossary, the sources list, the quick-reference card and the front matter.
 
+## 2026-09-25: chapter 33, interviewing for AI platform roles
+
+- `postings/skills-map.json`: each numbered chapter (1 to 33) now carries its likely interview question, word for word from its "Talking about it in an interview" section. Appendix A has none, and doesn't need one.
+- `postings/skills.mjs --questions`: after the path, each chapter's question under the signal it builds that most of the kind's postings ask for, most-asked first; the chapters that build no signal under "Any kind of job"; and the chapters whose signals none of these postings asks for named in one line, not dropped. It refuses a map in which a numbered chapter has no question. The postings list requirements, not questions, and the output says so.
+- `postings/skills.test.mjs`, 5 new tests (20); 6 new mutation entries (468); all 20 skills entries applied and caught on the working tree before commit.
+- Work list: `interview-questions` done, proved by `postings/skills.test.mjs`.
+- Checked with: `node check.mjs` (all 26 checks passed) and `node tools/progress.mjs .`.
+- Not run: `--real`, for any command; nothing here calls a model.
+- Next: chapters 34 to 36, the quick lists; the book's checker compares each chapter's question with this map, so a chapter that changes its question changes the map too.
+
 ## 2026-09-25: chapter 32, skills, learning path and portfolio
 
 - `postings/skills-map.json`: each chapter's number and title, the skills it builds (the sample codebook's signals and languages), its main lab files, the checks in `node check.mjs` that show the work, and what the lab alone can't show; the book's parts; chapter 1's "Where to start" table for each kind of job; and the two signals no chapter builds (`servingOrTraining`, `kubernetes`). It holds no counts.

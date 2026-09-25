@@ -1,4 +1,5 @@
-// Proves the skills map counts the sample as chapter 1 does and refuses a map that has fallen behind.
+// Proves the skills map counts the sample as chapter 1 does, places each chapter's likely interview
+// question (chapter 33), and refuses a map that has fallen behind.
 // Run: node --test postings/skills.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -152,4 +153,44 @@ test("an unknown kind is a usage error that lists the kinds", () => {
   const run = skills(SAMPLE, "--type", "platform");
   assert.equal(run.status, 2);
   assert.match(run.stderr, /KIND is one of: enablement, coding-agents, product-agents, applied, infrastructure\./);
+});
+
+test("--questions puts each chapter's question under the most-asked skill it builds", () => {
+  const run = skills(SAMPLE, "--type", "product-agents", "--questions");
+  assert.equal(run.status, 0, run.stderr);
+  const map = JSON.parse(readFileSync(MAP, "utf8"));
+  const line = (n) => `- ${n}: ${chapter(map, n).question}`;
+  assert.ok(
+    run.stdout.includes(`### evaluation, 5 of 5\n\n${line(21)}\n${line(22)}\n${line(23)}\n\n### retrieval, 4 of 5\n\n${line(9)}\n`),
+    run.stdout,
+  );
+  assert.ok(run.stdout.indexOf("### agents, 5 of 5") < run.stdout.indexOf("### evaluation, 5 of 5"), "a tie keeps the codebook's order");
+  assert.ok(run.stdout.indexOf("### evaluation, 5 of 5") < run.stdout.indexOf("### codingAgents, 1 of 5"), "most-asked first");
+});
+
+test("--questions gives the chapters that build no signal to every kind of job, chapter 30's capstone included", () => {
+  const run = skills(SAMPLE, "--type", "infrastructure", "--questions");
+  assert.equal(run.status, 0, run.stderr);
+  const map = JSON.parse(readFileSync(MAP, "utf8"));
+  const line = (n) => `- ${n}: ${chapter(map, n).question}`;
+  assert.ok(run.stdout.includes(`### Any kind of job\n\n${line(1)}\n${line(5)}\n${line(30)}\n${line(32)}\n`), run.stdout);
+});
+
+test("--questions names the chapters these postings don't ask about instead of dropping them", () => {
+  const run = skills(SAMPLE, "--type", "infrastructure", "--questions");
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /Not listed, because none of these postings asks for what they build: chapters 4, 6, 7, 8, 10, 24, 25, 31\.\n$/);
+});
+
+test("without --questions, no questions are printed", () => {
+  const run = skills(SAMPLE, "--type", "product-agents");
+  assert.equal(run.status, 0, run.stderr);
+  assert.ok(!run.stdout.includes("## Questions"), run.stdout);
+});
+
+test("a chapter without its likely question stops the run", () => {
+  refused(
+    withMap("no-question", (m) => delete chapter(m, 26).question),
+    /chapter 26 has no likely question\. Copy it word for word from the chapter's "Talking about it in an interview" section\./,
+  );
 });

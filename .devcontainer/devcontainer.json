@@ -1,0 +1,20 @@
+{
+  "name": "agent-harness-lab",
+  "image": "mcr.microsoft.com/devcontainers/python:3-3.14-trixie",
+  "features": {
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "24",
+      "pnpmVersion": "none"
+    }
+  },
+  "postCreateCommand": "node setup.mjs",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  }
+}

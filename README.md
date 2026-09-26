@@ -64,6 +64,8 @@ node check.mjs
 
 **The checks give the same answer on any date.** Models have retirement dates (chapter 20), and the policy refuses an agent whose model may retire within 90 days, so a check against today's date would start failing on its own once a model's notice window opens. `node check.mjs` therefore checks the dates as of one day recorded in the repository: the latest `read` date in `python/agents/models.toml`, which has a section for each provider and, in each, the day its dates were copied from that provider's page. `AGENT_POLICY_TODAY` sets any other day, for `check.mjs` and for every Python command that checks the policy (`AGENT_POLICY_TODAY=2027-04-01 node check.mjs` in bash, `$env:AGENT_POLICY_TODAY = "2027-04-01"` then `node check.mjs` in PowerShell). Today's date is still checked where that's the point: `python -m agent_policy`, run on its own from `python/`, and the nightly workflow's retirement job.
 
+Or open it in a codespace: on the repository's GitHub page, choose Code, then Codespaces, then Create codespace. `.devcontainer/devcontainer.json` gives it Python 3.14 and Node 24 and runs `node setup.mjs` once it starts, so `node check.mjs` is ready to run. Setup and the checks run against the mock model, so no model provider bills anything (only a command given `--real` calls one); the codespace's own time counts against your GitHub account's Codespaces allowance.
+
 Each chapter's state of the repository has a tag: `git checkout ch03` shows the lab as chapter 3 left it.
 
 `AGENTS.md` has every individual command and the rules for changing the code.

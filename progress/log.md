@@ -13,6 +13,17 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`; on the working tree, `node tools/mutate.mjs --list` prints every entry and the total. Trust the count, not a number here.
 
+## 2026-09-26: on GitHub, a codespace, and a drawing of a run
+
+- The lab is on GitHub with every tag; the history was scanned before the first push and held nothing private. CI's first runs there passed with no change: `ci.yml` on Ubuntu and Windows plus the Go, Java and .NET layer rules, and `docs.yml`. The nightly workflow is disabled on GitHub to save Actions minutes.
+- `.devcontainer/devcontainer.json`: Python 3.14 and Node 24, and `node setup.mjs` when a codespace is created. Not created yet.
+- `tools/draw-run.mjs` draws a call record as one HTML page; `tools/draw-run.test.mjs`, 10 tests, runs in `node check.mjs`'s script tests.
+- 7 new mutation entries (501), all applied and caught on the working tree before commit, the file put back byte for byte.
+- Work list: `draw-run` done, proved by `tools/draw-run.test.mjs`.
+- Checked with: `node check.mjs`, `node tools/progress.mjs .`, and pages drawn from a mock gate run (520 calls) and the gateway demo's record, opened in a browser.
+- Not run: `--real`, for any command; nothing here calls a model. A codespace. The nightly job on GitHub's runners.
+- Next: when the nightly job is wanted, `gh workflow enable nightly` and time one run on GitHub's runners.
+
 ## 2026-09-25: Appendix B, templates
 
 - `templates/`: a skeleton `AGENTS.md.template` with `CLAUDE.md.template` (the lab's own `CLAUDE.md`), a work list and session log (`templates/progress/`), the three CI workflows trimmed (`templates/workflows/`), a lint rule (`lint_rule.py`), a fitness test (`test_fitness.py`), a judge's rubric (`rubric.json`) and chapter 31's assessment checklist.

@@ -1,10 +1,10 @@
-// The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
-// the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14 and 16 to 36 are
-// here, Appendix B's templates, the script tests' git runner (tools/git-run.mjs), chapter 7's
-// consumer test and chapter 1's tally's check for missing fields; the guards from earlier chapters
-// were broken by hand when they were built (CHANGELOG.md records each time) and are the next
-// candidates to add.
+// The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry
+// names the guard, the file and the exact text to change, what to change it to, and the test
+// command that must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14 and 16
+// to 36 are here, Appendix B's templates, the drawing of a run (tools/draw-run.mjs), the script
+// tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter 1's tally's check for
+// missing fields; the guards from earlier chapters were broken by hand when they were built
+// (CHANGELOG.md records each time) and are the next candidates to add.
 
 const pytest = (...tests) => ({ cwd: "python", python: ["-m", "pytest", "-q", "-p", "no:cacheprovider", ...tests] });
 const vitest = (file, name) => ({ cwd: "ts", vitest: [file, "-t", name] });
@@ -117,6 +117,9 @@ const approvals = (name) => pytest(`${APPROVALS}::${name}`);
 const guardTest = (name) => nodeTest(GUARD_TESTS, name);
 // Appendix B's templates, each proved by tools/templates.test.mjs.
 const templatesTest = (name) => nodeTest("tools/templates.test.mjs", name);
+// The drawing of a call record, proved by tools/draw-run.test.mjs.
+const DRAW_RUN = "tools/draw-run.mjs";
+const drawTest = (name) => nodeTest("tools/draw-run.test.mjs", name);
 // The git runner the script tests build their repositories with, proved by tools/git-run.test.mjs.
 const GIT_RUN = "tools/git-run.mjs";
 const gitRunTest = (name) => nodeTest("tools/git-run.test.mjs", name);
@@ -5588,6 +5591,58 @@ export const MUTATIONS = [
     find: '      - run: node --test --test-name-pattern "^kit:" tools/templates.test.mjs\n',
     replace: '      - run: node --test --test-name-pattern "^kit: " tools/templates.test.mjs\n',
     run: templatesTest("every workflow's run commands are YAML"),
+  },
+
+  // The drawing of a run (tools/draw-run.mjs): every failure shown as one, a record read whole or
+  // not at all, turns grouped as the page says, and a page that runs nothing a record holds.
+  {
+    guard: "draw-run: a refusal counts as a failed call",
+    file: DRAW_RUN,
+    find: 'export const ANSWERED = ["ok", "cached"];',
+    replace: 'export const ANSWERED = ["ok", "cached", "refusal"];',
+    run: drawTest("refusals, cut-off answers"),
+  },
+  {
+    guard: "draw-run: a line with other fields is refused",
+    file: DRAW_RUN,
+    find: 'Object.keys(found).sort().join(",") !== expected',
+    replace: "false",
+    run: drawTest("a line that isn't a call"),
+  },
+  {
+    guard: "draw-run: a line with an unknown outcome is refused",
+    file: DRAW_RUN,
+    find: "if (!OUTCOMES.includes(found.outcome))",
+    replace: "if (false)",
+    run: drawTest("a line that isn't a call"),
+  },
+  {
+    guard: "draw-run: what a record holds is escaped",
+    file: DRAW_RUN,
+    find: `replace(/[&<>"']/g, (c) => ESCAPES[c])`,
+    replace: `replace(/[&"']/g, (c) => ESCAPES[c])`,
+    run: drawTest("the page asks nothing of the network"),
+  },
+  {
+    guard: "draw-run: the page names a record by its file name alone",
+    file: DRAW_RUN,
+    find: "escape(basename(s))",
+    replace: "escape(s)",
+    run: drawTest("the page asks nothing of the network"),
+  },
+  {
+    guard: "draw-run: a turn that asked for tools keeps its conversation open",
+    file: DRAW_RUN,
+    find: 'section.open = call.stop_reason === "tool_use" || retried(call) ? open : null;',
+    replace: "section.open = retried(call) ? open : null;",
+    run: drawTest("turns that asked for tools"),
+  },
+  {
+    guard: "draw-run: a smaller request starts a new conversation",
+    file: DRAW_RUN,
+    find: " || shrank",
+    replace: "",
+    run: drawTest("a smaller request"),
   },
 
   // Chapter 1: the tally counts only data it can trust.

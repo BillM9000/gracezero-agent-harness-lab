@@ -106,6 +106,7 @@ const CHECKS = [
       "tools/protected.test.mjs",
       "tools/measure.test.mjs",
       "tools/templates.test.mjs",
+      "tools/draw-run.test.mjs",
       "tools/git-run.test.mjs",
       "tools/check.test.mjs",
       "tools/kit.test.mjs",

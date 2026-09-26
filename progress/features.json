@@ -254,6 +254,12 @@
       "proof": "tools/templates.test.mjs::the lint rule template agrees with the lab's own rule on the lab's code"
     },
     {
+      "id": "draw-run",
+      "description": "A call record can be drawn as one self-contained page that shows every call, turn and failure, refusals and cut-off answers included, and refuses a record it can't read whole (chapter 26).",
+      "status": "done",
+      "proof": "tools/draw-run.test.mjs::refusals, cut-off answers and every other failure count as failed, and the totals add up"
+    },
+    {
       "id": "second-provider",
       "description": "A second model provider, end to end: its model approved in the policy with its own prices and its own section of the registry, an adapter for its API behind the same interface, and the gateway sending each model's calls to its own provider's adapter, so the second judge and the second gap-check reviewer run on another family's model (chapters 18, 22, 27 and 30).",
       "status": "done",

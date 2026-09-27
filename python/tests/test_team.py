@@ -36,7 +36,9 @@ def run(conn, script=None, **kwargs):
     orchestrator, _, _ = patterns.definitions()
     team, made = team_for(conn, **kwargs)
     lead = MockModel(script or patterns.ORCHESTRATOR_SCRIPT)
-    result = run_team(lead, team, system=orchestrator["system"], task=patterns.BATCH_TASK)
+    result = run_team(
+        lead, team, system=orchestrator["system"], tools=orchestrator["tools"], task=patterns.BATCH_TASK
+    )
     return result, lead, made
 
 
@@ -178,11 +180,30 @@ def test_a_worker_that_skips_a_ticket_is_not_counted(conn):
 
 def test_the_orchestrator_has_find_tickets_and_delegate_and_a_tool_name_is_never_used_twice(conn):
     team, _ = team_for(conn)
-    assert [s.name for s in orchestrator_tools(team).specs] == ["find_tickets", "delegate_customer"]
+    orchestrator, _, _ = patterns.definitions()
+    assert [s.name for s in orchestrator_tools(team, orchestrator["tools"]).specs] == [
+        "find_tickets",
+        "delegate_customer",
+    ]
     toolbox = triage_tools(conn, access.find_person(conn, "sam"))
     with pytest.raises(KeyError, match="already has a tool named get_ticket"):
         toolbox.plus(Tool(toolbox.specs[0], lambda **_: ""))
     assert DELEGATE.name not in [s.name for s in toolbox.specs]
+
+
+def test_the_orchestrator_gets_the_tools_its_definition_names_and_no_other(conn):
+    # agents/orchestrator.toml's tools used to be checked against the policy and nothing else: the
+    # orchestrator got find_tickets and delegate_customer whatever the definition said.
+    team, _ = team_for(conn)
+    names = ["find_tickets", "get_ticket", "delegate_customer"]
+    assert [s.name for s in orchestrator_tools(team, names).specs] == names
+    for unknown in ("close_ticket", "send_email"):
+        with pytest.raises(KeyError, match=f"No tool named {unknown}"):
+            orchestrator_tools(team, ["find_tickets", unknown])
+    lead = MockModel(patterns.ORCHESTRATOR_SCRIPT)
+    result = run_team(lead, team, system="s", tools=["find_tickets"], task=patterns.BATCH_TASK)
+    assert [spec.name for spec in lead.calls[0].tools] == ["find_tickets"]
+    assert result.workers == ()
 
 
 def test_a_team_counts_only_what_the_service_says_the_person_can_see(conn):
@@ -194,7 +215,11 @@ def test_a_team_counts_only_what_the_service_says_the_person_can_see(conn):
     team = patterns.build_team(conn, dana, worker, models)
     orchestrator, _, _ = patterns.definitions()
     result = run_team(
-        MockModel(patterns.ORCHESTRATOR_SCRIPT), team, system=orchestrator["system"], task=patterns.BATCH_TASK
+        MockModel(patterns.ORCHESTRATOR_SCRIPT),
+        team,
+        system=orchestrator["system"],
+        tools=orchestrator["tools"],
+        task=patterns.BATCH_TASK,
     )
     assert sorted(result.accounting.failed) == ["Dev Mistry", "Elif Kaya"]
     assert result.accounting.failed["Dev Mistry"].startswith("its worker never read #9")

@@ -17,12 +17,15 @@ from helpdesk.assistant.team import Team, orchestrator_tools
 from helpdesk.assistant.tools import triage_tools
 from helpdesk.model.mock import MockModel
 from helpdesk.model.types import ToolSpec
+from helpdesk.patterns import definitions
 from helpdesk.services.access import Person
 
 
 def team_tools(conn, person):
     """Chapter 14's orchestrator's tools. No worker starts, so its model is never called."""
-    return orchestrator_tools(Team(conn, person, lambda _customer: MockModel([]), system="", known=()))
+    orchestrator, _, _ = definitions()
+    team = Team(conn, person, lambda _customer: MockModel([]), system="", known=())
+    return orchestrator_tools(team, orchestrator["tools"])
 
 
 SETS = {"triage": triage_tools, "narrow": narrow_tools, "orchestrator": team_tools}

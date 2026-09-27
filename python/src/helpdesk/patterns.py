@@ -305,7 +305,9 @@ def compare(conn: sqlite3.Connection, person: access.Person) -> dict[tuple[str, 
     lead = MockModel(ORCHESTRATOR_SCRIPT)
     models, made = scripted_workers()
     team = build_team(conn, person, worker, models)
-    team_run = run_team(lead, team, system=orchestrator["system"], task=BATCH_TASK)
+    team_run = run_team(
+        lead, team, system=orchestrator["system"], tools=orchestrator["tools"], task=BATCH_TASK
+    )
     if team_run.orchestrator is None:
         raise RuntimeError(f"The scripted orchestrator stopped: {team_run.stopped}")
     contexts = [context("orchestrator", lead, team_run.orchestrator.transcript)]
@@ -384,6 +386,7 @@ def run_batch(
         MockModel(ORCHESTRATOR_SCRIPT),
         team,
         system=orchestrator["system"],
+        tools=orchestrator["tools"],
         task=BATCH_TASK,
         max_turns=orchestrator["max_turns"],
     )

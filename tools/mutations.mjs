@@ -1465,6 +1465,20 @@ export const MUTATIONS = [
     run: pytest(`${REVISE_TESTS}::test_an_unchanged_draft_stops_the_loop_before_the_limit`),
   },
   {
+    guard: "team: the orchestrator's tools are the ones its definition names",
+    file: TEAM,
+    find: "    return triage_tools(team.conn, team.person).plus(team.tool()).only(names)",
+    replace: '    return triage_tools(team.conn, team.person).only(["find_tickets"]).plus(team.tool())',
+    run: pytest(`${TEAM_TESTS}::test_the_orchestrator_gets_the_tools_its_definition_names_and_no_other`),
+  },
+  {
+    guard: "team: a run gives the orchestrator its definition's tools",
+    file: TEAM,
+    find: "    toolbox = orchestrator_tools(team, tools)",
+    replace: '    toolbox = orchestrator_tools(team, ["find_tickets", "delegate_customer"])',
+    run: pytest(`${TEAM_TESTS}::test_the_orchestrator_gets_the_tools_its_definition_names_and_no_other`),
+  },
+  {
     guard: "team: a customer is delegated once",
     file: TEAM,
     find: "        if not waiting:",

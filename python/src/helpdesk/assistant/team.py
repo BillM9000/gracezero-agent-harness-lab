@@ -1,11 +1,11 @@
 """Orchestrator and workers (chapter 14).
 
 The orchestrator is an agent like any other, with one tool the triage assistant doesn't have:
-delegate_customer, which starts a worker. A worker is a fresh agent with its own context: no
-history, the triage assistant's two reading tools, and a brief from the orchestrator. When it
-finishes, its drafts are checked (chapter 9's citation check, against what that worker was given)
-and filed for the person the team works for, and the orchestrator gets back a short report instead
-of the worker's transcript.
+delegate_customer, which starts a worker. Its tools are the ones agents/orchestrator.toml names. A
+worker is a fresh agent with its own context: no history, two of the triage assistant's three
+reading tools, and a brief from the orchestrator. When it finishes, its drafts are checked (chapter
+9's citation check, against what that worker was given) and filed for the person the team works for,
+and the orchestrator gets back a short report instead of the worker's transcript.
 
 Three rules, each kept in code rather than asked of a model:
 - The unit of work is a customer. Everything one customer has open is decided in one context, so
@@ -25,7 +25,7 @@ first of them not yet delegated.
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Callable, Collection, Iterable
+from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass, field
 
 from helpdesk.assistant.agent import AgentRun, TurnLimitReached, run_agent
@@ -281,9 +281,11 @@ class Team:
         return Accounting(batch, drafted, failed, missing, uncited)
 
 
-def orchestrator_tools(team: Team) -> Toolbox:
-    """The orchestrator's tools: find_tickets to see the work, and delegate_customer to hand it out."""
-    return triage_tools(team.conn, team.person).only(["find_tickets"]).plus(team.tool())
+def orchestrator_tools(team: Team, names: Sequence[str]) -> Toolbox:
+    """The tools the orchestrator's definition names (agents/orchestrator.toml: find_tickets to see
+    the work, and delegate_customer to hand it out), from the triage assistant's reading tools and
+    delegate_customer. A name that isn't one of those is refused, never skipped."""
+    return triage_tools(team.conn, team.person).plus(team.tool()).only(names)
 
 
 @dataclass(frozen=True)
@@ -294,11 +296,15 @@ class TeamRun:
     stopped: str | None = None  # why the orchestrator stopped, when it did
 
 
-def run_team(model: ModelClient, team: Team, *, system: str, task: str, max_turns: int = 6) -> TeamRun:
-    """Run the orchestrator, then count what its workers brought back. The count never depends on
-    what the orchestrator's answer says, and it's made even when the orchestrator stops part way."""
+def run_team(
+    model: ModelClient, team: Team, *, system: str, tools: Sequence[str], task: str, max_turns: int = 6
+) -> TeamRun:
+    """Run the orchestrator with the tools its definition names, then count what its workers brought
+    back. The count never depends on what the orchestrator's answer says, and it's made even when
+    the orchestrator stops part way."""
+    toolbox = orchestrator_tools(team, tools)
     try:
-        run = run_agent(model, orchestrator_tools(team), system=system, task=task, max_turns=max_turns)
+        run = run_agent(model, toolbox, system=system, task=task, max_turns=max_turns)
     except (TurnLimitReached, IncompleteResponse) as stop:
         return TeamRun(None, tuple(team.workers.values()), team.account(), str(stop))
     return TeamRun(run, tuple(team.workers.values()), team.account())

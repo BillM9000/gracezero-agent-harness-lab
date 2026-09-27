@@ -1691,6 +1691,20 @@ export const MUTATIONS = [
     run: approvals("test_the_decision_the_change_and_its_record_commit_together"),
   },
   {
+    guard: "decisions: the checks and the change hold the write lock together",
+    file: DECISIONS,
+    find: "    repository.begin_decision(conn)\n",
+    replace: "",
+    run: approvals("test_a_reply_and_a_close_approved_at_once_on_one_ticket_cant_both_succeed"),
+  },
+  {
+    guard: "repository: a decision takes the write lock before its checks, not at its first write",
+    file: "python/src/helpdesk/data/repository.py",
+    find: '    conn.execute("BEGIN IMMEDIATE")',
+    replace: '    conn.execute("BEGIN")',
+    run: approvals("test_a_reply_and_a_close_approved_at_once_on_one_ticket_cant_both_succeed"),
+  },
+  {
     guard: "decisions: a rejection needs a reason",
     file: DECISIONS,
     find: "    if not reason.strip():",

@@ -104,6 +104,14 @@ def close_ticket(conn: sqlite3.Connection, ticket_id: int, closed_at: str, commi
 # proposal or a decision together with its record in the approval log, or not at all.
 
 
+def begin_decision(conn: sqlite3.Connection) -> None:
+    """Start a transaction that holds the database's write lock from its first statement (SQLite's
+    BEGIN IMMEDIATE), so a decision's checks and its change see the same tickets: another
+    connection's write waits until this one commits or rolls back. A plain BEGIN takes the lock only
+    at the first write, after the checks."""
+    conn.execute("BEGIN IMMEDIATE")
+
+
 def customer_email(conn: sqlite3.Connection, customer_id: int) -> str | None:
     # Only helpdesk/services/decisions.py reads this, for a person who may decide where a reply goes.
     row = conn.execute("SELECT email FROM customers WHERE id = ?", (customer_id,)).fetchone()

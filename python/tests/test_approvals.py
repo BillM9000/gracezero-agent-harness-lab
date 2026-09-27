@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import threading
 
 import pytest
 
@@ -13,6 +14,8 @@ from agent_policy import AGENTS, load
 from helpdesk.assistant.proposing import assistant_tools
 from helpdesk.assistant.tools import triage_tools
 from helpdesk.data import repository
+from helpdesk.data.db import connect, init_schema
+from helpdesk.data.seed import seed
 from helpdesk.model.types import ToolCall
 from helpdesk.services import access, decisions, tickets
 from helpdesk.services.errors import Conflict, Forbidden, Invalid, NotFound
@@ -170,6 +173,65 @@ def test_a_decided_proposal_cannot_be_decided_again_even_by_two_at_once(conn):
     call(conn, "draft_reply", ticket_id=2, reply_text="Hello Ben.")
     assert repository.decide_proposal(conn, 1, "approved", 1, None, clock())
     assert not repository.decide_proposal(conn, 1, "rejected", 2, "No.", clock())
+
+
+def test_a_reply_and_a_close_approved_at_once_on_one_ticket_cant_both_succeed(tmp_path, monkeypatch):
+    # Two people at two terminals: two connections to one database file, each in its own thread.
+    # Dana approves closing ticket 2 and is held just after her checks, before she writes; Sam then
+    # approves a reply on the same ticket. Checks that only read would let Sam pass them too, and both
+    # would succeed: a reply sent on a closed ticket. With the write lock held from the checks, Sam
+    # waits for Dana, then is checked against her close and refused.
+    path = tmp_path / "helpdesk-two-at-once.db"
+    first = connect(path)
+    init_schema(first)
+    seed(first)
+    second = connect(path)
+    try:
+        assert not call(first, "close_ticket", ticket_id=2, reason="Answered by the article.").is_error
+        assert not call(first, "draft_reply", ticket_id=2, reply_text="Hello Ben.").is_error
+        close_id, reply_id = 1, 2
+        decide = repository.decide_proposal
+        checked, go = threading.Event(), threading.Event()
+
+        def held(conn, proposal_id, *args):
+            if proposal_id == close_id:
+                checked.set()
+                go.wait(10)
+            return decide(conn, proposal_id, *args)
+
+        monkeypatch.setattr(repository, "decide_proposal", held)
+        results: dict[str, object] = {}
+
+        def approve(conn, who, proposal_id):
+            try:
+                results[who] = decisions.approve(conn, person(conn, who), proposal_id, clock)
+            except Exception as error:  # the test reads what each approval ended with
+                results[who] = error
+
+        dana = threading.Thread(target=approve, args=(first, "dana", close_id))
+        dana.start()
+        assert checked.wait(10), "Dana's approval never reached its write"
+        sam = threading.Thread(target=approve, args=(second, "sam", reply_id))
+        sam.start()
+        sam.join(0.5)  # unguarded, Sam's approval finishes here; guarded, it waits for Dana's lock
+        go.set()
+        dana.join(10)
+        sam.join(10)
+        monkeypatch.undo()
+
+        assert results["dana"] == "ticket 2 is closed"
+        assert isinstance(results["sam"], Conflict), results["sam"]
+        assert str(results["sam"]) == (
+            f"Ticket 2 was closed after #{reply_id} was filed, so the reply can't be sent. "
+            "Nothing changed; reject it with that reason."
+        )
+        assert tickets.get_ticket(first, 2)["replies"] == []
+        assert tickets.get_ticket(first, 2)["status"] == "closed"
+        assert repository.get_proposal(first, reply_id)["status"] == "pending"
+        assert [e[0] for e in events(first)] == ["proposed", "proposed", "approved", "refused"]
+    finally:
+        second.close()
+        first.close()
 
 
 def test_support_staff_cannot_approve_a_change_to_a_ticket_that_isnt_theirs(conn):

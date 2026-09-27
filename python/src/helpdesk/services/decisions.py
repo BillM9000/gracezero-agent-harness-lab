@@ -7,6 +7,9 @@ who comes from whoever runs the command, never from an agent.
 - approve checks again, at the moment of deciding, everything the change depends on: that the person
   may give the approval it needs, that it's still pending, and that the ticket can still take it.
   The decision, the change and its record in the approval log commit together, or not at all.
+- approve and reject take the database's write lock before those checks and hold it until they
+  commit, so nothing can change between the checks and the change: when a reply and a close on one
+  ticket are approved at the same moment, whichever comes second is checked against the first.
 - reject needs a reason. It's what the assistant reads the next time it looks at the ticket.
 - Refusals are recorded too.
 """
@@ -14,6 +17,8 @@ who comes from whoever runs the command, never from an agent.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -95,11 +100,26 @@ def _decidable(
     return proposal, ticket
 
 
+@contextmanager
+def _deciding(conn: sqlite3.Connection) -> Iterator[None]:
+    """One decision, from its checks to its commit, holding the write lock throughout. Checks that
+    only read, followed by writes, would leave a moment in which another approval on the same ticket
+    could pass the same checks and write first (a reply sent on a ticket just closed)."""
+    repository.begin_decision(conn)
+    try:
+        yield
+    except Exception:
+        # The decision, the change and the record go together. If any part fails, none of it stays.
+        # A refusal commits its own record before it's raised, so there is nothing left to undo.
+        conn.rollback()
+        raise
+
+
 def approve(conn: sqlite3.Connection, person: Person, proposal_id: int, clock: Clock = utc_now) -> str:
     """Approve a proposal, and make the change it proposed. Returns what happened, in words."""
     now = clock()
-    proposal, ticket = _decidable(conn, person, proposal_id, "approve", now)
-    try:
+    with _deciding(conn):
+        proposal, ticket = _decidable(conn, person, proposal_id, "approve", now)
         if not repository.decide_proposal(conn, proposal_id, "approved", person.id, None, now):
             raise Conflict(f"#{proposal_id} was decided by someone else a moment ago. Nothing changed.")
         if proposal["kind"] == "reply":
@@ -113,10 +133,6 @@ def approve(conn: sqlite3.Connection, person: Person, proposal_id: int, clock: C
             done = f"ticket {ticket['id']} is closed"
         repository.insert_log(conn, now, "approved", person.id, done, proposal_id, ticket["id"])
         conn.commit()
-    except Exception:
-        # The decision, the change and the record go together. If any part fails, none of it stays.
-        conn.rollback()
-        raise
     return done
 
 
@@ -130,11 +146,12 @@ def reject(
             "ticket, so say what to change."
         )
     now = clock()
-    proposal, ticket = _decidable(conn, person, proposal_id, "reject", now)
-    if not repository.decide_proposal(conn, proposal_id, "rejected", person.id, reason.strip(), now):
-        raise Conflict(f"#{proposal_id} was decided by someone else a moment ago. Nothing changed.")
-    repository.insert_log(conn, now, "rejected", person.id, reason.strip(), proposal_id, ticket["id"])
-    conn.commit()
+    with _deciding(conn):
+        proposal, ticket = _decidable(conn, person, proposal_id, "reject", now)
+        if not repository.decide_proposal(conn, proposal_id, "rejected", person.id, reason.strip(), now):
+            raise Conflict(f"#{proposal_id} was decided by someone else a moment ago. Nothing changed.")
+        repository.insert_log(conn, now, "rejected", person.id, reason.strip(), proposal_id, ticket["id"])
+        conn.commit()
 
 
 def log(conn: sqlite3.Connection) -> list[dict[str, Any]]:

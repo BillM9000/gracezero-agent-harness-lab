@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sqlite3
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -44,11 +45,12 @@ from helpdesk.assistant.grading import pass_hat_k
 from helpdesk.assistant.judging import Criterion, Rubric
 from helpdesk.assistant.judging import request as judge_request
 from helpdesk.data import seed as sample
+from helpdesk.data.db import connect, init_schema
 from helpdesk.kb import CHARS_PER_TOKEN
 from helpdesk.model.anthropic_client import tool_to_api
 from helpdesk.model.budget import Budget, BudgetReached, Spend, price
 from helpdesk.model.cost import PRICES, PRICES_READ
-from helpdesk.model.types import ModelClient
+from helpdesk.model.types import ModelClient, ToolCall
 from helpdesk.services import access
 
 RULES = evals.EVALS / "gate.json"
@@ -103,12 +105,103 @@ TEMPLATE_RUBRIC = Rubric("{rubric}", "{subject}", "{given}", ())
 TEMPLATE_CRITERION = Criterion("{criterion}", "{question}", "{passes}", "{fails}")
 
 
+def placeholder_helpdesk(conn: sqlite3.Connection) -> None:
+    """A helpdesk whose every text is a placeholder: two customers, a member of staff in each role,
+    nine tickets (more than a page for the support person, one only the lead may see), replies from
+    a customer and from staff, and one help article. Only the tools' own words vary with the code."""
+    conn.executemany(
+        "INSERT INTO customers (id, name, email) VALUES (?, ?, ?)",
+        [(1, "{customer}", "{email 1}"), (2, "{other customer}", "{email 2}")],
+    )
+    conn.executemany(
+        "INSERT INTO staff (id, name, role) VALUES (?, ?, ?)",
+        [(1, "{support}", "support"), (2, "{lead}", "lead")],
+    )
+    day = "2000-01-01T00:00:00Z"
+    rows = [
+        (1, 1, "open", "high", 1),
+        (2, 1, "pending", "normal", None),
+        (3, 2, "closed", "low", 2),
+        *[(n, 2, "open", "normal", None) for n in range(4, 9)],
+        (9, 2, "open", "normal", 2),
+    ]
+    conn.executemany(
+        "INSERT INTO tickets (id, customer_id, subject, body, status, priority, assignee_id, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            (n, who, f"{{subject {n}}}", f"{{body {n}}}", status, priority, to, day)
+            for n, who, status, priority, to in rows
+        ],
+    )
+    conn.executemany(
+        "INSERT INTO replies (id, ticket_id, author_kind, author_id, body, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        [(1, 1, "customer", 1, "{customer's reply}", day), (2, 1, "staff", 2, "{staff reply}", day)],
+    )
+    conn.execute("INSERT INTO kb_articles (id, title, body, tags) VALUES (1, '{title}', '{passage}', '')")
+    conn.commit()
+
+
+def tool_results() -> list[str]:
+    """How the assistant's tools word what they return (assistant/tools.py, proposing.py and the
+    services' messages): a fixed set of calls, one or more down each path, rendered on the
+    placeholder helpdesk. Like the judge's request, the wording counts and the data stays its own
+    part. A path no call here takes, such as a tool that fails outright, isn't covered."""
+    triage = evals.triage_definition()
+    calls: list[tuple[str, str, dict[str, Any]]] = [
+        ("1", "get_ticket", {"ticket_id": 1}),
+        ("1", "get_ticket", {"ticket_id": 2}),
+        ("1", "get_ticket", {"ticket_id": 9}),
+        ("2", "get_ticket", {"ticket_id": 99}),
+        ("1", "get_ticket", {"ticket_id": 0, "owner": "me"}),
+        ("1", "find_tickets", {}),
+        ("1", "find_tickets", {"page": 2}),
+        ("1", "find_tickets", {"page": 5}),
+        ("1", "find_tickets", {"status": "closed"}),
+        ("1", "find_tickets", {"status": "any", "assignee": "me"}),
+        ("2", "find_tickets", {"assignee": "unassigned"}),
+        ("1", "find_tickets", {"status": "solved"}),
+        ("1", "search_kb", {"query": "{passage}"}),
+        ("1", "search_kb", {"query": "unrelated"}),
+        ("1", "search_kb", {"query": " "}),
+        ("1", "draft_reply", {"ticket_id": 1, "reply_text": "{reply}"}),
+        ("1", "draft_reply", {"ticket_id": 1, "reply_text": "{reply}"}),
+        ("1", "draft_reply", {"ticket_id": 2, "reply_text": "{reply}"}),
+        ("1", "close_ticket", {"ticket_id": 1, "reason": "{reason}"}),
+        ("2", "close_ticket", {"ticket_id": 9, "reason": "{reason}"}),
+        ("1", "no_such_tool", {}),
+    ]
+    rendered = []
+    conn = connect(":memory:")
+    try:
+        init_schema(conn)
+        placeholder_helpdesk(conn)
+        boxes = {
+            who: evals.toolbox(conn, access.find_person(conn, who), triage, "triage") for who in ("1", "2")
+        }
+        for n, (who, name, arguments) in enumerate(calls, 1):
+            result = boxes[who].run(ToolCall(f"c{n}", name, arguments))
+            rendered.append(f"{name} {json.dumps(arguments)} as {who}: {result.is_error}\n{result.content}")
+        # What became of each proposal, as get_ticket reads it back, and a result cut to size.
+        conn.execute(
+            "UPDATE proposals SET status = 'rejected', decided_by = 2, reason = '{why}' WHERE id = 1"
+        )
+        conn.execute("UPDATE proposals SET status = 'approved', decided_by = 2 WHERE id = 2")
+        conn.commit()
+        rendered.append(boxes["1"].run(ToolCall("decided", "get_ticket", {"ticket_id": 1})).content)
+        rendered.append(boxes["2"].run(ToolCall("pending", "get_ticket", {"ticket_id": 9})).content)
+        rendered.append(boxes["1"].limited(200).run(ToolCall("cut", "get_ticket", {"ticket_id": 1})).content)
+    finally:
+        conn.close()
+    return rendered
+
+
 def configuration() -> dict[str, str]:
     """Everything a promotion measured: what the assistant and the judge are told and which models
-    they use, the tools as the model sees them, the help articles and the sample helpdesk whose text
-    reaches the model through those tools' results, the judge's request around each criterion, and
-    the golden sets, rubric and labels it was measured with. A change to any of them is a change to
-    what ships, or to what measures it."""
+    they use, the tools as the model sees them and how they word their results, the help articles
+    and the sample helpdesk whose text reaches the model through those results, the judge's request
+    around each criterion, and the golden sets, rubric and labels it was measured with. A change to
+    any of them is a change to what ships, or to what measures it."""
     triage = evals.triage_definition()
     with evals.helpdesk() as (conn, _):
         person = access.find_person(conn, "sam")
@@ -129,6 +222,7 @@ def configuration() -> dict[str, str]:
         "assistant/judging.py: the judge's request around each criterion": judge_request(
             TEMPLATE_RUBRIC, TEMPLATE_CRITERION, "{text}", ["{given}"]
         ),
+        "assistant/tools.py: how the tools word their results, on a placeholder helpdesk": tool_results(),
     }
     for suite in SUITES:
         parts[f"evals/{evals.SUITES[suite].name}: a golden set"] = json_file(evals.SUITES[suite])

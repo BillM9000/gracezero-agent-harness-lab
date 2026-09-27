@@ -3011,6 +3011,27 @@ export const MUTATIONS = [
     run: gateTest("test_a_help_article_the_seed_data_or_the_judges_request_changes_the_configuration"),
   },
   {
+    guard: "gate check: how the tools word their results is part of what a promotion records",
+    file: GATE,
+    find: '        "assistant/tools.py: how the tools word their results, on a placeholder helpdesk": tool_results(),',
+    replace: '        "assistant/tools.py: how the tools word their results, on a placeholder helpdesk": [],',
+    run: gateTest("test_a_reworded_tool_result_changes_the_configuration_and_the_data_doesnt"),
+  },
+  {
+    guard: "gate check: what became of each proposal is among the results rendered",
+    file: GATE,
+    find: '        rendered.append(boxes["1"].run(ToolCall("decided", "get_ticket", {"ticket_id": 1})).content)\n',
+    replace: "",
+    run: gateTest("test_a_reworded_tool_result_changes_the_configuration_and_the_data_doesnt"),
+  },
+  {
+    guard: "gate check: the tools' results are rendered on placeholders, not the sample data",
+    file: GATE,
+    find: "        placeholder_helpdesk(conn)\n",
+    replace: "        sample.seed(conn)\n",
+    run: gateTest("test_a_help_article_the_seed_data_or_the_judges_request_changes_the_configuration"),
+  },
+  {
     guard: "gate check: a mock's record fails when the rules require a real model",
     file: GATE,
     find: "        if on_mock and config.require_real:",

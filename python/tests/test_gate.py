@@ -381,6 +381,33 @@ def test_a_help_article_the_seed_data_or_the_judges_request_changes_the_configur
         assert [part for part in before if before[part] != after[part]] == [name]
 
 
+def test_a_reworded_tool_result_changes_the_configuration_and_the_data_doesnt(monkeypatch):
+    # How the tools word their results reaches the model as surely as their definitions do. It's
+    # rendered on a helpdesk of placeholders, so a change to the sample data changes its own part alone
+    # (the test above), and a change to the wording changes this one.
+    from helpdesk.assistant import proposing, tools
+
+    name = "assistant/tools.py: how the tools word their results, on a placeholder helpdesk"
+    before = gate.configuration()
+    assert name in before
+    line, filed = tools.proposal_line, proposing.filed
+    # "declined" is as long as "rejected", so only the proposal line itself can show the change, not
+    # the length a cut result reports.
+    rewordings = [
+        (tools, "proposal_line", lambda proposal: line(proposal).replace("rejected by", "declined by")),
+        (
+            proposing,
+            "filed",
+            lambda proposal, person: filed(proposal, person).replace("Nothing has", "Nothing"),
+        ),
+    ]
+    for where, attribute, value in rewordings:
+        with monkeypatch.context() as patched:
+            patched.setattr(where, attribute, value)
+            after = gate.configuration()
+        assert [part for part in before if before[part] != after[part]] == [name]
+
+
 def test_the_check_fails_and_names_what_changed_since_the_promotion(tmp_path, capsys):
     record = json.loads(gate.RECORD.read_text(encoding="utf-8"))
     name = "the assistant's tools, as the model sees them"

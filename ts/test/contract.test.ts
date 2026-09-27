@@ -45,15 +45,21 @@ function operationFor(request: Sent): Operation | string {
   return `no route matches ${request.url.pathname}`;
 }
 
+// One call of every method the client has. The last test fails when the client gains a method
+// this doesn't call, so no request goes unchecked against the contract.
+async function callEveryMethod(client: HelpdeskClient): Promise<void> {
+  await client.listTickets("open");
+  await client.getTicket(1);
+  await client.createTicket({ customer_id: 1, subject: "Help", body: "It broke." });
+  await client.addReply(1, "staff", "On it.", 2);
+  await client.closeTicket(1, 2);
+  await client.searchKb("password", 3);
+}
+
 describe("the client against the contract", () => {
   it("sends only requests the contract describes, with the fields it expects", async () => {
     const { client, sent } = recordingClient();
-    await client.listTickets("open");
-    await client.getTicket(1);
-    await client.createTicket({ customer_id: 1, subject: "Help", body: "It broke." });
-    await client.addReply(1, "staff", "On it.", 2);
-    await client.closeTicket(1, 2);
-    await client.searchKb("password", 3);
+    await callEveryMethod(client);
     expect(sent).toHaveLength(6);
 
     for (const request of sent) {
@@ -81,5 +87,23 @@ describe("the client against the contract", () => {
         expect(key in request.body ? "sent" : `${call}: the required body field "${key}" is missing`).toBe("sent");
       }
     }
+  });
+
+  it("calls every method the client has", async () => {
+    const { client } = recordingClient();
+    const called = new Set<string>();
+    const watched = new Proxy(client, {
+      get(target, name, receiver) {
+        const value: unknown = Reflect.get(target, name, receiver);
+        if (typeof value !== "function") return value;
+        called.add(String(name));
+        return (value as (...args: unknown[]) => unknown).bind(target);
+      },
+    });
+    await callEveryMethod(watched);
+    const methods = Object.getOwnPropertyNames(HelpdeskClient.prototype).filter((name) => name !== "constructor");
+    expect(methods.length).toBeGreaterThan(0);
+    const uncalled = methods.filter((name) => !called.has(name));
+    expect(uncalled, `callEveryMethod doesn't call ${uncalled.join(", ")}: add a call, so its request is checked against the contract`).toEqual([]);
   });
 });

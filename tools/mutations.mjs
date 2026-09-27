@@ -4216,8 +4216,8 @@ export const MUTATIONS = [
   {
     guard: "fix loop: a check without its files listed fails the test",
     file: PROTECTED_MJS,
-    find: '  "Agent definitions (python -m agent_policy)": [',
-    replace: '  "Agent definitions": [',
+    find: '  "Use-case readiness (python -m helpdesk.readiness check)": [',
+    replace: '  "Use-case readiness": [',
     run: nodeTest(PROTECTED_TESTS, "every check node check.mjs runs has its files listed"),
   },
   {

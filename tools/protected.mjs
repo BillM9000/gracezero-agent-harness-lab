@@ -48,6 +48,11 @@ export const CHECK_FILES = {
     /^python\/gateway\//,
     /^python\/agents\/(policy|models)\.toml$/,
   ],
+  "Use-case readiness (python -m helpdesk.readiness check)": [
+    /^python\/src\/helpdesk\/readiness\.py$/,
+    /^python\/src\/readiness\//,
+    /^python\/usecases\//,
+  ],
   "API contract (python -m helpdesk.contract)": [/^python\/src\/helpdesk\/contract\.py$/],
   "Python tests (pytest)": [/^python\/tests\//, /^python\/pyproject\.toml$/],
   "TypeScript API types (npm run api-types)": [/^ts\/scripts\//, /^ts\/package\.json$/],

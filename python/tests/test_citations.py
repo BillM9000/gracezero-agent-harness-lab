@@ -64,6 +64,33 @@ def test_a_citation_after_the_full_stop_at_the_end_is_checked_against_its_senten
     assert [(p.sentence, p.reason) for p in report.problems] == [
         ("Refunds are instant and free. [1#2]", "[1#2] doesn't say: free, instant, refund")
     ]
+    # In parentheses too: "([1#2])" once kept the citation off the sentence, and passed.
+    for after, reason in (
+        ("([1#2])", "[1#2] doesn't say: free, instant, refund"),
+        ("([1#2]).", "[1#2] doesn't say: free, instant, refund"),
+        ("([1#2], [2#3])", "[1#2] and [2#3] don't say: free, instant"),
+    ):
+        report = check(f"Refunds are instant and free. {after}", GIVEN, KNOWN)
+        assert [(p.sentence, p.reason) for p in report.problems] == [
+            (f"Refunds are instant and free. {after.rstrip('.')}", reason)
+        ]
+        assert report.uncited == ()
+
+
+def test_a_citation_with_no_sentence_to_support_is_a_problem():
+    # With no sentence before it to go back onto (the whole answer, or its first piece), a citation
+    # has no words to check, and once passed as checked while vouching for nothing.
+    for answer, sentence, reason in (
+        ("[1#2]", "[1#2]", "[1#2] has no sentence to support"),
+        ("[1#2] [2#3]", "[1#2] [2#3]", "[1#2] and [2#3] have no sentence to support"),
+        (
+            "[1#2]. Reset emails can take up to ten minutes [1#2].",
+            "[1#2].",
+            "[1#2] has no sentence to support",
+        ),
+    ):
+        report = check(answer, GIVEN, KNOWN)
+        assert [(p.sentence, p.reason) for p in report.problems] == [(sentence, reason)]
 
 
 def test_a_citation_after_the_full_stop_mid_answer_stays_with_its_own_sentence():

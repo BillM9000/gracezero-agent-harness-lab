@@ -1,9 +1,10 @@
 """Checking an answer's citations against the passages it was given (chapter 9).
 
 An answer cites a passage by its id in square brackets, such as [1#2], in the sentence the passage
-supports. A citation written after the sentence's full stop, "Refunds are free. [1#2]", belongs to
-that sentence too, not to the one after it. For every citation this checks three things, cheapest
-first:
+supports. A citation written after the sentence's full stop, "Refunds are free. [1#2]" or
+"Refunds are free. ([1#2])", belongs to that sentence too, not to the one after it. A citation with
+no sentence to support, such as one that is the whole answer, is a problem: it vouches for nothing.
+For every other citation this checks three things, cheapest first:
 
 1. The passage exists in the knowledge base.
 2. The answer was given it. A citation to a passage the model was never shown is made up, even
@@ -31,8 +32,9 @@ from dataclasses import dataclass
 from helpdesk.services.retrieval import SENTENCE_END, words
 
 CITATION = re.compile(r"\[(\d+#\d+)\]")
-# Citations at the very start of a piece of the answer, once it's split after each full stop.
-LEADING_CITATIONS = re.compile(r"^(?:\s*\[\d+#\d+\])+")
+# Citations at the very start of a piece of the answer, once it's split after each full stop, each
+# perhaps in parentheses or after a comma or semicolon: "[1#2]", "([1#2])", "([1#2], [2#3])".
+LEADING_CITATIONS = re.compile(r"^(?:\s*[(,;]?\s*\[\d+#\d+\]\s*\)?)+")
 # How a search result shows a passage to the model, one per line: "[1#2] Title > Heading: text".
 PASSAGE_LINE = re.compile(r"^\[(\d+#\d+)\] (.+)$", re.MULTILINE)
 
@@ -73,7 +75,7 @@ def sentences(answer: str) -> list[str]:
     """The answer's sentences, each with its citations. Splitting after every full stop leaves a
     citation written after one at the start of the next piece, where it would vouch for the next
     sentence instead of its own, or, at the end of the answer, for nothing. So a run of citations
-    at the start of a piece goes back onto the sentence before it."""
+    at the start of a piece, parentheses and all, goes back onto the sentence before it."""
     found: list[str] = []
     for piece in SENTENCE_END.split(answer.strip()):
         lead = LEADING_CITATIONS.match(piece)
@@ -111,7 +113,12 @@ def check(answer: str, given: Mapping[str, str], known: Collection[str] | None =
             else:
                 support |= _vocabulary(given[citation])
         missing = sorted(_vocabulary(CITATION.sub(" ", sentence)) - support)
-        if support and missing:
+        if not words(CITATION.sub(" ", sentence)):
+            # Nothing before it to go back onto (the whole answer, or its first piece): no words to
+            # check, so without this it would pass as checked while vouching for nothing.
+            which = " and ".join(f"[{c}]" for c in cited) + (" have" if len(cited) > 1 else " has")
+            problems.append(Problem(", ".join(cited), sentence, f"{which} no sentence to support"))
+        elif support and missing:
             which = " and ".join(f"[{c}]" for c in cited) + (" don't" if len(cited) > 1 else " doesn't")
             problems.append(Problem(", ".join(cited), sentence, f"{which} say: {', '.join(missing)}"))
     return CitationReport(checked, tuple(problems), tuple(uncited))

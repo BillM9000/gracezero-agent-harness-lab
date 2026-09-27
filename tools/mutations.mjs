@@ -832,9 +832,23 @@ export const MUTATIONS = [
   {
     guard: "citations: a run of citations after the full stop goes back whole",
     file: CITATIONS,
-    find: 'LEADING_CITATIONS = re.compile(r"^(?:\\s*\\[\\d+#\\d+\\])+")',
-    replace: 'LEADING_CITATIONS = re.compile(r"^(?:\\s*\\[\\d+#\\d+\\])")',
+    find: 'LEADING_CITATIONS = re.compile(r"^(?:\\s*[(,;]?\\s*\\[\\d+#\\d+\\]\\s*\\)?)+")',
+    replace: 'LEADING_CITATIONS = re.compile(r"^(?:\\s*[(,;]?\\s*\\[\\d+#\\d+\\]\\s*\\)?)")',
     run: pytest(`${CITATIONS_TESTS}::test_citations_after_the_full_stop_all_go_back_to_the_sentence_they_follow`),
+  },
+  {
+    guard: "citations: a citation in parentheses after the full stop goes back too",
+    file: CITATIONS,
+    find: 'LEADING_CITATIONS = re.compile(r"^(?:\\s*[(,;]?\\s*\\[\\d+#\\d+\\]\\s*\\)?)+")',
+    replace: 'LEADING_CITATIONS = re.compile(r"^(?:\\s*[,;]?\\s*\\[\\d+#\\d+\\]\\s*)+")',
+    run: pytest(`${CITATIONS_TESTS}::test_a_citation_after_the_full_stop_at_the_end_is_checked_against_its_sentence`),
+  },
+  {
+    guard: "citations: a citation with no sentence to support is a problem",
+    file: CITATIONS,
+    find: '        if not words(CITATION.sub(" ", sentence)):',
+    replace: "        if False:",
+    run: pytest(`${CITATIONS_TESTS}::test_a_citation_with_no_sentence_to_support_is_a_problem`),
   },
   {
     guard: "citations: the messages say the check compares words, not meaning",

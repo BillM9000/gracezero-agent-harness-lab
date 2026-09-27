@@ -51,6 +51,8 @@ test("what check.mjs runs is protected: each Python module, each script and the 
 
 test("the checks' data and records are protected, the app's own files aren't", () => {
   for (const file of [
+    "python/catalog/servers.toml",
+    "python/src/mcp_governance/catalog.py",
     "postings/tally.test.mjs",
   ]) {
     assert.ok(isProtected(file), file);

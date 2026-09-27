@@ -25,6 +25,7 @@ export const CHECK_FILES = {
   "Python import rules (lint-imports)": [/^python\/pyproject\.toml$/],
   "Python model-text rule (python -m helpdesk_lint)": [/^python\/src\/helpdesk_lint\//],
   "Agent definitions (python -m agent_policy)": [/^python\/src\/agent_policy\//, /^python\/agents\/policy\.toml$/],
+  "MCP server catalog (python -m mcp_governance)": [/^python\/src\/mcp_governance\//, /^python\/catalog\//],
   "Knowledge-base retrieval (python -m helpdesk.kb eval)": [/^python\/src\/helpdesk\/kb\.py$/, /^python\/evals\/kb_questions\.json$/],
   "API contract (python -m helpdesk.contract)": [/^python\/src\/helpdesk\/contract\.py$/],
   "Python tests (pytest)": [/^python\/tests\//, /^python\/pyproject\.toml$/],

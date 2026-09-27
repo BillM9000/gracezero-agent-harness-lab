@@ -69,7 +69,7 @@ def test_the_output_reads_the_same_whatever_encoding_the_shell_sets(tmp_path, mo
         monkeypatch.setenv("PYTHONIOENCODING", shell_sets)
     code, output = run_guardrail(copy_package(tmp_path))
     assert code == 0, output
-    assert "6 kept, 0 broken" in output
+    assert "7 kept, 0 broken" in output
 
 
 def test_data_layer_importing_a_service_is_caught(tmp_path):

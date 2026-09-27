@@ -44,18 +44,21 @@ test("what check.mjs runs is protected: each Python module, each script and the 
   }
   for (const m of source.matchAll(/"((?:tools|postings)\/[\w./-]+\.mjs)"/g)) run.push(m[1]);
   if (/npm run /.test(source)) run.push("ts/package.json");
-  assert.ok(run.includes("python/src/helpdesk/contract.py") && run.includes("tools/progress.mjs"), run.join("\n"));
+  assert.ok(run.includes("python/src/helpdesk/gate.py") && run.includes("tools/progress.mjs"), run.join("\n"));
   assert.deepEqual(run.filter((file) => !isProtected(file)), []);
   assert.ok(isProtected("check.mjs"));
 });
 
 test("the checks' data and records are protected, the app's own files aren't", () => {
   for (const file of [
+    "python/evals/promoted.json",
+    "python/evals/gate.json",
     "python/evals/tasks.json",
     "python/evals/rubrics/reply.json",
     "python/catalog/servers.toml",
     "python/agents/models.toml",
     "python/src/mcp_governance/catalog.py",
+    "python/src/helpdesk/assistant/gating.py",
     "python/requirements-lock.txt",
     "postings/tally.test.mjs",
   ]) {

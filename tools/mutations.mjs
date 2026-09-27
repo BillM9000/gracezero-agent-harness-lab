@@ -3000,6 +3000,13 @@ export const MUTATIONS = [
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code
   // and data, a tool's configuration anywhere, file-wide silencing, and HEAD watched.
   {
+    guard: "fix loop: the gate's record and rules are protected",
+    file: PROTECTED_MJS,
+    find: "    /^python\\/evals\\/(gate|promoted)\\.json$/,\n",
+    replace: "",
+    run: nodeTest(LOOP_TESTS, "the checks' records and data stop the loop"),
+  },
+  {
     guard: "fix loop: every check's listed files feed the protected list",
     file: PROTECTED_MJS,
     find: "export const PROTECTED = [...ALWAYS, ...new Set(Object.values(CHECK_FILES).flat()), CONFIG_NAMES];",

@@ -13,7 +13,7 @@
 //     turns a failing lint into a pass without touching the file that held the rule.
 //
 // The data the app serves (help articles, seed data, agent definitions) isn't here: changing it can
-// be a fix.
+// be a fix, and the gate's fingerprint (chapter 23) catches a change to what the model is given.
 
 const TOOLS = /^tools\//;
 
@@ -37,6 +37,11 @@ export const CHECK_FILES = {
     /^python\/src\/helpdesk\/assistant\/judging\.py$/,
     /^python\/evals\/(judged|judge-mock)\.json$/,
     /^python\/evals\/rubrics\//,
+  ],
+  "Promotion gate (python -m helpdesk.gate check)": [
+    /^python\/src\/helpdesk\/gate\.py$/,
+    /^python\/src\/helpdesk\/assistant\/gating\.py$/,
+    /^python\/evals\/(gate|promoted)\.json$/,
   ],
   "API contract (python -m helpdesk.contract)": [/^python\/src\/helpdesk\/contract\.py$/],
   "Python tests (pytest)": [/^python\/tests\//, /^python\/pyproject\.toml$/],

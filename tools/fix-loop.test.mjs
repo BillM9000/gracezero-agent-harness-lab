@@ -169,16 +169,16 @@ test("a new tool configuration file stops the loop, in any folder: python/ruff.t
   assert.match(output, /the agent changed the checks themselves \(python\/ruff\.toml\), and with that change they pass\./);
 });
 
-test("the checks' records and data stop the loop: the policy the agent definitions are checked against", () => {
+test("the checks' records and data stop the loop: the gate's promotion record", () => {
   const root = repository();
-  mkdirSync(join(root, "python", "agents"), { recursive: true });
-  writeFileSync(join(root, "python", "agents", "policy.toml"), "[turns]\nlimit = 10\n");
+  mkdirSync(join(root, "python", "evals"), { recursive: true });
+  writeFileSync(join(root, "python", "evals", "promoted.json"), '{"promoted": "2026-09-25"}\n');
   git(root, "add", ".");
   git(root, "commit", "-q", "-m", "more fixture");
-  AGENTS.relaxer = `${FIXED} writeFileSync("python/agents/policy.toml", "[turns]\\nlimit = 50\\n");`;
-  const { code, output } = loop(root, "--agent", agent("relaxer").command);
+  AGENTS.promoter = `${FIXED} writeFileSync("python/evals/promoted.json", '{"promoted": "2026-09-27"}\\n');`;
+  const { code, output } = loop(root, "--agent", agent("promoter").command);
   assert.equal(code, 1, output);
-  assert.match(output, /the agent changed the checks themselves \(python\/agents\/policy\.toml\)/);
+  assert.match(output, /the agent changed the checks themselves \(python\/evals\/promoted\.json\)/);
 });
 
 test("hiding a new configuration file from git stops the loop: .gitignore and info/exclude", () => {

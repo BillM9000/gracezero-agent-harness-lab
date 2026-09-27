@@ -59,6 +59,7 @@ export const CHECK_FILES = {
     /^python\/golden-path\//,
   ],
   "Spec review (python -m helpdesk.spec_review check)": [/^python\/src\/helpdesk\/spec_review\.py$/, /^python\/spec-review\//],
+  // What it compares against, contracts/openapi.json, is a reference (see fix-loop.mjs), not a check.
   "API contract (python -m helpdesk.contract)": [/^python\/src\/helpdesk\/contract\.py$/],
   "Python tests (pytest)": [/^python\/tests\//, /^python\/pyproject\.toml$/],
   "TypeScript API types (npm run api-types)": [/^ts\/scripts\//, /^ts\/package\.json$/],
@@ -70,6 +71,7 @@ export const CHECK_FILES = {
   "Setup's path limit (tools/install-paths.mjs)": [TOOLS, /^setup\.mjs$/],
   "Lock files (tools/lockfiles.mjs)": [TOOLS, /^python\/requirements-lock\.txt$/, /^ts\/package-lock\.json$/],
   "Instruction files (tools/instruction-files.mjs)": [TOOLS],
+  // The numbers the documents claim are references (see fix-loop.mjs); the prose is the agent's.
   "Documentation claims (tools/doc-claims.mjs)": [TOOLS],
   "Work list (tools/progress.mjs)": [TOOLS],
 };

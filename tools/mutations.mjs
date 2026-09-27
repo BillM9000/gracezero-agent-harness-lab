@@ -813,11 +813,35 @@ export const MUTATIONS = [
     run: pytest(`${CITATIONS_TESTS}::test_a_citation_to_a_real_passage_the_answer_was_not_given_is_caught`),
   },
   {
-    guard: "citations: a sentence its passage doesn't support is caught",
+    guard: "citations: a sentence using words its passages don't have is caught",
     file: CITATIONS,
     find: "if support and missing:",
     replace: "if False:",
     run: pytest(`${CITATIONS_TESTS}::test_a_changed_fact_is_caught_and_the_word_named`),
+  },
+  {
+    guard: "citations: a citation after the full stop belongs to the sentence before it",
+    file: CITATIONS,
+    find: "        if lead and found:",
+    replace: "        if False:",
+    run: pytest(
+      `${CITATIONS_TESTS}::test_a_citation_after_the_full_stop_at_the_end_is_checked_against_its_sentence`,
+      `${CITATIONS_TESTS}::test_a_citation_after_the_full_stop_mid_answer_stays_with_its_own_sentence`,
+    ),
+  },
+  {
+    guard: "citations: a run of citations after the full stop goes back whole",
+    file: CITATIONS,
+    find: 'LEADING_CITATIONS = re.compile(r"^(?:\\s*\\[\\d+#\\d+\\])+")',
+    replace: 'LEADING_CITATIONS = re.compile(r"^(?:\\s*\\[\\d+#\\d+\\])")',
+    run: pytest(`${CITATIONS_TESTS}::test_citations_after_the_full_stop_all_go_back_to_the_sentence_they_follow`),
+  },
+  {
+    guard: "citations: the messages say the check compares words, not meaning",
+    file: KB_CLI,
+    find: `"and uses only its passage's words."`,
+    replace: `"and supports its sentence."`,
+    run: pytest(`${KB_CLI_TESTS}::test_cite_passes_a_supported_answer_and_fails_a_changed_fact`),
   },
   {
     guard: "triage: a draft whose citations fail is reported as failing",

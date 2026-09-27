@@ -30,8 +30,8 @@ def test_the_demo_answer_cites_only_what_it_was_given_and_every_citation_holds()
     run = triage()
     assert run.returncode == 0, run.stderr
     assert (
-        "Citations: 3 checked against the passages this run was given (1#2, 1#3, 11#2); all exist"
-        in run.stdout
+        "Citations: 3 checked against the passages this run was given (1#2, 1#3, 11#2); all exist "
+        "and use only their passages' words." in run.stdout
     )
     assert run.stdout.rstrip().endswith("Not checked: 2 sentence(s) cite nothing.")
 

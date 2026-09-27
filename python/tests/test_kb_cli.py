@@ -71,10 +71,15 @@ def test_cite_passes_a_supported_answer_and_fails_a_changed_fact(capsys):
         capsys, "cite", "reset email never arrives", "Reset emails can take up to ten minutes [1#2]."
     )
     assert code == 0, out
-    assert "PASS  1 citation(s) checked" in out
+    # It checks words, not meaning, and says so.
+    assert "PASS  1 citation(s) checked; each exists, was given, and uses only its passage's words." in out
     code, out = run(capsys, "cite", "reset email never arrives", "Reset emails can take up to an hour [1#2].")
     assert code == 1
     assert "FAIL  [1#2] doesn't say: hour" in out
+    # A citation after the full stop is checked against the sentence it follows.
+    code, out = run(capsys, "cite", "reset email never arrives", "Refunds are instant and free. [1#2]")
+    assert code == 1
+    assert "FAIL  [1#2] doesn't say: free, instant, refund" in out
 
 
 def test_size_says_whether_the_knowledge_base_fits_a_budget(capsys):

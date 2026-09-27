@@ -154,7 +154,8 @@ def run_cite(conn: Any, question: str, answer: str) -> int:
         print(f"FAIL  {problem.reason}\n      in: {problem.sentence}")
     if report.ok:
         print(
-            f"PASS  {report.checked} citation(s) checked; each exists, was given, and supports its sentence."
+            f"PASS  {report.checked} citation(s) checked; each exists, was given, "
+            "and uses only its passage's words."
         )
     print(f"Not checked: {len(report.uncited)} sentence(s) cite nothing.")
     return 0 if report.ok else 1

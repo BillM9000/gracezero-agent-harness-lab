@@ -56,6 +56,34 @@ def test_known_limit_a_dropped_not_passes():
     assert check("Refunds are automatic [2#3].", GIVEN, KNOWN).ok
 
 
+def test_a_citation_after_the_full_stop_at_the_end_is_checked_against_its_sentence():
+    # Split after the full stop, "[1#2]" was a sentence of its own with no words, so the false
+    # sentence before it was checked against nothing and the answer passed.
+    report = check("Refunds are instant and free. [1#2]", GIVEN, KNOWN)
+    assert not report.ok
+    assert [(p.sentence, p.reason) for p in report.problems] == [
+        ("Refunds are instant and free. [1#2]", "[1#2] doesn't say: free, instant, refund")
+    ]
+
+
+def test_a_citation_after_the_full_stop_mid_answer_stays_with_its_own_sentence():
+    # Split after the full stop, each [1#2] went to the sentence after it: the first vouched for
+    # "Check your spam folder." and the false sentence about refunds went unchecked.
+    report = check("Refunds are instant and free. [1#2] Check your spam folder. [1#2]", GIVEN, KNOWN)
+    assert report.checked == 2
+    assert "Refunds are instant and free. [1#2]" in [p.sentence for p in report.problems]
+    assert report.uncited == ()
+
+
+def test_citations_after_the_full_stop_all_go_back_to_the_sentence_they_follow():
+    # The sentence needs both passages' words, so both citations must come back to it.
+    answer = "Reset emails can take up to ten minutes, and refunds are not automatic. [1#2] [2#3] Hello."
+    report = check(answer, GIVEN)
+    assert report.ok
+    assert report.checked == 2
+    assert report.uncited == ("Hello.",)
+
+
 def test_sentences_with_no_citation_are_listed_but_not_failed():
     report = check("Hello, and sorry for the trouble. Reset emails can take up to ten minutes [1#2].", GIVEN)
     assert report.ok

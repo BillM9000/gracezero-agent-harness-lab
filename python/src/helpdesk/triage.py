@@ -70,7 +70,7 @@ def report_citations(answer: str, transcript: tuple[Message, ...], known: set[st
     report = citations.check(answer, given, known)
     against = f"against the passages this run was given ({', '.join(given) or 'none'})"
     if report.ok:
-        print(f"Citations: {report.checked} checked {against}; all exist and support their sentences.")
+        print(f"Citations: {report.checked} checked {against}; all exist and use only their passages' words.")
     else:
         print(f"Citations: {len(report.problems)} problem(s), checked {against}:")
         for problem in report.problems:

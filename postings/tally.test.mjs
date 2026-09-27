@@ -47,6 +47,24 @@ test("a missing field stops the run and the message says how to fix it", () => {
   assert.match(run.stderr, /P05: "mcp" is missing\. Set it to true or false\. Codebook: Mentions the Model Context Protocol\./);
 });
 
+test("a missing or misspelled field that may be null stops the run, not counted as null", () => {
+  const run = tally(
+    brokenCopy("renamed-keys", (d) => {
+      const p = d.postings.find((p) => p.id === "P05");
+      p.yearsRequried = p.yearsRequired;
+      delete p.yearsRequired;
+      delete d.postings.find((p) => p.id === "P06").degreeRequired;
+      delete d.postings.find((p) => p.id === "P07").alsoType;
+    }),
+  );
+  assert.equal(run.status, 1);
+  assert.equal(run.stdout, "", "nothing may be counted when the data has a problem");
+  assert.match(run.stderr, /3 problem\(s\)\. Nothing was counted\./);
+  assert.match(run.stderr, /P05: "yearsRequired" is missing\. Set it to a number, or null if the posting does not say\./);
+  assert.match(run.stderr, /P06: "degreeRequired" is missing\. Set it to true, false, or null if the posting does not say\./);
+  assert.match(run.stderr, /P07: "alsoType" is missing\. Set it to null, or a type other than the primary one\./);
+});
+
 test("a value that is not true or false is refused, not counted as no", () => {
   const run = tally(brokenCopy("string-flag", (d) => (d.postings[0].python = "yes")));
   assert.equal(run.status, 1);

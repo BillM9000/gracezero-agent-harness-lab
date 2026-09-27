@@ -9,6 +9,12 @@ const SIGNALS = [
   "aiObservability", "costControl", "humanApproval", "security", "servingOrTraining", "kubernetes",
 ];
 const LANGUAGES = ["python", "typescriptOrJavascript", "go", "java", "dotnet"];
+// Fields that may be null but must be there: a missing or misspelled one would count as null.
+const NULLABLE = {
+  alsoType: "null, or a type other than the primary one",
+  yearsRequired: "a number, or null if the posting does not say",
+  degreeRequired: "true, false, or null if the posting does not say",
+};
 
 const file = process.argv[2];
 if (!file) {
@@ -32,6 +38,9 @@ function problemsIn(data) {
     else if (seen.has(p.id)) problems.push(`${who}: id is used twice. Give every posting its own id.`);
     seen.add(p.id);
     if (!TYPES.includes(p.type)) problems.push(`${who}: type is ${JSON.stringify(p.type)}. Use one of: ${TYPES.join(", ")}.`);
+    for (const [key, allowed] of Object.entries(NULLABLE)) {
+      if (!(key in p)) problems.push(`${who}: "${key}" is missing. Set it to ${allowed}.`);
+    }
     if (p.alsoType != null && (!TYPES.includes(p.alsoType) || p.alsoType === p.type)) {
       problems.push(`${who}: alsoType is ${JSON.stringify(p.alsoType)}. Use null or a type other than the primary one.`);
     }

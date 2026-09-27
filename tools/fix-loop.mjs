@@ -6,7 +6,10 @@
 // Run it from the repository root. The agent command runs through the shell with the prompt on
 // stdin, the way `claude -p` and `codex exec` read one; the command is yours, so the shell is too.
 // The loop stops early, and exits 1, when:
-//   - the agent changed the checks themselves (the files matched by PROTECTED): a person decides that;
+//   - the agent moved HEAD (it committed, or checked out another commit), which the prompt says not
+//     to do: its changes would leave the working tree a person reviews;
+//   - the agent changed the checks themselves (tools/protected.mjs: every check's code and data, and
+//     a tool's configuration file wherever it appears): a person decides that;
 //   - an attempt leaves the checks reporting exactly what they reported before, because another
 //     attempt would get the same prompt;
 //   - the agent command didn't finish (it couldn't start, or ran past AGENT_TIMEOUT_MS).
@@ -15,24 +18,13 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { failureReport, RERUN, RULES, runFastChecks } from "./feedback.mjs";
+import { isProtected } from "./protected.mjs";
 
-// The checks and their configuration. A change here can be right, but it isn't the agent's call:
-// weakening a check is often the quickest way to make it pass.
-const PROTECTED = [
-  /^check\.mjs$/,
-  /^tools\//,
-  /^\.claude\//,
-  /^\.github\//,
-  /^python\/tests\//,
-  /^python\/pyproject\.toml$/,
-  /^python\/agents\/policy\.toml$/,
-  /^python\/src\/(helpdesk_lint|agent_policy)\//,
-  /^ts\/test\//,
-  /^ts\/scripts\/eslint-rules\//,
-  /^ts\/(package\.json|tsconfig\.json|eslint\.config\.js|\.dependency-cruiser\.cjs)$/,
-];
+// git's own files that decide what it lists and diffs: a pattern added to info/exclude hides a new
+// file from the list below as surely as one added to a .gitignore, which the protected list names.
+const GIT_OWN = ["info/exclude", "config"];
 const AGENT_TIMEOUT_MS = 20 * 60 * 1000;
 
 function option(name) {
@@ -41,15 +33,24 @@ function option(name) {
 }
 
 // A hash of every protected file git can see, tracked or new, so a change made during the loop
-// shows up whatever state the tree was in when it started.
+// shows up whatever state the tree was in when it started; git's own ignore and configuration
+// files too.
 function protectedFiles(root) {
   const listed = spawnSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], { cwd: root, encoding: "utf8" });
   const hashes = new Map();
-  for (const file of listed.stdout.split("\0").filter((f) => PROTECTED.some((p) => p.test(f)))) {
-    const path = join(root, file);
-    hashes.set(file, existsSync(path) ? createHash("sha256").update(readFileSync(path)).digest("hex") : "deleted");
+  const hash = (path) => (existsSync(path) ? createHash("sha256").update(readFileSync(path)).digest("hex") : "deleted");
+  for (const file of listed.stdout.split("\0").filter((f) => isProtected(f))) hashes.set(file, hash(join(root, file)));
+  for (const name of GIT_OWN) {
+    const path = spawnSync("git", ["rev-parse", "--git-path", name], { cwd: root, encoding: "utf8" }).stdout.trim();
+    hashes.set(path.replaceAll("\\", "/"), hash(resolve(root, path)));
   }
   return hashes;
+}
+
+// The commit checked out, or null before the first commit.
+function head(root) {
+  const run = spawnSync("git", ["rev-parse", "--verify", "--quiet", "HEAD"], { cwd: root, encoding: "utf8" });
+  return run.status === 0 ? run.stdout.trim() : null;
 }
 
 function changedChecks(before, after) {
@@ -66,7 +67,7 @@ function promptFor(output, attempt, attempts) {
     `Run them with: ${RERUN}`,
     ...RULES,
     "Changing the checks themselves (tests, lint rules, check scripts or their settings) stops this run for a person to review.",
-    "Don't commit: leave your changes in the working tree.",
+    "Don't commit: leave your changes in the working tree. A commit, or a checkout of another commit, stops the run too.",
     `This is attempt ${attempt} of ${attempts}.`,
   ].join("\n");
 }
@@ -103,6 +104,9 @@ if (spawnSync("git", ["rev-parse", "--git-dir"], { cwd: root }).status !== 0) {
   process.exit(2);
 }
 
+// Where the loop started: an attempt that moves HEAD, by committing or checking out another commit,
+// stops the loop.
+const start = head(root);
 const before = protectedFiles(root);
 let checks = runFastChecks(root);
 if (checks.passed) {
@@ -129,9 +133,18 @@ for (let attempt = 1; attempt <= attempts; attempt++) {
   console.log(`fix-loop: the agent exited ${run.status} after ${seconds}s.`);
   if (run.status !== 0 && run.stderr) console.log(excerpt(run.stderr));
 
+  const now = head(root);
+  const moved = now !== start;
   const changed = changedChecks(before, protectedFiles(root));
   const previous = checks;
   checks = runFastChecks(root);
+  if (moved) {
+    const short = (commit) => (commit ? commit.slice(0, 7) : "no commit");
+    console.log(`fix-loop: the agent moved HEAD from ${short(start)} to ${short(now)}: it committed, or checked out another commit.`);
+    if (changed.length) console.log(`It changed the checks themselves: ${changed.join(", ")}.`);
+    console.log(`Stopping: a person needs to review what changed since ${short(start)}, where the loop started.`);
+    finish(root, 1, checks);
+  }
   if (changed.length) {
     const passing = checks.passed ? ", and with that change they pass" : "";
     console.log(`fix-loop: the agent changed the checks themselves (${changed.join(", ")})${passing}. Stopping: a person needs to review that.`);

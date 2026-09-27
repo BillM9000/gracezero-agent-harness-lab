@@ -22,6 +22,8 @@ const AGENT_RULES = "python/src/agent_policy/rules.py";
 const FEEDBACK_TESTS = "tools/feedback.test.mjs";
 const STOP_TESTS = "tools/hooks/stop-check.test.mjs";
 const LOOP_TESTS = "tools/fix-loop.test.mjs";
+const PROTECTED_MJS = "tools/protected.mjs";
+const PROTECTED_TESTS = "tools/protected.test.mjs";
 const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
 const ROUTES_FITNESS_TEST = "tests/fitness/test_routes_declare_response_models.py";
 const FAKE_FITNESS = "python/tests/fitness/test_tests_fake_the_model_client.py";
@@ -641,10 +643,69 @@ export const MUTATIONS = [
   },
   {
     guard: "fix loop: check.mjs counts as one of the checks",
-    file: "tools/fix-loop.mjs",
-    find: "  /^check\\.mjs$/,\n",
-    replace: "",
+    file: PROTECTED_MJS,
+    find: "export const ALWAYS = [/^check\\.mjs$/, TOOLS,",
+    replace: "export const ALWAYS = [TOOLS,",
     run: nodeTest(LOOP_TESTS, "stops when the agent changes the checks"),
+  },
+
+  // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code
+  // and data, a tool's configuration anywhere, file-wide silencing, and HEAD watched.
+  {
+    guard: "fix loop: every check's listed files feed the protected list",
+    file: PROTECTED_MJS,
+    find: "export const PROTECTED = [...ALWAYS, ...new Set(Object.values(CHECK_FILES).flat()), CONFIG_NAMES];",
+    replace: "export const PROTECTED = [...ALWAYS, CONFIG_NAMES];",
+    run: nodeTest(LOOP_TESTS, "the checks' records and data stop the loop"),
+  },
+  {
+    guard: "fix loop: a check without its files listed fails the test",
+    file: PROTECTED_MJS,
+    find: '  "Agent definitions (python -m agent_policy)": [',
+    replace: '  "Agent definitions": [',
+    run: nodeTest(PROTECTED_TESTS, "every check node check.mjs runs has its files listed"),
+  },
+  {
+    guard: "fix loop: what check.mjs runs is covered (the API contract's module)",
+    file: PROTECTED_MJS,
+    find: "[/^python\\/src\\/helpdesk\\/contract\\.py$/]",
+    replace: "[]",
+    run: nodeTest(PROTECTED_TESTS, "what check.mjs runs is protected"),
+  },
+  {
+    guard: "fix loop: a new ruff.toml is a change to the checks, in any folder",
+    file: PROTECTED_MJS,
+    find: "      String.raw`\\.?ruff\\.toml`,\n",
+    replace: "",
+    run: nodeTest(LOOP_TESTS, "a new tool configuration file stops the loop"),
+  },
+  {
+    guard: "fix loop: a .gitignore is a change to the checks",
+    file: PROTECTED_MJS,
+    find: "      String.raw`\\.gitignore`,\n",
+    replace: "",
+    run: nodeTest(LOOP_TESTS, "hiding a new configuration file from git"),
+  },
+  {
+    guard: "fix loop: git's info/exclude is watched",
+    file: "tools/fix-loop.mjs",
+    find: 'const GIT_OWN = ["info/exclude", "config"];',
+    replace: 'const GIT_OWN = ["config"];',
+    run: nodeTest(LOOP_TESTS, "hiding a new configuration file from git"),
+  },
+  {
+    guard: "fix loop: an attempt that moves HEAD stops the loop",
+    file: "tools/fix-loop.mjs",
+    find: "  const moved = now !== start;",
+    replace: "  const moved = false;",
+    run: nodeTest(LOOP_TESTS, "a commit stops the loop"),
+  },
+  {
+    guard: "fix loop: the prompt says a commit stops the run",
+    file: "tools/fix-loop.mjs",
+    find: " A commit, or a checkout of another commit, stops the run too.",
+    replace: "",
+    run: nodeTest(LOOP_TESTS, "the prompt says a commit stops the run"),
   },
 
   // Chapter 15's two structural checks, fixed after a review (2026-09-26): routers under any name,

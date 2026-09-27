@@ -1,0 +1,74 @@
+// What the fix loop (tools/fix-loop.mjs, chapter 25) treats as the checks themselves: a change to
+// any of these files stops the loop for a person, because weakening a check, or the data it judges
+// against, is often the quickest way to make it pass.
+//
+// Three parts:
+//   - ALWAYS: the check runner, the scripts, the agent's settings and CI, whatever check reads them.
+//   - CHECK_FILES: for every check `node check.mjs --list` prints, the code and data that decide
+//     whether it passes: its module, its rules, its golden sets and the records it compares with.
+//     tools/protected.test.mjs fails when a check has no entry, when an entry matches no file, or
+//     when a module or script check.mjs runs isn't covered, so a new check can't slip past the loop.
+//   - CONFIG_NAMES: a tool's configuration file wherever it appears, tracked or new. Ruff, for one,
+//     prefers a ruff.toml beside pyproject.toml, so a new python/ruff.toml with ignore = ["F401"]
+//     turns a failing lint into a pass without touching the file that held the rule.
+//
+// The data the app serves (seed data, agent definitions) isn't here: changing it can be a fix.
+
+const TOOLS = /^tools\//;
+
+export const ALWAYS = [/^check\.mjs$/, TOOLS, /^\.claude\//, /^\.github\//, /^setup\.mjs$/];
+
+export const CHECK_FILES = {
+  "Python lint (ruff check)": [/^python\/pyproject\.toml$/],
+  "Python format (ruff format --check)": [/^python\/pyproject\.toml$/],
+  "Python import rules (lint-imports)": [/^python\/pyproject\.toml$/],
+  "Python model-text rule (python -m helpdesk_lint)": [/^python\/src\/helpdesk_lint\//],
+  "Agent definitions (python -m agent_policy)": [/^python\/src\/agent_policy\//, /^python\/agents\/policy\.toml$/],
+  "API contract (python -m helpdesk.contract)": [/^python\/src\/helpdesk\/contract\.py$/],
+  "Python tests (pytest)": [/^python\/tests\//, /^python\/pyproject\.toml$/],
+  "TypeScript API types (npm run api-types)": [/^ts\/scripts\//, /^ts\/package\.json$/],
+  "TypeScript type-check": [/^ts\/tsconfig\.json$/, /^ts\/package\.json$/],
+  "TypeScript import rules (eslint)": [/^ts\/eslint\.config\.js$/, /^ts\/scripts\/eslint-rules\//],
+  "TypeScript dependency rules (dependency-cruiser)": [/^ts\/\.dependency-cruiser\.cjs$/],
+  "TypeScript tests": [/^ts\/test\//, /^ts\/package\.json$/],
+  "Script tests": [TOOLS, /^postings\/[^/]+\.test\.mjs$/, /^postings\/sample-[^/]+\.json$/],
+  "Setup's path limit (tools/install-paths.mjs)": [TOOLS, /^setup\.mjs$/],
+  "Instruction files (tools/instruction-files.mjs)": [TOOLS],
+  "Documentation claims (tools/doc-claims.mjs)": [TOOLS],
+  "Work list (tools/progress.mjs)": [TOOLS],
+};
+
+// A tool's configuration, by the file's name, in any folder: the linters, formatters, type checkers
+// and test runners the checks use or would pick up, and git's own ignore and attribute files, which
+// decide what the loop can see (an ignored file isn't listed; a file marked -diff shows no lines).
+export const CONFIG_NAMES = new RegExp(
+  "(^|/)(" +
+    [
+      String.raw`\.?ruff\.toml`,
+      String.raw`pyproject\.toml`,
+      String.raw`setup\.cfg`,
+      String.raw`tox\.ini`,
+      String.raw`pytest\.ini`,
+      String.raw`conftest\.py`,
+      String.raw`\.importlinter`,
+      String.raw`\.flake8`,
+      String.raw`mypy\.ini`,
+      String.raw`\.coveragerc`,
+      String.raw`pyrightconfig\.json`,
+      String.raw`package\.json`,
+      String.raw`[jt]sconfig(\.[\w-]+)*\.json`,
+      String.raw`eslint\.config\.[cm]?[jt]s`,
+      String.raw`\.eslintrc(\.\w+)?`,
+      String.raw`\.eslintignore`,
+      String.raw`\.dependency-cruiser(\.[\w-]+)*\.[cm]?js(on)?`,
+      String.raw`vite(st)?\.config\.[cm]?[jt]s`,
+      String.raw`\.gitignore`,
+      String.raw`\.gitattributes`,
+    ].join("|") +
+    ")$",
+);
+
+export const PROTECTED = [...ALWAYS, ...new Set(Object.values(CHECK_FILES).flat()), CONFIG_NAMES];
+
+// Paths as git prints them: forward slashes, relative to the repository's root.
+export const isProtected = (file, patterns = PROTECTED) => patterns.some((p) => p.test(file));

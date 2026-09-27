@@ -58,6 +58,7 @@ const CHECKS = [
       "tools/feedback.test.mjs",
       "tools/hooks/stop-check.test.mjs",
       "tools/fix-loop.test.mjs",
+      "tools/protected.test.mjs",
       "tools/git-run.test.mjs",
     ],
     { cwd: ROOT },

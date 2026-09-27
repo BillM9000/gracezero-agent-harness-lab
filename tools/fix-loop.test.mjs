@@ -3,7 +3,7 @@
 // that fixes it, one that never manages to, one that does nothing, one that edits the check.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
@@ -58,7 +58,8 @@ function agent(kind) {
   const script = join(dir, "agent.mjs");
   writeFileSync(
     script,
-    `import { existsSync, readFileSync, writeFileSync } from "node:fs";\n` +
+    `import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";\n` +
+      `import { execSync } from "node:child_process";\n` +
       `const count = ${JSON.stringify(join(dir, "calls.txt"))};\n` +
       `const calls = (existsSync(count) ? Number(readFileSync(count, "utf8")) : 0) + 1;\n` +
       `writeFileSync(count, String(calls));\n` +
@@ -152,4 +153,57 @@ test("refuses without an agent command, outside a repository root, or with a sil
   assert.equal(loop(repository()).code, 2);
   assert.equal(loop(repository(), "--agent", "node x.mjs", "--attempts", "0").code, 2);
   assert.equal(loop(temporary("not-a-repo-"), "--agent", "node x.mjs").code, 2);
+});
+
+// The holes a review found (2026-09-26): what the protected list didn't cover, and a commit, which
+// takes an attempt's changes out of the working tree a person reviews.
+const FIXED = 'writeFileSync("app.txt", "ok\\n");';
+
+test("a new tool configuration file stops the loop, in any folder: python/ruff.toml", () => {
+  AGENTS.configurer = `${FIXED} mkdirSync("python", { recursive: true }); writeFileSync("python/ruff.toml", "[lint]\\nignore = [\\"F401\\"]\\n");`;
+  const { code, output } = loop(repository(), "--agent", agent("configurer").command);
+  assert.equal(code, 1, output);
+  assert.match(output, /the agent changed the checks themselves \(python\/ruff\.toml\), and with that change they pass\./);
+});
+
+test("the checks' records and data stop the loop: the policy the agent definitions are checked against", () => {
+  const root = repository();
+  mkdirSync(join(root, "python", "agents"), { recursive: true });
+  writeFileSync(join(root, "python", "agents", "policy.toml"), "[turns]\nlimit = 10\n");
+  git(root, "add", ".");
+  git(root, "commit", "-q", "-m", "more fixture");
+  AGENTS.relaxer = `${FIXED} writeFileSync("python/agents/policy.toml", "[turns]\\nlimit = 50\\n");`;
+  const { code, output } = loop(root, "--agent", agent("relaxer").command);
+  assert.equal(code, 1, output);
+  assert.match(output, /the agent changed the checks themselves \(python\/agents\/policy\.toml\)/);
+});
+
+test("hiding a new configuration file from git stops the loop: .gitignore and info/exclude", () => {
+  AGENTS.ignorer = `${FIXED} writeFileSync(".gitignore", "ruff.toml\\n"); writeFileSync("ruff.toml", "[lint]\\nignore = [\\"F401\\"]\\n");`;
+  const ignored = loop(repository(), "--agent", agent("ignorer").command);
+  assert.equal(ignored.code, 1, ignored.output);
+  assert.match(ignored.output, /the agent changed the checks themselves \(\.gitignore\)/);
+  AGENTS.excluder = `${FIXED} appendFileSync(".git/info/exclude", "ruff.toml\\n"); writeFileSync("ruff.toml", "[lint]\\nignore = [\\"F401\\"]\\n");`;
+  const excluded = loop(repository(), "--agent", agent("excluder").command);
+  assert.equal(excluded.code, 1, excluded.output);
+  assert.match(excluded.output, /the agent changed the checks themselves \(\.git\/info\/exclude\)/);
+});
+
+const COMMITTER = `${FIXED} writeFileSync("app.py", "import os  # noqa: F401\\n"); execSync("git add -A && git -c user.email=a@example.com -c user.name=a commit -q -m fix");`;
+
+test("a commit stops the loop, even one that makes the checks pass", () => {
+  const root = repository();
+  const start = git(root, "rev-parse", "--short=7", "HEAD").stdout.trim();
+  AGENTS.committer = COMMITTER;
+  const { code, output } = loop(root, "--agent", agent("committer").command);
+  assert.equal(code, 1, output);
+  assert.match(output, new RegExp(`the agent moved HEAD from ${start} to [0-9a-f]{7}: it committed, or checked out another commit\\.`));
+  assert.match(output, new RegExp(`Stopping: a person needs to review what changed since ${start}, where the loop started\\.`));
+  assert.doesNotMatch(output, /pass after/);
+});
+
+test("the prompt says a commit stops the run", () => {
+  const fake = agent("fixer");
+  loop(repository(), "--agent", fake.command);
+  assert.match(fake.prompt(), /Don't commit: leave your changes in the working tree\. A commit, or a checkout of another commit, stops the run too\./);
 });

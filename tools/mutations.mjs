@@ -3794,10 +3794,10 @@ export const MUTATIONS = [
     run: nodeTest(PROTECTED_TESTS, "every check node check.mjs runs has its files listed"),
   },
   {
-    guard: "fix loop: what check.mjs runs is covered (the API contract's module)",
+    guard: "fix loop: what check.mjs runs is covered (the gateway's check module)",
     file: PROTECTED_MJS,
-    find: "[/^python\\/src\\/helpdesk\\/contract\\.py$/]",
-    replace: "[]",
+    find: "    /^python\\/src\\/helpdesk\\/gateway\\.py$/,\n",
+    replace: "",
     run: nodeTest(PROTECTED_TESTS, "what check.mjs runs is protected"),
   },
   {

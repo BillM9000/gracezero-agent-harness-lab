@@ -56,8 +56,10 @@ test("the checks' data and records are protected, the app's own files aren't", (
     "python/evals/tasks.json",
     "python/evals/rubrics/reply.json",
     "python/catalog/servers.toml",
+    "python/gateway/demo.toml",
     "python/agents/models.toml",
     "python/src/mcp_governance/catalog.py",
+    "python/src/helpdesk/gateway.py",
     "python/src/helpdesk/assistant/gating.py",
     "python/requirements-lock.txt",
     "postings/tally.test.mjs",
@@ -66,6 +68,7 @@ test("the checks' data and records are protected, the app's own files aren't", (
   }
   for (const file of [
     "python/src/helpdesk/services/tickets.py",
+    "python/src/helpdesk/model/gateway.py",
     "python/agents/triage.toml",
     "README.md",
     "progress/features.json",

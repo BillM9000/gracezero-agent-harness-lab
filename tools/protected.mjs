@@ -43,6 +43,11 @@ export const CHECK_FILES = {
     /^python\/src\/helpdesk\/assistant\/gating\.py$/,
     /^python\/evals\/(gate|promoted)\.json$/,
   ],
+  "Model gateway (python -m helpdesk.gateway check)": [
+    /^python\/src\/helpdesk\/gateway\.py$/,
+    /^python\/gateway\//,
+    /^python\/agents\/(policy|models)\.toml$/,
+  ],
   "API contract (python -m helpdesk.contract)": [/^python\/src\/helpdesk\/contract\.py$/],
   "Python tests (pytest)": [/^python\/tests\//, /^python\/pyproject\.toml$/],
   "TypeScript API types (npm run api-types)": [/^ts\/scripts\//, /^ts\/package\.json$/],

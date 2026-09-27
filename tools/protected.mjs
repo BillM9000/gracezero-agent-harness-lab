@@ -27,6 +27,11 @@ export const CHECK_FILES = {
   "Agent definitions (python -m agent_policy)": [/^python\/src\/agent_policy\//, /^python\/agents\/(policy|models)\.toml$/],
   "MCP server catalog (python -m mcp_governance)": [/^python\/src\/mcp_governance\//, /^python\/catalog\//],
   "Knowledge-base retrieval (python -m helpdesk.kb eval)": [/^python\/src\/helpdesk\/kb\.py$/, /^python\/evals\/kb_questions\.json$/],
+  "Golden sets (python -m helpdesk.evals check)": [
+    /^python\/src\/helpdesk\/evals\.py$/,
+    /^python\/src\/helpdesk\/assistant\/grading\.py$/,
+    /^python\/evals\/(tasks|reasons|injections)\.json$/,
+  ],
   "API contract (python -m helpdesk.contract)": [/^python\/src\/helpdesk\/contract\.py$/],
   "Python tests (pytest)": [/^python\/tests\//, /^python\/pyproject\.toml$/],
   "TypeScript API types (npm run api-types)": [/^ts\/scripts\//, /^ts\/package\.json$/],

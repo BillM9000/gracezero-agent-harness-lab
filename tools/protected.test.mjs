@@ -14,7 +14,7 @@ const tracked = spawnSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf
 test("every check node check.mjs runs has its files listed, and nothing else is listed", () => {
   const listed = spawnSync(process.execPath, ["check.mjs", "--list"], { cwd: ROOT, encoding: "utf8" });
   const labels = listed.stdout.trim().split(/\r?\n/);
-  assert.ok(labels.length > 15, listed.stdout);
+  assert.ok(labels.length > 20, listed.stdout);
   const missing = labels.filter((label) => !(label in CHECK_FILES));
   assert.deepEqual(missing, [], "add each new check to CHECK_FILES in tools/protected.mjs");
   assert.deepEqual(Object.keys(CHECK_FILES).filter((label) => !labels.includes(label)), []);
@@ -51,6 +51,7 @@ test("what check.mjs runs is protected: each Python module, each script and the 
 
 test("the checks' data and records are protected, the app's own files aren't", () => {
   for (const file of [
+    "python/evals/tasks.json",
     "python/catalog/servers.toml",
     "python/agents/models.toml",
     "python/src/mcp_governance/catalog.py",

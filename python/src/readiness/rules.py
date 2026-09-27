@@ -332,10 +332,12 @@ def shape(record: Mapping[str, Any], rubric: Mapping[str, Any], evidence: Eviden
     return problems
 
 
-def exception_problems(record: Mapping[str, Any], readiness: Mapping[str, Any]) -> list[str]:
+def exception_problems(record: Mapping[str, Any], readiness: Mapping[str, Any], today: date) -> list[str]:
     """What's wrong with the exceptions a use case records (chapter 29), whatever its stage. An
     exception names an item that may take one, gives a reason, comes from a reviewer who isn't the
-    champion, and ends within the checklist's limit."""
+    champion, was given on or before today, and ends within the checklist's limit of the day it was
+    given, so never more than that limit from today. A day given in the future would stretch it:
+    given "on" 2027-01-01 until 2027-01-20, it would excuse the item from now until then."""
     rules = readiness["exceptions"]
     reviewers = {name for names in readiness["reviewers"].values() for name in names}
     problems = []
@@ -358,6 +360,12 @@ def exception_problems(record: Mapping[str, Any], readiness: Mapping[str, Any]) 
             problems.append(f"{where}: {e['by']} is its champion, and can't excuse their own use case.")
         if not (isinstance(e["on"], date) and isinstance(e["until"], date)):
             problems.append(f"{where}: on and until must be dates, such as 2026-09-25.")
+        elif e["on"] > today:
+            problems.append(
+                f"{where}: is given on {e['on']}, after today ({today}). An exception counts from the "
+                "day it's given: record it on that day, not before."
+            )
+        # With on no later than today, this also keeps until within max_days of today.
         elif not 0 < (e["until"] - e["on"]).days <= rules["max_days"]:
             problems.append(
                 f"{where}: runs from {e['on']} to {e['until']}. An exception ends within "
@@ -403,7 +411,7 @@ def review(
     name = str(record.get("name", "?"))
     stage = str(record.get("stage", "?"))
     problems = shape(record, rubric, evidence)
-    problems += [] if problems else exception_problems(record, readiness)
+    problems += [] if problems else exception_problems(record, readiness, evidence.today)
     scored, wrong = (None, []) if problems else score(record["intake"], rubric)
     problems += wrong
     if problems:

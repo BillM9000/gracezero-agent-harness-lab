@@ -388,6 +388,32 @@ def test_a_malformed_exception_fails_at_any_stage(change, expected):
         assert any(p.startswith(expected) for p in r.problems), r.problems
 
 
+def test_an_exception_given_on_a_day_still_to_come_fails():
+    # Reproduced by a review: given "on" 2027-01-01 until 2027-01-20 and checked on 2026-09-27, it
+    # had no problems and excused the item for almost four months.
+    record = excepted(on=date(2027, 1, 1), until=date(2027, 1, 20))
+    r = review(
+        record, RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, evidence(promotion=STALE, today=date(2026, 9, 27))
+    )
+    assert not r.passes and not r.ready
+    assert r.problems == [
+        "exceptions[0]: is given on 2027-01-01, after today (2026-09-27). An exception counts from the "
+        "day it's given: record it on that day, not before."
+    ]
+    # Given today, it's in force.
+    on_the_day = evidence(promotion=STALE, today=date(2027, 1, 1))
+    assert review(record, RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, on_the_day).passes
+
+
+def test_chapter_29s_exception_passes_on_the_day_the_try_it_checks():
+    # on 2026-09-25 until 2026-10-09, checked with --today 2026-09-30.
+    record = excepted(on=date(2026, 9, 25), until=date(2026, 10, 9))
+    r = review(
+        record, RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, evidence(promotion=STALE, today=date(2026, 9, 30))
+    )
+    assert r.passes and r.ready
+
+
 def test_a_champion_cant_excuse_their_own_use_case():
     record = {**excepted(), "champion": "Alex Moreno"}
     r = review(record, RUBRIC_DATA, READINESS_DATA, LIBRARY_NAMES, evidence(promotion=STALE))

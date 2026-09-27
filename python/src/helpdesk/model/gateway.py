@@ -6,11 +6,15 @@ case, and the team's share of the rate limits (requests and input tokens a minut
 wait is short and refusing when it isn't. Then it routes: the cheapest model on the route first, at
 the first of its deployments that isn't cooling down. A deployment that is overloaded, rate limited
 or unreachable cools down, and the call goes to the model's next deployment, then to the next model.
-A refusal goes to the next model on the route, never back to the one that refused; the refused call
-was billed, so the month and the minute are checked again first, and a fallback the month can't
-cover is refused. A route may also answer an identical request from the same team from its cache,
-for a set time, with no call made; the cache is keyed by the provider and the model that answered
-as well, so one provider's answer is never handed out as another's.
+A refusal goes to the next model on the route, never back to the one that refused. A refused call
+can be billed (as of September 2026, Anthropic bills a refusal partway through an answer, and one
+before any output in three of its refusal categories) and always takes a place in the minute, so
+the month and the minute are checked again first, and a fallback the month can't cover is refused.
+The gateway counts a refused call at the usage the provider reports, as it does any call, even when
+the refusal wasn't billed: conservative, since what was reported is at least what was billed. A
+route may also answer an identical request from the same team from its cache, for a set time, with
+no call made; the cache is keyed by the provider and the model that answered as well, so one
+provider's answer is never handed out as another's.
 
 A deployment names its provider, and connect builds that provider's client (the lab's adapters,
 chapter 22), so a route that names two providers' models falls back from one provider to the other
@@ -189,7 +193,7 @@ class Gateway:
 
     def check_budget(self, team: Team, worst: float, after: str = "") -> None:
         """Refuse a call that could take the team past its month. after, when the call follows one
-        that was made and refused, says which, since that one was sent and billed."""
+        that was made and refused, says which, since that one was sent and counted."""
         spent = self.month_spent(team.name)
         if spent + worst > team.monthly_usd:
             call, sent = ("this call", "Nothing was sent.")
@@ -336,13 +340,15 @@ class _Door:
             raise
 
         refusal: ModelResponse | None = None
-        refused_by = ""  # the model whose refusal was just billed, until the next call is admitted
+        refused_by = ""  # the model whose refusal was just counted, until the next call is admitted
         tried: list[str] = []
         for index, model in enumerate(models):
             if refused_by:
-                # A refused call was sent and billed, and the next model is another call. Check the
-                # month again, at the dearest model still to try, and take another place in the
-                # team's minute, or the fallback could carry the team past either.
+                # A refused call was sent, took a place in the minute and can be billed (the month
+                # counts what the provider reported for it, billed or not), and the next model is
+                # another call. Check the month again, at the dearest model still to try, and take
+                # another place in the team's minute, or the fallback could carry the team past
+                # either.
                 try:
                     worst = max(price(m, sent, self.max_tokens) for m in models[index:])
                     g.check_budget(team, worst, after=refused_by)

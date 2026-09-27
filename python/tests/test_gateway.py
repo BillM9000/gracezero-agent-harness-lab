@@ -261,9 +261,10 @@ def test_a_call_that_could_take_the_team_past_its_month_is_refused_before_it_is_
 
 
 def test_a_fallback_after_a_refusal_cant_take_the_team_past_its_month(tmp_path):
-    # The month is checked once, at the request's worst, and a refused call is billed. When the
-    # month has room for one call at its worst and no more, the fallback must be refused: sonnet's
-    # refusal and opus's answer together would pass the budget.
+    # The month is checked once, at the request's worst, and a refused call can be billed (this one
+    # refused partway through its answer, which is). When the month has room for one call at its
+    # worst and no more, the fallback must be refused: sonnet's refusal and opus's answer together
+    # would pass the budget.
     team = Team("billing", 1.00, 60, 200_000)
     provider = Provider(**{f"{SONNET}@primary": ["late refusal"], f"{OPUS}@primary": ["cut"]})
     gateway, path, _ = build(tmp_path, provider, teams=(team,))

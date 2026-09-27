@@ -64,6 +64,21 @@ def retry_after(error: Exception) -> float | None:
         return None
 
 
+def sdk_client_classes() -> frozenset[str]:
+    """Every name the installed anthropic package exports for a client class: Anthropic, each cloud
+    platform's (AnthropicBedrock, AnthropicVertex, AnthropicFoundry, ...), their async twins, and
+    aliases such as Client. Only helpdesk.model may import the SDK, so the one-door fitness test
+    (chapter 27) asks here. A client class is one built on the SDK's BaseClient, which is private:
+    if a new SDK moves it, this fails at once rather than finding nothing."""
+    import anthropic
+    from anthropic._base_client import BaseClient
+
+    exported = ((name, getattr(anthropic, name)) for name in dir(anthropic))
+    return frozenset(
+        name for name, value in exported if isinstance(value, type) and issubclass(value, BaseClient)
+    )
+
+
 class AnthropicModel:
     def __init__(self, client: Any = None, model: str = DEFAULT_MODEL, max_tokens: int = 16000) -> None:
         if client is None:

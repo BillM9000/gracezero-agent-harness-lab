@@ -3,11 +3,12 @@
 // of them is ever run.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { ASK_MODES, classify, decide } from "./guard-rules.mjs";
+import { ASK_MODES, classify, decide, failed } from "./guard-rules.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LAB = resolve(HERE, "..", "..");
@@ -116,6 +117,35 @@ test("a failure inside the guard denies the command instead of letting it throug
   assert.match(hookSpecificOutput.permissionDecisionReason, /^The destructive-command guard failed/);
 });
 
+// A static import of the rules once sat outside the guard's try, so a rules file that didn't parse
+// ended the process with exit 1 and nothing on stdout, and Claude Code ran the command. Plant that in
+// a copy: a rules file with a syntax error, and none at all. Both must deny, even a harmless
+// command, with the same answer failed() gives.
+test("a rules file that won't load denies the command, with the answer failed() gives", () => {
+  const rulesText = readFileSync(join(HERE, "guard-rules.mjs"), "utf8");
+  for (const [plant, rulesFile] of [
+    ["a syntax error", `${rulesText}\nexport const = ;\n`],
+    ["no rules file", null],
+  ]) {
+    const dir = mkdtempSync(join(tmpdir(), "guard-"));
+    try {
+      copyFileSync(GUARD, join(dir, "destructive-guard.mjs"));
+      if (rulesFile !== null) writeFileSync(join(dir, "guard-rules.mjs"), rulesFile);
+      const run = guard(JSON.stringify(input("bypassPermissions", "git status")), join(dir, "destructive-guard.mjs"));
+      assert.equal(run.code, 0, `${plant}: ${run.stderr}`);
+      assert.ok(run.stdout, `${plant}: the guard gave no answer, so Claude Code would run the command`);
+      const answer = JSON.parse(run.stdout);
+      assert.equal(answer.hookSpecificOutput.permissionDecision, "deny", plant);
+      const reason = answer.hookSpecificOutput.permissionDecisionReason;
+      const why = reason.match(/^The destructive-command guard failed \((.*)\), so it stopped/s);
+      assert.ok(why, `${plant}: ${reason}`);
+      assert.deepEqual(answer, failed(new Error(why[1])), `${plant}: the guard's own deny must match failed()`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
 test("the samples give the answers the book shows, and --mode replaces the input's mode", () => {
   const sample = join(HERE, "samples", "pre-tool-use.json");
   const asked = guard("", GUARD, ["--input", sample]);
@@ -152,4 +182,14 @@ test("the configured guard starts, covers both shells, and the deny rules are th
   for (const rule of ["Bash(git push --force *)", "Bash(git push -f *)", "PowerShell(git push --force *)", "PowerShell(git push -f *)"]) {
     assert.ok(deny.includes(rule), `.claude/settings.json must deny ${rule}`);
   }
+  // The guard, its rules and these settings are what stop the agent, so the agent's file tools may
+  // not change them. Claude Code checks file paths against Edit and Read rules only: an Edit rule
+  // covers every built-in tool that edits files, Write included, and a Write rule with a path is
+  // accepted but never consulted. The leading slash anchors the path at the project. A script the
+  // agent runs can still write these files; only a sandbox stops that.
+  for (const rule of ["Edit(/tools/hooks/**)", "Edit(/.claude/**)"]) {
+    assert.ok(deny.includes(rule), `.claude/settings.json must deny ${rule}`);
+  }
+  const unused = deny.filter((rule) => /^(?:Write|MultiEdit|NotebookEdit)\(./.test(rule));
+  assert.deepEqual(unused, [], "a path rule for Write is never consulted: write it as an Edit rule");
 });

@@ -1799,9 +1799,23 @@ export const MUTATIONS = [
   {
     guard: "guard: a failure inside it denies",
     file: "tools/hooks/destructive-guard.mjs",
-    find: "  out = failed(error);",
-    replace: "  out = null;",
+    find: "    out = rules.failed(error);",
+    replace: "    out = null;",
     run: guardTest("a failure inside the guard"),
+  },
+  {
+    guard: "guard: a rules file that won't load denies",
+    file: "tools/hooks/destructive-guard.mjs",
+    find: 'try {\n  rules = await import("./guard-rules.mjs");\n',
+    replace: 'rules = await import("./guard-rules.mjs");\ntry {\n',
+    run: guardTest("a rules file that won't load"),
+  },
+  {
+    guard: "guard: its own deny answers when the rules can't",
+    file: "tools/hooks/destructive-guard.mjs",
+    find: "    out = deny(error);",
+    replace: "    out = null;",
+    run: guardTest("a rules file that won't load"),
   },
   {
     guard: "guard: a quoted string is one word",
@@ -1864,6 +1878,20 @@ export const MUTATIONS = [
     file: ".claude/settings.json",
     find: '      "Bash(git push -f *)",\n',
     replace: "",
+    run: guardTest("the configured guard starts"),
+  },
+  {
+    guard: "settings: the agent's file tools can't change the hooks",
+    file: ".claude/settings.json",
+    find: '      "Edit(/tools/hooks/**)",\n',
+    replace: "",
+    run: guardTest("the configured guard starts"),
+  },
+  {
+    guard: "settings: the agent's file tools can't change the settings",
+    file: ".claude/settings.json",
+    find: ',\n      "Edit(/.claude/**)"\n',
+    replace: "\n",
     run: guardTest("the configured guard starts"),
   },
 

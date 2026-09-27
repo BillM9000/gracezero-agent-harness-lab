@@ -1,11 +1,14 @@
-// The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry
-// names the guard, the file and the exact text to change, what to change it to, and the test
-// command that must then fail. Add entries when a chapter adds a guard. Chapters 16 to 18 are
-// here; the guards from earlier chapters were broken by hand when they were built (CHANGELOG.md
-// records each time) and are the next candidates to add.
+// The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
+// the guard, the file and the exact text to change, what to change it to, and the test command that
+// must then fail. Add entries when a chapter adds a guard. Chapters 16 to 18 are here, chapter 7's
+// consumer test and chapter 1's tally's check for missing fields; the guards from earlier chapters
+// were broken by hand when they were built (CHANGELOG.md records each time) and are the next
+// candidates to add.
 
 const pytest = (...tests) => ({ cwd: "python", python: ["-m", "pytest", "-q", "-p", "no:cacheprovider", ...tests] });
 const vitest = (file, name) => ({ cwd: "ts", vitest: [file, "-t", name] });
+// One Node test, by the start of its name.
+const nodeTest = (file, name) => ({ node: ["--test", "--test-name-pattern", `^${name}`, file] });
 
 const LAYERS = "tests/guardrails/test_layers_contract.py";
 const LINT = "tests/test_helpdesk_lint.py";
@@ -16,6 +19,12 @@ const ESLINT = "ts/eslint.config.js";
 const RULE = "ts/scripts/eslint-rules/cli-output-through-write.ts";
 const MODEL_TEXT = "python/src/helpdesk_lint/model_text.py";
 const AGENT_RULES = "python/src/agent_policy/rules.py";
+const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models.py";
+const ROUTES_FITNESS_TEST = "tests/fitness/test_routes_declare_response_models.py";
+const FAKE_FITNESS = "python/tests/fitness/test_tests_fake_the_model_client.py";
+const FAKE_FITNESS_TEST = "tests/fitness/test_tests_fake_the_model_client.py";
+const PROGRESS = "tools/progress.mjs";
+const progressTest = (name) => nodeTest("tools/progress.test.mjs", name);
 
 export const MUTATIONS = [
   // Chapter 16: import rules in Python.
@@ -106,6 +115,20 @@ export const MUTATIONS = [
     run: vitest("test/boundaries.test.ts", "catches the package importing a script"),
   },
   {
+    guard: "dependency-cruiser: the folders cruised are read from the tree, not listed",
+    file: "ts/test/boundaries.test.ts",
+    find: "    .filter(hasTypeScript)\n",
+    replace: '    .filter((name) => ["src", "scripts", "test"].includes(name))\n',
+    run: vitest("test/boundaries.test.ts", "covers a folder added later"),
+  },
+  {
+    guard: "dependency-cruiser: npm run deps cruises every folder with TypeScript in it",
+    file: "ts/package.json",
+    find: '"deps": "depcruise src scripts test --config',
+    replace: '"deps": "depcruise src test --config',
+    run: vitest("test/boundaries.test.ts", "cruises every top-level folder"),
+  },
+  {
     guard: "dependency-cruiser: no circular imports",
     file: DC,
     find: "to: { circular: true },",
@@ -115,7 +138,7 @@ export const MUTATIONS = [
   {
     guard: "dependency-cruiser: the test checks every file was read",
     file: "ts/test/boundaries.test.ts",
-    find: "[DEPCRUISE, ...FOLDERS,",
+    find: "[DEPCRUISE, ...folders,",
     replace: '[DEPCRUISE, "src", "test",',
     run: vitest("test/boundaries.test.ts", "reads every TypeScript file in the package"),
   },
@@ -152,9 +175,37 @@ export const MUTATIONS = [
   {
     guard: "HDK101: results of .complete() are tracked",
     file: MODEL_TEXT,
-    find: "        if is_complete_call(node.value):\n            self.scopes[-1].update(",
-    replace: "        if False and is_complete_call(node.value):\n            self.scopes[-1].update(",
+    find: "        if is_complete_call(value):\n            return True\n",
+    replace: "        if False:\n            return True\n",
     run: pytest(`${LINT}::test_reading_the_text_after_complete_is_caught_and_the_message_says_what_to_do`),
+  },
+  {
+    guard: "HDK101: a plain alias of a response is followed",
+    file: MODEL_TEXT,
+    find: "        return isinstance(value, ast.Name) and any(value.id in scope for scope in self.scopes)\n",
+    replace: "        return False\n",
+    run: pytest(`${LINT}::test_a_response_under_another_name_is_followed`),
+  },
+  {
+    guard: "HDK101: each name of an unpacked tuple is followed",
+    file: MODEL_TEXT,
+    find: "            for t, v in zip(target.elts, value.elts, strict=True):\n                self._bind(t, v)\n",
+    replace: "            pass\n",
+    run: pytest(`${LINT}::test_a_response_under_another_name_is_followed`),
+  },
+  {
+    guard: "HDK101: a name the walrus operator binds is followed",
+    file: MODEL_TEXT,
+    find: "binds r like an assignment.\n        self.generic_visit(node)\n        self._bind(node.target, node.value)\n",
+    replace: "binds r like an assignment.\n        self.generic_visit(node)\n",
+    run: pytest(`${LINT}::test_a_response_under_another_name_is_followed`),
+  },
+  {
+    guard: "HDK101: text read straight off a walrus is caught",
+    file: MODEL_TEXT,
+    find: "            elif isinstance(node.value, ast.NamedExpr) and self._responds(node.value.value):",
+    replace: "            elif False:",
+    run: pytest(`${LINT}::test_a_response_under_another_name_is_followed`),
   },
   {
     guard: "HDK101: ModelResponse annotations are recognized",
@@ -343,6 +394,20 @@ export const MUTATIONS = [
     run: fixture("fail-too-many-turns"),
   },
   {
+    guard: "agent policy: the turn limit itself is allowed",
+    file: AGENT_RULES,
+    find: "    elif max_turns is not None and max_turns > limit:",
+    replace: "    elif max_turns is not None and max_turns >= limit:",
+    run: fixture("pass-turns-at-the-limit"),
+  },
+  {
+    guard: "agent policy: one turn over the limit is refused",
+    file: AGENT_RULES,
+    find: "    elif max_turns is not None and max_turns > limit:",
+    replace: "    elif max_turns is not None and max_turns > limit + 1:",
+    run: fixture("fail-turns-one-over-the-limit"),
+  },
+  {
     guard: "agent policy: every rule is registered",
     file: AGENT_RULES,
     find: '    "empty": "a text field left empty",\n',
@@ -420,5 +485,169 @@ export const MUTATIONS = [
     find: "if (text.split(m.find).length !== 2) {",
     replace: "if (false) {",
     run: { node: ["--test", "tools/mutate.test.mjs"] },
+  },
+
+  // Chapter 15's two structural checks, fixed after a review (2026-09-26): routers under any name,
+  // and no real import of the anthropic SDK under tests/.
+  {
+    guard: "fitness: a router under another name is followed",
+    file: ROUTES_FITNESS,
+    find: "            if builds_one(value) or (isinstance(value, ast.Name) and value.id in names):",
+    replace: "            if False:",
+    run: pytest(`${ROUTES_FITNESS_TEST}::test_a_router_under_any_name_or_import_alias_is_followed`),
+  },
+  {
+    guard: "fitness: an import alias of APIRouter is followed",
+    file: ROUTES_FITNESS,
+    find: "            constructors |= {alias.asname or alias.name for alias in node.names if alias.name in CONSTRUCTORS}",
+    replace: "            constructors |= set()",
+    run: pytest(`${ROUTES_FITNESS_TEST}::test_a_router_under_any_name_or_import_alias_is_followed`),
+  },
+  {
+    guard: "fitness: a router made through the fastapi module is followed",
+    file: ROUTES_FITNESS,
+    find: "        return isinstance(func, ast.Attribute) and func.attr in CONSTRUCTORS and _root(func) in modules",
+    replace: "        return False",
+    run: pytest(`${ROUTES_FITNESS_TEST}::test_a_router_under_any_name_or_import_alias_is_followed`),
+  },
+  {
+    guard: "fitness: a copy of a router is a router",
+    file: ROUTES_FITNESS,
+    find: "(isinstance(value, ast.Name) and value.id in names)",
+    replace: "False",
+    run: pytest(`${ROUTES_FITNESS_TEST}::test_a_router_under_any_name_or_import_alias_is_followed`),
+  },
+  {
+    guard: "fitness: a route added with add_api_route is checked",
+    file: ROUTES_FITNESS,
+    find: '_on_a_router(node.func, routers, {"add_api_route"})',
+    replace: "_on_a_router(node.func, routers, set())",
+    run: pytest(`${ROUTES_FITNESS_TEST}::test_a_router_under_any_name_or_import_alias_is_followed`),
+  },
+  {
+    guard: "fitness: every module in the helpdesk is read for routes",
+    file: ROUTES_FITNESS,
+    find: '        for path in sorted(HELPDESK.rglob("*.py"))',
+    replace: '        for path in [HELPDESK / "api" / "app.py"]',
+    run: pytest(`${ROUTES_FITNESS_TEST}::test_every_route_that_returns_data_declares_its_response_model`),
+  },
+  {
+    guard: "fitness: import anthropic in a test is caught",
+    file: FAKE_FITNESS,
+    find: "            found = any(_is_anthropic(alias.name) for alias in node.names)",
+    replace: "            found = False",
+    run: pytest(`${FAKE_FITNESS_TEST}::test_every_way_to_reach_the_sdk_starts_with_an_import_that_is_caught`),
+  },
+  {
+    guard: "fitness: from anthropic import in a test is caught",
+    file: FAKE_FITNESS,
+    find: "            found = node.level == 0 and _is_anthropic(node.module)",
+    replace: "            found = False",
+    run: pytest(`${FAKE_FITNESS_TEST}::test_every_way_to_reach_the_sdk_starts_with_an_import_that_is_caught`),
+  },
+  {
+    guard: "fitness: the SDK loaded by name in a test is caught",
+    file: FAKE_FITNESS,
+    find: 'LOADERS = {"import_module", "__import__", "importorskip"}',
+    replace: "LOADERS = set()",
+    run: pytest(`${FAKE_FITNESS_TEST}::test_every_way_to_reach_the_sdk_starts_with_an_import_that_is_caught`),
+  },
+  {
+    guard: "fitness: a module whose name only starts with anthropic isn't the SDK",
+    file: FAKE_FITNESS,
+    find: 'return bool(name) and name.split(".")[0] == "anthropic"',
+    replace: 'return bool(name) and name.startswith("anthropic")',
+    run: pytest(`${FAKE_FITNESS_TEST}::test_a_string_that_mentions_the_sdk_is_not_an_import`),
+  },
+
+  // Chapter 10's done check, fixed after a review (2026-09-26): a proof must be a test the runners
+  // collect, found in the code, not in a string or a comment.
+  {
+    guard: "progress: a Python proof must be a test_*.py file",
+    file: PROGRESS,
+    find: "    if (!PYTHON_TEST_FILE.test(file) || (under.length && !under.some((folder) => file.startsWith(folder)))) {",
+    replace: "    if (false) {",
+    run: progressTest("a proof that no test runner collects fails"),
+  },
+  {
+    guard: "progress: a Python proof must be under pytest's testpaths",
+    file: PROGRESS,
+    find: "    if (!PYTHON_TEST_FILE.test(file) || (under.length && !under.some((folder) => file.startsWith(folder)))) {",
+    replace: "    if (!PYTHON_TEST_FILE.test(file)) {",
+    run: progressTest("real tests beside the decoys still pass"),
+  },
+  {
+    guard: "progress: a Python proof's name starts with test",
+    file: PROGRESS,
+    find: "    if (!/^test\\w*$/.test(name)) return",
+    replace: "    if (false) return",
+    run: progressTest("a proof that no test runner collects fails"),
+  },
+  {
+    guard: "progress: a def in a Python string or comment isn't a test",
+    file: PROGRESS,
+    find: "    const { code } = scan(text, true);",
+    replace: "    const code = text;",
+    run: progressTest("a proof that no test runner collects fails"),
+  },
+  {
+    guard: "progress: a Python test is a def at the top of the file",
+    file: PROGRESS,
+    find: "new RegExp(`^(async\\\\s+)?def ${escape(name)}\\\\(`, \"m\")",
+    replace: "new RegExp(`^\\\\s*(async\\\\s+)?def ${escape(name)}\\\\(`, \"m\")",
+    run: progressTest("a proof that no test runner collects fails"),
+  },
+  {
+    guard: "progress: a JavaScript or TypeScript proof must be a test file",
+    file: PROGRESS,
+    find: "  if (!SCRIPT_TEST_FILE.test(file)) {",
+    replace: "  if (false) {",
+    run: progressTest("a proof that no test runner collects fails"),
+  },
+  {
+    guard: "progress: a JavaScript title in a comment isn't a test",
+    file: PROGRESS,
+    find: '    if (python ? c === "#" : text.startsWith("//", i)) {',
+    replace: '    if (python ? c === "#" : false) {',
+    run: progressTest("a proof that no test runner collects fails"),
+  },
+  {
+    guard: "progress: a JavaScript title inside another string isn't a test",
+    file: PROGRESS,
+    find: "    } else if (c === '\"' || c === \"'\" || (!python && c === \"`\")) {",
+    replace: "    } else if (c === '\"' || (!python && c === \"`\")) {",
+    run: progressTest("a proof that no test runner collects fails"),
+  },
+  {
+    guard: "progress: a JavaScript regular expression isn't a test",
+    file: PROGRESS,
+    find: '    } else if (!python && c === "/" && ',
+    replace: '    } else if (false && c === "/" && ',
+    run: progressTest("a proof that no test runner collects fails"),
+  },
+  {
+    guard: "pytest: an expected failure that passes fails the run",
+    file: "python/pyproject.toml",
+    find: "xfail_strict = true",
+    replace: "xfail_strict = false",
+    run: pytest("tests/test_pytest_settings.py::test_an_expected_failure_that_passes_fails_the_run"),
+  },
+
+  // Chapter 1: the tally counts only data it can trust.
+  {
+    guard: "tally: a missing field that may be null stops the run",
+    file: "postings/tally.mjs",
+    find: "      if (!(key in p)) problems.push(",
+    replace: "      if (false) problems.push(",
+    run: nodeTest("postings/tally.test.mjs", "a missing or misspelled field that may be null"),
+  },
+
+  // Chapter 7: the client's consumer test calls every method the client has.
+  {
+    guard: "contract: a client method no consumer test calls fails",
+    file: "ts/src/client.ts",
+    find: "  searchKb(query: string, limit = 5): Promise<KbArticle[]> {",
+    replace: '  reopenTicket(id: number): Promise<Ticket> {\n    return this.#request("POST", `/tickets/${id}/reopen`);\n  }\n\n  searchKb(query: string, limit = 5): Promise<KbArticle[]> {',
+    run: vitest("test/contract.test.ts", "calls every method the client has"),
   },
 ];

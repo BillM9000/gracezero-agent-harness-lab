@@ -549,6 +549,27 @@ export const MUTATIONS = [
     run: nodeTest(FEEDBACK_TESTS, "cuts a long report"),
   },
   {
+    guard: "feedback: the checks run without the provider's credentials",
+    file: "tools/feedback.mjs",
+    find: "    env: checkEnvironment(),\n",
+    replace: "",
+    run: nodeTest(FEEDBACK_TESTS, "the checks run without the provider's credentials"),
+  },
+  {
+    guard: "feedback: an auth token is held back as well as an API key",
+    file: "tools/feedback.mjs",
+    find: 'export const CREDENTIALS = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"];',
+    replace: 'export const CREDENTIALS = ["ANTHROPIC_API_KEY"];',
+    run: nodeTest(FEEDBACK_TESTS, "the checks run without the provider's credentials"),
+  },
+  {
+    guard: "feedback: a credential's name is matched without regard to case",
+    file: "tools/feedback.mjs",
+    find: "if (CREDENTIALS.includes(name.toUpperCase()))",
+    replace: "if (CREDENTIALS.includes(name))",
+    run: nodeTest(FEEDBACK_TESTS, "the checks run without the provider's credentials"),
+  },
+  {
     guard: "Stop hook: a failure blocks with exit code 2",
     file: "tools/hooks/stop-decision.mjs",
     find: "return { exitCode: 2, blocks, stderr };",

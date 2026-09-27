@@ -15,10 +15,29 @@ export const RULES = [
   "If a check itself is wrong, stop and say why instead of changing it.",
 ];
 
+// The variables that carry a model provider's credentials. The fix loop's environment holds one,
+// because the agent it runs needs it; the checks run the repository's own code (npm scripts, the
+// app's imports), which the agent may have just changed, so they get none. Names are matched
+// without regard to case, as Windows matches them.
+export const CREDENTIALS = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"];
+
+// The environment the checks run in: this process's, without the credentials.
+export function checkEnvironment(env = process.env) {
+  const clean = { ...env };
+  for (const name of Object.keys(clean)) {
+    if (CREDENTIALS.includes(name.toUpperCase())) delete clean[name];
+  }
+  return clean;
+}
+
 // Runs the fast checks in the repository at root. The exit code decides whether they passed; the
 // output is only what gets passed on.
 export function runFastChecks(root) {
-  const run = spawnSync(process.execPath, ["check.mjs", "--fast"], { cwd: root, encoding: "utf8" });
+  const run = spawnSync(process.execPath, ["check.mjs", "--fast"], {
+    cwd: root,
+    encoding: "utf8",
+    env: checkEnvironment(),
+  });
   const output = `${run.stdout ?? ""}${run.stderr ?? ""}${run.error ? run.error.message : ""}`;
   return { passed: run.status === 0, output };
 }

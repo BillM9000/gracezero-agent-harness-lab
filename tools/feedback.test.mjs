@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
-import { failureReport, RERUN, RULES, runFastChecks } from "./feedback.mjs";
+import { checkEnvironment, failureReport, RERUN, RULES, runFastChecks } from "./feedback.mjs";
 
 const made = [];
 after(() => {
@@ -48,6 +48,38 @@ test("the exit code decides whether the checks passed, not the words they print"
   const failing = runFastChecks(project(["All 3 checks passed."], 1));
   assert.equal(failing.passed, false);
   assert.match(failing.output, /All 3 checks passed\./);
+});
+
+// The fix loop passes its environment to the agent, API key included. The checks run repository
+// code the agent may have changed, so they must not see the key. The values here are made up.
+test("the checks run without the provider's credentials that the loop holds", () => {
+  const root = mkdtempSync(join(tmpdir(), "feedback-"));
+  made.push(root);
+  const names = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "FEEDBACK_TEST_PROBE"];
+  writeFileSync(
+    join(root, "check.mjs"),
+    `for (const name of ${JSON.stringify(names)}) console.log(name + "=" + (process.env[name] ?? "(unset)"));\n`,
+  );
+  const saved = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  try {
+    process.env.ANTHROPIC_API_KEY = "made-up-key-for-this-test";
+    process.env.ANTHROPIC_AUTH_TOKEN = "made-up-token-for-this-test";
+    process.env.FEEDBACK_TEST_PROBE = "inherited";
+    const { passed, output } = runFastChecks(root);
+    assert.equal(passed, true, output);
+    // The rest of the environment still reaches the checks, so the two lines below mean something.
+    assert.match(output, /^FEEDBACK_TEST_PROBE=inherited$/m);
+    assert.match(output, /^ANTHROPIC_API_KEY=\(unset\)$/m);
+    assert.match(output, /^ANTHROPIC_AUTH_TOKEN=\(unset\)$/m);
+    assert.doesNotMatch(output, /made-up/);
+  } finally {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+  const lower = checkEnvironment({ anthropic_api_key: "x", Anthropic_Auth_Token: "y", PATH: "p" });
+  assert.deepEqual(lower, { PATH: "p" }, "Windows matches names without regard to case");
 });
 
 test("the rules say what doesn't count as a fix, and how to check one", () => {

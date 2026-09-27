@@ -13,7 +13,7 @@ from helpdesk.assistant.team import DELEGATE, WORKER_TOOLS, orchestrator_tools, 
 from helpdesk.assistant.tools import Tool, triage_tools
 from helpdesk.model.mock import MockModel
 from helpdesk.model.types import ModelResponse, ToolCall
-from helpdesk.services import access
+from helpdesk.services import access, tickets
 
 SUMMARY_SCRIPT_END = patterns.ORCHESTRATOR_SCRIPT[-1]
 
@@ -67,8 +67,11 @@ def test_every_customer_gets_one_worker_and_the_batch_is_complete(conn):
     result, _, made = run(conn)
     assert list(made) == list(patterns.CUSTOMERS)
     assert result.accounting.complete
+    # Each draft starts with its ticket's number and subject, a sentence with nothing to cite.
     assert result.accounting.lines() == [
-        "5 of 5 customers, 8 of 8 tickets, have drafts whose citations hold."
+        "5 of 5 customers, 8 of 8 tickets, have drafts whose citations hold.",
+        "In those drafts, 8 sentences cite nothing: Ada Park 2, Ben Oka"
+        "for 2, Dev Mistry 1, Chloe Varga 2, Elif Kaya 1.",
     ]
 
 
@@ -197,6 +200,107 @@ def test_a_team_counts_only_what_the_service_says_the_person_can_see(conn):
     assert result.accounting.failed["Dev Mistry"].startswith("its worker never read #9")
 
 
+# A review (2026-09-26) found three ways the count said done when it wasn't: an empty answer, an
+# answer with no citation, and two customers with one name merged into one worker's batch.
+
+
+def test_a_worker_that_answers_with_nothing_is_not_counted(conn):
+    workers = {
+        "Elif Kaya": [
+            patterns.calls(*patterns.read_tickets([10]), turn="w1"),
+            ModelResponse("end_turn", text=""),
+        ]
+    }
+    result, lead, _ = run(conn, delegating("Elif Kaya"), workers=workers)
+    assert result.accounting.failed == {"Elif Kaya": "its worker's answer was empty, so there are no drafts."}
+    assert result.accounting.drafted == ()
+    assert (
+        result.accounting.lines()[0] == "0 of 5 customers, 0 of 8 tickets, have drafts whose citations hold."
+    )
+    is_error, content = results_of(lead)[0]
+    assert not is_error and "not usable yet: its worker's answer was empty" in content
+
+
+def test_a_worker_whose_answer_cites_nothing_is_not_counted(conn):
+    uncited = "Hello Elif, thanks for writing. Your invoices are under Billing and can be downloaded."
+    workers = {
+        "Elif Kaya": [
+            patterns.calls(*patterns.read_tickets([10]), turn="w1"),
+            ModelResponse("end_turn", text=uncited),
+        ]
+    }
+    result, _, _ = run(conn, delegating("Elif Kaya"), workers=workers)
+    assert result.accounting.failed["Elif Kaya"] == (
+        "its drafts cite no passage, so no check vouches for them; a person must read them."
+    )
+    assert result.accounting.drafted == ()
+
+
+def test_a_greeting_without_a_citation_doesnt_stop_a_draft_counting_but_is_reported(conn):
+    cited = "Hello Elif. " + patterns.drafts([10])
+    workers = {
+        "Elif Kaya": [
+            patterns.calls(*patterns.read_tickets([10]), turn="w1"),
+            ModelResponse("end_turn", text=cited),
+        ]
+    }
+    result, lead, _ = run(conn, delegating("Elif Kaya"), workers=workers)
+    assert result.accounting.drafted == ("Elif Kaya",)
+    assert result.accounting.lines()[:2] == [
+        "1 of 5 customers, 1 of 8 tickets, have drafts whose citations hold.",
+        "In those drafts, 2 sentences cite nothing: Elif Kaya 2.",
+    ]
+    assert results_of(lead)[0][1].startswith(
+        "Elif Kaya: drafts for #10, written in 2 turns; all 2 citations hold; 2 sentences cite nothing."
+    )
+
+
+def another_ada_park(conn) -> int:
+    """A second customer called Ada Park, with one open ticket Sam can see."""
+    conn.execute("INSERT INTO customers (id, name, email) VALUES (99, 'Ada Park', 'ada.park.2@example.com')")
+    return tickets.create_ticket(conn, 99, "Two-factor codes", "My codes never arrive.")["id"]
+
+
+def test_two_customers_with_one_name_are_two_customers(conn):
+    second = another_ada_park(conn)
+    team, _ = team_for(conn)
+    batch = team.batch()
+    assert batch["Ada Park (customer 1)"] == (1, 11)
+    assert batch["Ada Park (customer 99)"] == (second,)
+    assert "Ada Park" not in batch and len(batch) == 6
+
+
+def test_a_shared_name_delegates_one_customer_at_a_time_and_the_count_names_each(conn):
+    second = another_ada_park(conn)
+    first = "Ada Park (customer 1)"
+    workers = {first: patterns.worker_script("Ada Park")}
+    result, lead, made = run(conn, delegating("Ada Park"), workers=workers)
+    assert list(made) == [first]
+    assert "all from Ada Park." in made[first].calls[0].messages[0].content
+    is_error, content = results_of(lead)[0]
+    assert not is_error
+    assert content.endswith(
+        f"Another customer is also called Ada Park, with #{second}: delegate Ada Park again for them."
+    )
+    assert result.accounting.drafted == (first,)
+    assert "Ada Park (customer 99)" in result.accounting.missing
+    assert f"Never delegated: Ada Park (customer 99) (#{second})." in result.accounting.lines()
+
+
+def test_a_shared_name_delegated_again_goes_to_the_other_customer(conn):
+    second = another_ada_park(conn)
+    first, other = "Ada Park (customer 1)", "Ada Park (customer 99)"
+    workers = {
+        first: patterns.worker_script("Ada Park"),
+        other: [ModelResponse("end_turn", text="")],
+    }
+    _, lead, made = run(conn, delegating("Ada Park", "Ada Park", "Ada Park"), workers=workers)
+    assert list(made) == [first, other]
+    assert f"The tickets: #{second}, all from Ada Park." in made[other].calls[0].messages[0].content
+    third = results_of(lead)[2]
+    assert third[0] is True and third[1].startswith("Ada Park was already delegated.")
+
+
 def patterns_cli(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run([sys.executable, "-m", "helpdesk.patterns", *args], capture_output=True, text=True)
 
@@ -205,7 +309,11 @@ def test_the_batch_demo_ends_with_the_count():
     ran = patterns_cli("batch")
     assert ran.returncode == 0, ran.stderr
     assert "Counted in code, not taken from the summary:" in ran.stdout
-    assert ran.stdout.rstrip().endswith("5 of 5 customers, 8 of 8 tickets, have drafts whose citations hold.")
+    assert (
+        "  5 of 5 customers, 8 of 8 tickets, have drafts whose citations hold.\n  In those drafts, 8"
+        in ran.stdout
+    )
+    assert ran.stdout.rstrip().endswith("Chloe Varga 2, Elif Kaya 1.")
 
 
 def test_the_batch_with_a_failed_worker_stops_even_though_the_summary_claims_everything():

@@ -12,8 +12,14 @@ Three rules, each kept in code rather than asked of a model:
   two workers can't tell the same customer different things; a customer is delegated once.
 - Workers can't delegate. They get get_ticket and search_kb, and nothing else.
 - The team's result is counted here, not taken from the orchestrator's summary: every customer in
-  the batch has a worker whose drafts passed the check, or the run is incomplete and says which
-  customers and tickets are missing.
+  the batch has a worker whose drafts exist, cite at least one passage, and pass the check, or the
+  run is incomplete and says which customers and tickets are missing. Not every sentence must cite
+  one (a greeting has nothing to cite), but the count says how many don't, since no check vouches
+  for them.
+
+A customer is a customer id, not a name: two customers can share one. The batch labels each by
+name, adding the id when two in the batch share it, and delegating a shared name hands out the
+first of them not yet delegated.
 """
 
 from __future__ import annotations
@@ -84,18 +90,37 @@ class Worker:
         return tuple(i for i in self.ticket_ids if i not in read)
 
     @property
+    def empty(self) -> bool:
+        return self.run is not None and not self.run.answer.strip()
+
+    @property
+    def uncited(self) -> tuple[str, ...]:
+        """Sentences in the drafts that cite nothing: no check vouches for them."""
+        return self.report.uncited if self.report else ()
+
+    @property
     def ok(self) -> bool:
-        return self.run is not None and self.report is not None and self.report.ok and not self.unread
+        return (
+            self.run is not None
+            and self.report is not None
+            and self.report.checked > 0
+            and self.report.ok
+            and not self.unread
+        )
 
     def why_not(self) -> str:
         if self.error:
             return self.error
+        if self.empty:
+            return "its worker's answer was empty, so there are no drafts."
         if self.unread:
             return (
                 f"its worker never read {numbers(self.unread)}, so a draft for it can't rest on the ticket."
             )
         count = len(self.report.problems) if self.report else 0
-        return f"{count} citation problem(s); a person must read the drafts before anything is sent."
+        if count:
+            return f"{count} citation problem(s); a person must read the drafts before anything is sent."
+        return "its drafts cite no passage, so no check vouches for them; a person must read them."
 
 
 def tickets_read(transcript: Iterable[Message]) -> set[int]:
@@ -123,6 +148,7 @@ class Accounting:
     drafted: tuple[str, ...]  # customers whose worker's drafts passed the check
     failed: dict[str, str]  # customer: why there are no usable drafts
     missing: tuple[str, ...]  # customers never delegated
+    uncited: dict[str, int] = field(default_factory=dict)  # drafted customer: sentences citing nothing
 
     @property
     def complete(self) -> bool:
@@ -136,6 +162,9 @@ class Accounting:
             "have drafts whose citations hold."
         )
         out = [head]
+        if sum(self.uncited.values()):
+            each = ", ".join(f"{customer} {n}" for customer, n in self.uncited.items() if n)
+            out.append(f"In those drafts, {citing_nothing(sum(self.uncited.values()))}: {each}.")
         for customer, why in self.failed.items():
             out.append(f"No usable drafts for {customer} ({numbers(self.batch[customer])}): {why}")
         for customer in self.missing:
@@ -145,6 +174,11 @@ class Accounting:
 
 def numbers(ids: Collection[int]) -> str:
     return ", ".join(f"#{i}" for i in ids)
+
+
+def citing_nothing(count: int) -> str:
+    """Sentences no citation vouches for, counted in plain words."""
+    return "1 sentence cites nothing" if count == 1 else f"{count} sentences cite nothing"
 
 
 @dataclass
@@ -159,48 +193,80 @@ class Team:
     max_turns: int = 6
     workers: dict[str, Worker] = field(default_factory=dict)
 
+    def customers(self) -> dict[str, tuple[str, tuple[int, ...]]]:
+        """The batch, a customer at a time, grouped by customer id: label: (name, ticket ids). The
+        label is the name, with the id added when another customer in the batch has the same name."""
+        by_id = tickets.active_by_customer(self.conn, self.person)
+        names = {cid: rows[0]["customer_name"] for cid, rows in by_id.items()}
+        shared = {name for name in names.values() if list(names.values()).count(name) > 1}
+        return {
+            (f"{names[cid]} (customer {cid})" if names[cid] in shared else names[cid]): (
+                names[cid],
+                tuple(t["id"] for t in rows),
+            )
+            for cid, rows in by_id.items()
+        }
+
     def batch(self) -> dict[str, tuple[int, ...]]:
-        by_customer = tickets.active_by_customer(self.conn, self.person)
-        return {customer: tuple(t["id"] for t in rows) for customer, rows in by_customer.items()}
+        return {label: ids for label, (_, ids) in self.customers().items()}
 
     def delegate(self, customer_name: str, brief: str) -> str:
-        batch = self.batch()
-        if customer_name not in batch:
+        customers = self.customers()
+        named = (
+            [customer_name]
+            if customer_name in customers
+            else [label for label, (name, _) in customers.items() if name == customer_name]
+        )
+        if not named:
             raise NotFound(
                 f"No open or pending tickets that {self.person.name} can see are from a customer called "
                 f"{customer_name!r}. Use the name exactly as find_tickets shows it."
             )
-        if customer_name in self.workers:
+        waiting = [label for label in named if label not in self.workers]
+        if not waiting:
             raise Conflict(
                 f"{customer_name} was already delegated. One worker handles every ticket of one "
                 "customer, so nothing is decided twice; read the report you already have."
             )
-        ids = batch[customer_name]
+        label = waiting[0]
+        name, ids = customers[label]
         toolbox = triage_tools(self.conn, self.person).only(WORKER_TOOLS)
-        task = f"{brief}\nThe tickets: {numbers(ids)}, all from {customer_name}."
+        task = f"{brief}\nThe tickets: {numbers(ids)}, all from {name}."
         try:
             run = run_agent(
-                self.worker_model(customer_name),
+                self.worker_model(label),
                 toolbox,
                 system=self.system,
                 task=task,
                 max_turns=self.max_turns,
             )
         except (TurnLimitReached, IncompleteResponse) as stop:
-            self.workers[customer_name] = Worker(customer_name, ids, None, None, str(stop))
+            self.workers[label] = Worker(label, ids, None, None, str(stop))
             raise WorkerFailed(
-                f"The worker for {customer_name} stopped without drafts: {stop} Tickets {numbers(ids)} "
+                f"The worker for {label} stopped without drafts: {stop} Tickets {numbers(ids)} "
                 "have no draft. Tell the person so, and don't count them as done."
             ) from None
         report = citations.check(run.answer, passages_given(run.transcript), self.known)
-        worker = Worker(customer_name, ids, run, report)
-        self.workers[customer_name] = worker
-        checked = (
-            f"all {report.checked} citations hold." if worker.ok else f"not usable yet: {worker.why_not()}"
+        worker = Worker(label, ids, run, report)
+        self.workers[label] = worker
+        if not worker.ok:
+            checked = f"not usable yet: {worker.why_not()}"
+        elif worker.uncited:
+            checked = f"all {report.checked} citations hold; {citing_nothing(len(worker.uncited))}."
+        else:
+            checked = f"all {report.checked} citations hold."
+        others = waiting[1:]
+        also = (
+            f" Another customer is also called {name}, with {numbers(customers[others[0]][1])}: "
+            f"delegate {name} again for them."
+            if len(others) == 1
+            else f" {len(others)} more customers are called {name}: delegate {name} once for each."
+            if others
+            else ""
         )
         return (
-            f"{customer_name}: drafts for {numbers(ids)}, written in {run.turns} turns; {checked} "
-            f"The drafts are filed for {self.person.name}."
+            f"{label}: drafts for {numbers(ids)}, written in {run.turns} turns; {checked} "
+            f"The drafts are filed for {self.person.name}.{also}"
         )
 
     def tool(self) -> Tool:
@@ -211,7 +277,8 @@ class Team:
         drafted = tuple(c for c in batch if c in self.workers and self.workers[c].ok)
         failed = {customer: worker.why_not() for customer, worker in self.workers.items() if not worker.ok}
         missing = tuple(c for c in batch if c not in self.workers)
-        return Accounting(batch, drafted, failed, missing)
+        uncited = {c: len(self.workers[c].uncited) for c in drafted}
+        return Accounting(batch, drafted, failed, missing, uncited)
 
 
 def orchestrator_tools(team: Team) -> Toolbox:

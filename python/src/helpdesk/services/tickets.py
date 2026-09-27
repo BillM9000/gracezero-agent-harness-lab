@@ -202,16 +202,19 @@ def customer_for(conn: sqlite3.Connection, person: Person, customer_id: int) -> 
     return {"id": customer_id, "name": name}
 
 
-def active_by_customer(conn: sqlite3.Connection, person: Person) -> dict[str, list[Ticket]]:
-    """The open and pending tickets the person may see, grouped by customer name, each group in
-    handling order and the groups in order of their first ticket. Chapter 14's orchestrator hands
-    out work a customer at a time, and counts what came back against this."""
+def active_by_customer(conn: sqlite3.Connection, person: Person) -> dict[int, list[Ticket]]:
+    """The open and pending tickets the person may see, grouped by customer id, each group in
+    handling order and the groups in order of their first ticket; each ticket carries its
+    customer's name. Grouped by id, because a name isn't unique: two customers called Ada Park are
+    two customers. Chapter 14's orchestrator hands out work a customer at a time, and counts what
+    came back against this."""
     rows = [t for t in visible_tickets(conn, person) if t["status"] in ACTIVE]
     rows.sort(key=lambda t: (HANDLING_ORDER[t["priority"]], t["created_at"], t["id"]))
     customers = repository.customer_names(conn)
-    grouped: dict[str, list[Ticket]] = {}
+    grouped: dict[int, list[Ticket]] = {}
     for ticket in rows:
-        grouped.setdefault(customers[ticket["customer_id"]], []).append(ticket)
+        ticket["customer_name"] = customers[ticket["customer_id"]]
+        grouped.setdefault(ticket["customer_id"], []).append(ticket)
     return grouped
 
 

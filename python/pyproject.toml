@@ -21,6 +21,9 @@ helpdesk = ["data/schema.sql"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# A test marked xfail that passes fails the run, so an expected failure can't hide a fixed bug, or
+# stand as a done item's proof that passes by failing (chapter 10).
+xfail_strict = true
 # Any warning fails the run, except one known warning raised inside Starlette itself.
 filterwarnings = [
   "error",

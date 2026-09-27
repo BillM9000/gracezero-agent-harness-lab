@@ -100,3 +100,54 @@ test("the newest entry in the session log is shown", () => {
   assert.match(output, /Last session \(progress\/log\.md\):\n {2}## 2026-09-23: the newest\n {2}- Did the thing\./);
   assert.doesNotMatch(output, /older/);
 });
+
+// A review (2026-09-26) found done items passing on proofs no test runner collects: a fixture in
+// conftest.py, a function in the app, and a title that appears only in a string.
+const NOT_TESTS = {
+  "python/tests/conftest.py": "import pytest\n\n@pytest.fixture\ndef conn():\n    return None\n",
+  "python/src/app/triage.py": "def main():\n    return 0\n\ndef test_main():\n    assert main() == 0\n",
+  "python/tests/test_helpers.py":
+    'def helper():\n    return 1\n\ndef test_real():\n    assert helper() == 1\n\n' +
+    '"""\ndef test_in_a_docstring():\n    pass\n"""\n# def test_in_a_comment():\n\nclass TestGroup:\n    def test_a_method(self):\n        pass\n',
+  "ts/src/client.ts": 'export const note = "test(\\"the client retries\\")";\ntest("the client retries", () => {});\n',
+  "tools/b.test.mjs":
+    'const planted = \'test("only in a string", () => {})\';\n// test("only in a comment", () => {});\n' +
+    '/* it("only in a block comment") */\nconst re = /it("in a regular expression")/;\n' +
+    'test("a real one", () => { const s = "}"; });\n',
+};
+
+test("a proof that no test runner collects fails: a fixture, the app's code, a helper, a string", () => {
+  const items = [
+    done("fixture", "python/tests/conftest.py::conn"),
+    done("app-code", "python/src/app/triage.py::test_main"),
+    done("helper", "python/tests/test_helpers.py::helper"),
+    done("docstring", "python/tests/test_helpers.py::test_in_a_docstring"),
+    done("comment", "python/tests/test_helpers.py::test_in_a_comment"),
+    done("method", "python/tests/test_helpers.py::test_a_method"),
+    done("ts-source", "ts/src/client.ts::the client retries"),
+    done("js-string", "tools/b.test.mjs::only in a string"),
+    done("js-comment", "tools/b.test.mjs::only in a comment"),
+    done("js-block", "tools/b.test.mjs::only in a block comment"),
+    done("js-regex", "tools/b.test.mjs::in a regular expression"),
+  ];
+  const { status, output } = check(repo(items, NOT_TESTS));
+  assert.equal(status, 1);
+  assert.match(output, /fixture: is marked done, but its proof file, python\/tests\/conftest\.py, isn't a file pytest collects: name a test_\*\.py file\./);
+  assert.match(output, /app-code: is marked done, but its proof file, python\/src\/app\/triage\.py, isn't a file pytest collects/);
+  assert.match(output, /helper: is marked done, but its proof names helper, and pytest runs only functions whose names start with test\./);
+  for (const id of ["docstring", "comment", "method"]) assert.match(output, new RegExp(`- ${id}: is marked done, but its proof names test_\\w+, which isn't a test in python/tests/test_helpers\\.py\\.`));
+  assert.match(output, /ts-source: is marked done, but its proof file, ts\/src\/client\.ts, isn't a test file: name a \*\.test\.\* or \*\.spec\.\* file/);
+  for (const id of ["js-string", "js-comment", "js-block", "js-regex"]) assert.match(output, new RegExp(`- ${id}: is marked done, but its proof names .*, which isn't a test in tools/b\\.test\\.mjs\\.`));
+  assert.match(output, /11 problems:/);
+});
+
+test("real tests beside the decoys still pass, and pytest's testpaths decide where a Python test may be", () => {
+  const good = [done("python", "python/tests/test_helpers.py::test_real"), done("script", "tools/b.test.mjs::a real one")];
+  const passing = check(repo(good, NOT_TESTS));
+  assert.equal(passing.status, 0, passing.output);
+  const pyproject = { "python/pyproject.toml": '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n\n[tool.ruff]\nline-length = 110\n' };
+  const outside = check(repo([done("elsewhere", "python/other/test_x.py::test_x")], { ...pyproject, "python/other/test_x.py": "def test_x():\n    pass\n" }));
+  assert.equal(outside.status, 1);
+  assert.match(outside.output, /elsewhere: is marked done, but its proof file, python\/other\/test_x\.py, isn't a file pytest collects: name a test_\*\.py file under python\/tests\//);
+  assert.equal(check(repo([done("inside", "python/tests/test_app.py::test_it_works")], pyproject)).status, 0);
+});

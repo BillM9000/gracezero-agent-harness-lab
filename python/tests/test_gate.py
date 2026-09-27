@@ -343,6 +343,44 @@ def test_a_changed_system_prompt_changes_what_the_record_is_checked_against(monk
     assert changed == ["agents/triage.toml: the assistant's model, limits, tools and system prompt"]
 
 
+def test_a_help_article_the_seed_data_or_the_judges_request_changes_the_configuration(monkeypatch):
+    # A review (2026-09-26) found each of these left the configuration matching the record: their
+    # text reaches the model, through tool results or around each criterion, so each is fingerprinted.
+    from helpdesk.assistant import judging
+    from helpdesk.data import seed as sample
+
+    before = gate.configuration()
+    articles = sample.kb_articles()
+    false = [
+        (articles[0][0], articles[0][1], articles[0][2] + " Resets are instant.", articles[0][3]),
+        *articles[1:],
+    ]
+    tickets = [
+        (*sample.TICKETS[0][:3], "The reset email arrives, but late.", *sample.TICKETS[0][4:]),
+        *sample.TICKETS[1:],
+    ]
+    template = judging.request
+
+    def reworded(*args, **kwargs):
+        return template(*args, **kwargs).replace("You are judging", "Please grade")
+
+    changes = [
+        ("data/kb/: the help articles, as search_kb reads them", sample, "kb_articles", lambda: false),
+        (
+            "data/seed.py: the sample helpdesk's customers, staff, tickets and replies",
+            sample,
+            "TICKETS",
+            tickets,
+        ),
+        ("assistant/judging.py: the judge's request around each criterion", gate, "judge_request", reworded),
+    ]
+    for name, where, attribute, value in changes:
+        with monkeypatch.context() as patched:
+            patched.setattr(where, attribute, value)
+            after = gate.configuration()
+        assert [part for part in before if before[part] != after[part]] == [name]
+
+
 def test_the_check_fails_and_names_what_changed_since_the_promotion(tmp_path, capsys):
     record = json.loads(gate.RECORD.read_text(encoding="utf-8"))
     name = "the assistant's tools, as the model sees them"

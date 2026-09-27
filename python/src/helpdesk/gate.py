@@ -41,6 +41,9 @@ from helpdesk.assistant.gating import (
     judge_suite,
 )
 from helpdesk.assistant.grading import pass_hat_k
+from helpdesk.assistant.judging import Criterion, Rubric
+from helpdesk.assistant.judging import request as judge_request
+from helpdesk.data import seed as sample
 from helpdesk.kb import CHARS_PER_TOKEN
 from helpdesk.model.anthropic_client import tool_to_api
 from helpdesk.model.budget import Budget, BudgetReached, Spend, price
@@ -94,10 +97,18 @@ def json_file(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+# The judge's request with every slot a placeholder: the wording and the schema around a criterion,
+# which judging.request writes into every call, apart from the rubric that fills it.
+TEMPLATE_RUBRIC = Rubric("{rubric}", "{subject}", "{given}", ())
+TEMPLATE_CRITERION = Criterion("{criterion}", "{question}", "{passes}", "{fails}")
+
+
 def configuration() -> dict[str, str]:
     """Everything a promotion measured: what the assistant and the judge are told and which models
-    they use, the tools as the model sees them, and the golden sets, rubric and labels it was
-    measured with. A change to any of them is a change to what ships, or to what measures it."""
+    they use, the tools as the model sees them, the help articles and the sample helpdesk whose text
+    reaches the model through those tools' results, the judge's request around each criterion, and
+    the golden sets, rubric and labels it was measured with. A change to any of them is a change to
+    what ships, or to what measures it."""
     triage = evals.triage_definition()
     with evals.helpdesk() as (conn, _):
         person = access.find_person(conn, "sam")
@@ -108,6 +119,16 @@ def configuration() -> dict[str, str]:
         "agents/judge.toml: the judge's model, limits and system prompt": judge.definition("same"),
         "evals/rubrics/reply.json: the judge's criteria": json_file(judge.RUBRICS / "reply.json"),
         "evals/judged.json: the labeled replies": json_file(judge.LABELED),
+        "data/kb/: the help articles, as search_kb reads them": sample.kb_articles(),
+        "data/seed.py: the sample helpdesk's customers, staff, tickets and replies": {
+            "customers": sample.CUSTOMERS,
+            "staff": sample.STAFF,
+            "tickets": sample.TICKETS,
+            "replies": sample.REPLIES,
+        },
+        "assistant/judging.py: the judge's request around each criterion": judge_request(
+            TEMPLATE_RUBRIC, TEMPLATE_CRITERION, "{text}", ["{given}"]
+        ),
     }
     for suite in SUITES:
         parts[f"evals/{evals.SUITES[suite].name}: a golden set"] = json_file(evals.SUITES[suite])

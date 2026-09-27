@@ -2990,6 +2990,27 @@ export const MUTATIONS = [
     run: gateTest("test_the_check_passes_on_the_repository"),
   },
   {
+    guard: "gate check: the help articles are part of what a promotion records",
+    file: GATE,
+    find: '        "data/kb/: the help articles, as search_kb reads them": sample.kb_articles(),',
+    replace: '        "data/kb/: the help articles, as search_kb reads them": [],',
+    run: gateTest("test_a_help_article_the_seed_data_or_the_judges_request_changes_the_configuration"),
+  },
+  {
+    guard: "gate check: the sample helpdesk's tickets are part of what a promotion records",
+    file: GATE,
+    find: '            "tickets": sample.TICKETS,',
+    replace: '            "tickets": [],',
+    run: gateTest("test_a_help_article_the_seed_data_or_the_judges_request_changes_the_configuration"),
+  },
+  {
+    guard: "gate check: the judge's request around each criterion is part of what a promotion records",
+    file: GATE,
+    find: `        "assistant/judging.py: the judge's request around each criterion": judge_request(`,
+    replace: `        "assistant/judging.py: the judge's request around each criterion": (lambda *slots: "")(`,
+    run: gateTest("test_a_help_article_the_seed_data_or_the_judges_request_changes_the_configuration"),
+  },
+  {
     guard: "gate check: a mock's record fails when the rules require a real model",
     file: GATE,
     find: "        if on_mock and config.require_real:",

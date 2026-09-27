@@ -1,6 +1,6 @@
 {
   "about": "The last promotion (chapter 23): what the model was given when the gate passed, and what the gate measured. Written by python -m helpdesk.gate run --promote, never by hand. python -m helpdesk.gate check fails when what the model is given no longer matches.",
-  "promoted": "2026-09-25",
+  "promoted": "2026-09-27",
   "measured_on": "the mock",
   "configuration": {
     "agents/triage.toml: the assistant's model, limits, tools and system prompt": "efaf16310c130c276ea54b099afc9b142f46b1b5cda65893020b34c021330a0e",
@@ -8,6 +8,9 @@
     "agents/judge.toml: the judge's model, limits and system prompt": "968a03285f17928de02965590378416e91c4e0852d3649fbe4f3d5251a6dc008",
     "evals/rubrics/reply.json: the judge's criteria": "c501a18977000d9b484773399e0819b661fb7fb9c8df082ab3a90ad04d9fc4d7",
     "evals/judged.json: the labeled replies": "796f0e5b9cd8a8566300601021933a401c975cbba1410a4cd482d8b45e4e911a",
+    "data/kb/: the help articles, as search_kb reads them": "c9cdf4a7e01f006a15bb809198c0a050c7612bc9d6655ef3b2ee6a865ac18862",
+    "data/seed.py: the sample helpdesk's customers, staff, tickets and replies": "39d0bcdf9c1c1bd5f9c049fd7dd0d2bfed0ce86ae915b9df4044c2c8091025f2",
+    "assistant/judging.py: the judge's request around each criterion": "97c41e3f8156f15dc5c978407a25aade2b020155c3703e805f934d0d1ea34abc",
     "evals/tasks.json: a golden set": "e26f998cdc26a689bd73e910b2f8ec05400e4375aaf801349c9f89610f21ba2d",
     "evals/reasons.json: a golden set": "2a8ee018783c8930b0b564f34ca877062f2d58970a45f58cd67c51d0005b6503",
     "evals/injections.json: a golden set": "fd8ad9dafef9770052f4e003165a3a95d39d32cfbfddf2406a927496e7971c51"

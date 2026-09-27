@@ -12,7 +12,8 @@
 //     prefers a ruff.toml beside pyproject.toml, so a new python/ruff.toml with ignore = ["F401"]
 //     turns a failing lint into a pass without touching the file that held the rule.
 //
-// The data the app serves (seed data, agent definitions) isn't here: changing it can be a fix.
+// The data the app serves (help articles, seed data, agent definitions) isn't here: changing it can
+// be a fix.
 
 const TOOLS = /^tools\//;
 
@@ -24,6 +25,7 @@ export const CHECK_FILES = {
   "Python import rules (lint-imports)": [/^python\/pyproject\.toml$/],
   "Python model-text rule (python -m helpdesk_lint)": [/^python\/src\/helpdesk_lint\//],
   "Agent definitions (python -m agent_policy)": [/^python\/src\/agent_policy\//, /^python\/agents\/policy\.toml$/],
+  "Knowledge-base retrieval (python -m helpdesk.kb eval)": [/^python\/src\/helpdesk\/kb\.py$/, /^python\/evals\/kb_questions\.json$/],
   "API contract (python -m helpdesk.contract)": [/^python\/src\/helpdesk\/contract\.py$/],
   "Python tests (pytest)": [/^python\/tests\//, /^python\/pyproject\.toml$/],
   "TypeScript API types (npm run api-types)": [/^ts\/scripts\//, /^ts\/package\.json$/],

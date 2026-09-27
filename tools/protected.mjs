@@ -53,6 +53,11 @@ export const CHECK_FILES = {
     /^python\/src\/readiness\//,
     /^python\/usecases\//,
   ],
+  "Golden path (python -m helpdesk.golden_path check)": [
+    /^python\/src\/helpdesk\/golden_path\.py$/,
+    /^python\/src\/golden_path\//,
+    /^python\/golden-path\//,
+  ],
   "API contract (python -m helpdesk.contract)": [/^python\/src\/helpdesk\/contract\.py$/],
   "Python tests (pytest)": [/^python\/tests\//, /^python\/pyproject\.toml$/],
   "TypeScript API types (npm run api-types)": [/^ts\/scripts\//, /^ts\/package\.json$/],

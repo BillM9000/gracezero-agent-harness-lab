@@ -9,9 +9,13 @@ What each working session did, newest first. Add an entry at the end of every se
 - Not run: `--real`, for any command; no key was set, and nothing called a provider. The full `node tools/mutate.mjs`; the nightly job runs it.
 - Next: the history rebuild places each change before its chapter's tag; chapters 15, 16, 18, 20, 22, 27 and 30 and Appendix B quote files these changes touched (`CHANGELOG.md` names them).
 
-## 2026-09-27: what the mutation counts below mean
+## 2026-09-27: fixes from a second review, and what the counts below mean
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`; on the working tree, `node tools/mutate.mjs --list` prints every entry and the total. Trust the count, not a number here.
+- Four fixes, each in `CHANGELOG.md` with the tag it belongs at: `gate check`'s detection figure counts both rules (ch23), a decision that waits past the write lock's limit is refused in words (ch19), two citation spellings no longer vouch for nothing (ch09), and the gateway's comments on billed refusals (ch27). 5 new mutation entries (630).
+- Checked with: `node check.mjs` before each commit, and `node tools/mutate.mjs --only` on a clean tree for `gate:`, `gate check:`, `decisions:`, `repository:`, `citations:` and `gateway:`.
+- Not run: `--real`, for any command.
+- Next: the next rebuild of the history moves each fix, and this entry, to its tag.
 
 ## 2026-09-26: on GitHub, a codespace, and a drawing of a run
 

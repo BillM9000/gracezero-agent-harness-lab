@@ -189,6 +189,36 @@ test("the lint rule template fails a planted read with the fix in its message, a
   assert.match(output, /exception at mixed\.py:3: kept for the transcript/);
 });
 
+test("the lint rule template follows a response under another name, as the lab's rule does", () => {
+  // The lab's rule learned these forms after a review (2026-09-26); the template, a separate copy,
+  // passed every one of them until it learned them too.
+  const call = 'model.complete(system="s", messages=[])';
+  const root = folder({
+    "alias.py": `def f(model):\n    response = ${call}\n    r = response\n    return r.text\n`,
+    "alias_of_alias.py": `def f(model):\n    a = ${call}\n    b = a\n    c: X = b\n    return c.text\n`,
+    "walrus.py": `def f(model):\n    if (r := ${call}):\n        return r.text\n`,
+    "walrus_read_at_once.py": `def f(model):\n    return (r := ${call}).text\n`,
+    "tuple.py": `def f(model):\n    r, n = ${call}, 1\n    return r.text\n`,
+    "nested_tuple.py": `def f(model):\n    [(r, n), m] = (${call}, 1), 2\n    return r.text\n`,
+    // The other names in the same statement hold no response.
+    "others.py": `def f(model, page):\n    r, n = ${call}, page\n    return final_text(r) + n.text\n`,
+  });
+  const found = (output) => lines(output).filter((line) => / HDK10\d /.test(line)).map((line) => line.split(": ")[0]);
+  const template = python([LINT, "."], root);
+  const lab = python(["-m", "helpdesk_lint", "."], root);
+  assert.equal(template.status, 1, template.output);
+  assert.deepEqual(found(template.output), [
+    "alias.py:4:12",
+    "alias_of_alias.py:5:12",
+    "nested_tuple.py:3:12",
+    "tuple.py:3:12",
+    "walrus.py:3:16",
+    "walrus_read_at_once.py:2:12",
+  ]);
+  assert.deepEqual(found(template.output), found(lab.output));
+  assert.match(template.output, /checked 7 files: 6 problem\(s\), 0 exception\(s\)\./);
+});
+
 test("the lint rule template refuses a folder with no Python files, rather than pass it", () => {
   const { status, output } = python([LINT, "."], folder({ "notes.txt": "nothing to lint\n" }));
   assert.equal(status, 2, output);

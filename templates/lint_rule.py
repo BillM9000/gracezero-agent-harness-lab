@@ -6,9 +6,13 @@ normal response with text of its own. The lab's version also follows parameters 
 ModelResponse. Lines marked TEMPLATE are the ones to change for a rule of your own.
 
 It walks each file's syntax tree, so it flags meaning rather than text: response.text is reported,
-block.text is not. A line that breaks the rule on purpose says why, in a comment on it or on the line
-above: # HDK101: <why>. An exception with no reason fails, and so does one on a line that no longer
-breaks the rule, so exceptions can't pile up unexplained.
+block.text is not. It follows a response to another name by a plain alias (r = response), the walrus
+operator (r := ...) and unpacking a tuple written out (r, n = model.complete(...), 1), but not
+through a container, an attribute or another function.
+
+A line that breaks the rule on purpose says why, in a comment on it or on the line above:
+# HDK101: <why>. An exception with no reason fails, and so does one on a line that no longer breaks
+the rule, so exceptions can't pile up unexplained.
 
 It prints path:line:column: message for each problem, then how many files it read and every
 exception in use, with its reason. Exits 0 when clean, 1 with problems, and 2 when it found no files:
@@ -57,7 +61,9 @@ def is_complete_call(node: ast.expr | None) -> bool:
 
 class Visitor(ast.NodeVisitor):
     """TEMPLATE: what the rule matches. Here, a .text read on a name that holds a .complete(...)
-    result, tracked function by function, or on a .complete(...) call itself."""
+    result, tracked function by function, or on a .complete(...) call itself. A name holds one when
+    it is bound to the call or to a name that holds one: by assignment, the walrus operator, or
+    unpacking a tuple written out."""
 
     def __init__(self) -> None:
         self.scopes: list[set[str]] = [set()]
@@ -74,10 +80,39 @@ class Visitor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self._function(node)
 
+    def _responds(self, value: ast.expr | None) -> bool:
+        """A model response: a .complete(...) call, or a name that holds one."""
+        if is_complete_call(value):
+            return True
+        return isinstance(value, ast.Name) and any(value.id in scope for scope in self.scopes)
+
+    def _bind(self, target: ast.expr, value: ast.expr | None) -> None:
+        """Track a name bound to a response: `r = model.complete(...)`, a plain alias `r2 = r`, and
+        each name of a tuple unpacked from a tuple written out (`r, n = model.complete(...), 1`)."""
+        if isinstance(target, ast.Name):
+            if self._responds(value):
+                self.scopes[-1].add(target.id)
+        elif (
+            isinstance(target, (ast.Tuple, ast.List))
+            and isinstance(value, (ast.Tuple, ast.List))
+            and len(target.elts) == len(value.elts)
+        ):
+            for t, v in zip(target.elts, value.elts, strict=True):
+                self._bind(t, v)
+
     def visit_Assign(self, node: ast.Assign) -> None:
         self.generic_visit(node)
-        if is_complete_call(node.value):
-            self.scopes[-1].update(t.id for t in node.targets if isinstance(t, ast.Name))
+        for target in node.targets:
+            self._bind(target, node.value)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        self.generic_visit(node)
+        self._bind(node.target, node.value)
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        # The walrus: `if (r := model.complete(...)).stop_reason ...` binds r like an assignment.
+        self.generic_visit(node)
+        self._bind(node.target, node.value)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if node.attr == "text" and isinstance(node.ctx, ast.Load):
@@ -85,6 +120,8 @@ class Visitor(ast.NodeVisitor):
                 self.reads.append((node.lineno, node.col_offset, node.value.id))
             elif is_complete_call(node.value):
                 self.reads.append((node.lineno, node.col_offset, "response"))
+            elif isinstance(node.value, ast.NamedExpr) and self._responds(node.value.value):
+                self.reads.append((node.lineno, node.col_offset, node.value.target.id))
         # Keep walking: without this, response.text.strip() would hide the read inside it.
         self.generic_visit(node)
 

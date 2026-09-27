@@ -2051,6 +2051,34 @@ export const MUTATIONS = [
     replace: "            if False:",
     run: pytest("tests/fitness/test_nothing_sends_outside.py::test_the_check_finds_every_way_out_it_claims_to"),
   },
+  {
+    guard: "fitness: a way out loaded by name is found",
+    file: "python/tests/fitness/test_nothing_sends_outside.py",
+    find: '            elif name.value.split(".")[0] in OUTSIDE:',
+    replace: "            elif False:",
+    run: pytest("tests/fitness/test_nothing_sends_outside.py::test_a_module_loaded_by_name_or_a_relative_import_is_found"),
+  },
+  {
+    guard: "fitness: a module loaded by a name the check can't read is found",
+    file: "python/tests/fitness/test_nothing_sends_outside.py",
+    find: "            if not (isinstance(name, ast.Constant) and isinstance(name.value, str)):",
+    replace: "            if False:",
+    run: pytest("tests/fitness/test_nothing_sends_outside.py::test_a_module_loaded_by_name_or_a_relative_import_is_found"),
+  },
+  {
+    guard: "fitness: __import__ counts as loading by name",
+    file: "python/tests/fitness/test_nothing_sends_outside.py",
+    find: 'LOADERS = {"import_module", "__import__"}',
+    replace: 'LOADERS = {"import_module"}',
+    run: pytest("tests/fitness/test_nothing_sends_outside.py::test_a_module_loaded_by_name_or_a_relative_import_is_found"),
+  },
+  {
+    guard: "fitness: a relative import in the assistant's code is found",
+    file: "python/tests/fitness/test_nothing_sends_outside.py",
+    find: "        elif isinstance(node, ast.ImportFrom) and node.level > 0:",
+    replace: "        elif False:",
+    run: pytest("tests/fitness/test_nothing_sends_outside.py::test_a_module_loaded_by_name_or_a_relative_import_is_found"),
+  },
   // Chapter 20: models are components with a retirement date.
   {
     guard: "fitness: every model named is pinned and tracked",

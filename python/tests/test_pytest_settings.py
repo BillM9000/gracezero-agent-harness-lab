@@ -4,6 +4,7 @@ stand as a done item's proof."""
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -23,10 +24,16 @@ def test_marked_as_failing_but_passes():
 def test_an_expected_failure_that_passes_fails_the_run(tmp_path):
     planted = tmp_path / "test_planted.py"
     planted.write_text(PLANTED, encoding="utf-8")
+    # The lab's settings, copied next to the planted test, so every folder pytest lists is inside
+    # tmp_path. Given the lab's own file, pytest collects each folder above the planted test that
+    # isn't above the settings file: on Windows, C:\Users down to the shared temporary folder, where
+    # other programs delete folders as it lists them, which failed the run now and then with
+    # FileNotFoundError (--rootdir alone didn't stop it). The copy is the lab's file byte for byte,
+    # so the run still judges the lab's own settings.
+    settings = tmp_path / "pyproject.toml"
+    shutil.copyfile(PYPROJECT, settings)
+    assert settings.read_bytes() == PYPROJECT.read_bytes()
     run = subprocess.run(
-        # --rootdir keeps pytest inside tmp_path. Without it, the root is the common folder of the
-        # settings file and the planted test, and collection lists folders other programs may be
-        # deleting at that moment, which failed the run now and then on a busy machine.
         [
             sys.executable,
             "-m",
@@ -35,7 +42,7 @@ def test_an_expected_failure_that_passes_fails_the_run(tmp_path):
             "-p",
             "no:cacheprovider",
             "-c",
-            str(PYPROJECT),
+            str(settings),
             "--rootdir",
             str(tmp_path),
             str(planted),

@@ -2,6 +2,10 @@
 
 What each working session did, newest first. Add an entry at the end of every session: what changed, how you checked it, and what the next session should do first. Name the command behind each claim, so the next session can run it again instead of trusting the sentence.
 
+## 2026-09-27: what the mutation counts below mean
+
+- The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, so the list at a tag can hold more entries than the log entry beside it records. Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`. Trust the count, not a number here.
+
 ## 2026-09-23: chapter 24, checks in tiers
 
 - `node check.mjs --fast` skips the test suites; `node tools/mutate.mjs` breaks every listed guard and requires a test to catch it (56 entries); CI split into `ci.yml` (code), `docs.yml` (Markdown alone) and `nightly.yml` (mutations).

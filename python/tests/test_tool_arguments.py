@@ -8,7 +8,10 @@ every call, and reports every problem at once.
 
 from __future__ import annotations
 
-from helpdesk.assistant.tools import Tool, Toolbox, checked_arguments, triage_tools
+import pytest
+
+from helpdesk.assistant.tools import ARGUMENT_KEYWORDS, Tool, Toolbox, checked_arguments, triage_tools
+from helpdesk.model.anthropic_client import STRICT_UNSUPPORTED
 from helpdesk.model.types import ToolCall, ToolSpec
 from helpdesk.services import access
 
@@ -79,3 +82,61 @@ def test_nothing_runs_when_the_arguments_are_wrong():
 def test_checked_arguments_returns_what_the_tool_should_get():
     spec = ToolSpec("t", "T.", {"type": "object", "properties": {"s": {"type": "string", "enum": ["open"]}}})
     assert checked_arguments(spec, {"s": "OPEN"}) == ({"s": "open"}, [])
+
+
+def one_argument(rules, **schema):
+    """A strict tool taking one argument, n, with these rules."""
+    spec = ToolSpec(
+        "t",
+        "T.",
+        {
+            "type": "object",
+            "properties": {"n": rules},
+            "required": ["n"],
+            "additionalProperties": False,
+            **schema,
+        },
+        strict=True,
+    )
+    return Tool(spec, lambda n: "ok")
+
+
+def test_a_toolbox_refuses_a_schema_rule_it_cant_check():
+    # The Anthropic adapter strips these from what it sends, so nothing would check them.
+    with pytest.raises(ValueError) as refused:
+        Toolbox([one_argument({"type": "integer", "exclusiveMinimum": 0, "multipleOf": 2})])
+    assert str(refused.value) == (
+        "The toolbox can't check t.n's 'exclusiveMinimum'; t.n's 'multipleOf'. Nothing would enforce it: "
+        "the Anthropic adapter strips what strict mode can't carry because the toolbox checks it. Use only "
+        "the rules in ARGUMENT_KEYWORDS, or teach checked_value the new one first."
+    )
+    planted = [
+        ({"type": "string", "maxLength": 5}, "t.n's 'maxLength'"),
+        ({"type": "string", "pattern": "^a"}, "t.n's 'pattern'"),
+        ({"type": "string", "minimum": 1}, "t.n's 'minimum'"),
+        ({"type": "number"}, "t.n's type 'number'"),
+        ({"type": "boolean"}, "t.n's type 'boolean'"),
+        ({"type": "array", "items": {"type": "integer"}, "maxItems": 3}, "t.n's type 'array'"),
+        ({"description": "No type at all."}, "t.n's type None"),
+    ]
+    for rules, named in planted:
+        with pytest.raises(ValueError, match=f"^The toolbox can't check {named}[.]"):
+            Toolbox([one_argument(rules)])
+    with pytest.raises(ValueError, match="^The toolbox can't check t's 'minProperties'[.]"):
+        Toolbox([one_argument({"type": "integer"}, minProperties=1)])
+    with pytest.raises(ValueError, match="^The toolbox can't check t's type 'array'"):
+        Toolbox([Tool(ToolSpec("t", "T.", {"type": "array"}), lambda: "ok")])
+
+
+def test_every_keyword_the_adapter_strips_is_checked_or_refused():
+    # A value each checked keyword refuses when set to 2.
+    breaking = {"minimum": 1, "maximum": 3, "minLength": " a "}
+    for key in (*STRICT_UNSUPPORTED, "minItems"):
+        for kind in ARGUMENT_KEYWORDS:
+            tool = one_argument({"type": kind, key: 2})
+            if key not in ARGUMENT_KEYWORDS[kind]:
+                with pytest.raises(ValueError, match=f"^The toolbox can't check t.n's '{key}'"):
+                    Toolbox([tool])
+                continue
+            result = Toolbox([tool]).run(ToolCall("c1", "t", {"n": breaking[key]}))
+            assert result.is_error, f"{kind} with {key} = 2 passed {breaking[key]!r}"

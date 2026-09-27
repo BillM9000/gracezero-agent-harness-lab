@@ -19,9 +19,10 @@ DEFAULT_MODEL = "claude-opus-5-5"
 # Strict tool use (chapter 11), as Anthropic's structured-outputs page described it on 2026-09-23.
 # It supports part of JSON Schema: not numerical constraints, string lengths, or array lengths
 # beyond a minItems of 0 or 1, and a request that uses them is refused. The lab's schemas keep
-# those keywords, because the toolbox enforces them before any tool runs, and they're left out of
-# what is sent. Every object must set additionalProperties to false, and one request may carry at
-# most 20 strict tools.
+# those keywords and they're left out of what is sent, because the toolbox checks minimum, maximum
+# and minLength before any tool runs, and refuses to hold a tool whose schema uses any keyword or
+# type it doesn't check (unchecked_rules in helpdesk/assistant/tools.py). Every object must set
+# additionalProperties to false, and one request may carry at most 20 strict tools.
 STRICT_UNSUPPORTED = (
     "minimum",
     "maximum",

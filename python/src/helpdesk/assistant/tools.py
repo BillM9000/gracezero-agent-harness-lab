@@ -6,7 +6,8 @@ returns. Since chapter 11, every tool here:
 - acts for one member of staff, fixed when the toolbox is built, and shows only what that person
   may see (helpdesk/services/access.py). No tool takes the person as an argument;
 - declares a strict schema, and the toolbox checks every call against it before anything runs,
-  including the parts a provider's strict mode can't enforce;
+  including the parts a provider's strict mode can't enforce, and a toolbox refuses to hold a
+  tool whose schema has a rule it can't check;
 - answers a bad call with an error that says what was wrong and what to do next;
 - returns a result sized for a context window: find_tickets pages, and the toolbox cuts any result
   longer than MAX_RESULT_CHARS and says so.
@@ -37,6 +38,17 @@ MAX_RESULT_CHARS = 6000
 
 # The JSON Schema types the toolbox checks, and how each is described in an error.
 JSON_TYPES: dict[str, tuple[type, str]] = {"integer": (int, "a whole number"), "string": (str, "text")}
+# The keywords checked_value checks for an argument of each type ("description" is for the model).
+# The Anthropic adapter strips what strict mode can't carry (STRICT_UNSUPPORTED) because the toolbox
+# checks it, so a keyword or type left off these lists would be checked by nothing: a toolbox
+# refuses to hold a tool whose schema uses one (unchecked_rules).
+ARGUMENT_KEYWORDS: dict[str, frozenset[str]] = {
+    "integer": frozenset({"type", "description", "enum", "minimum", "maximum"}),
+    "string": frozenset({"type", "description", "enum", "minLength"}),
+}
+# The keywords checked_arguments checks at the top of a schema. It refuses every argument the
+# schema doesn't name, whatever additionalProperties says.
+SCHEMA_KEYWORDS = frozenset({"type", "properties", "required", "additionalProperties"})
 
 
 @dataclass(frozen=True)
@@ -51,6 +63,13 @@ class Toolbox:
     def __init__(self, tools: Iterable[Tool], max_result_chars: int = MAX_RESULT_CHARS) -> None:
         self._tools = {t.spec.name: t for t in tools}
         self.max_result_chars = max_result_chars
+        unchecked = [problem for t in self._tools.values() for problem in unchecked_rules(t.spec)]
+        if unchecked:
+            raise ValueError(
+                f"The toolbox can't check {'; '.join(unchecked)}. Nothing would enforce it: the "
+                "Anthropic adapter strips what strict mode can't carry because the toolbox checks it. "
+                "Use only the rules in ARGUMENT_KEYWORDS, or teach checked_value the new one first."
+            )
 
     @property
     def specs(self) -> tuple[ToolSpec, ...]:
@@ -134,6 +153,21 @@ def checked_arguments(spec: ToolSpec, arguments: dict[str, Any]) -> tuple[dict[s
             problems.append(problem)
         fixed[name] = value
     return fixed, problems
+
+
+def unchecked_rules(spec: ToolSpec) -> list[str]:
+    """What a tool's schema asks for that checked_arguments doesn't check, one entry each."""
+    schema = spec.input_schema
+    found = [f"{spec.name}'s {key!r}" for key in schema if key not in SCHEMA_KEYWORDS]
+    if schema.get("type", "object") != "object":
+        found.append(f"{spec.name}'s type {schema['type']!r} (a tool takes an object)")
+    for name, rules in schema.get("properties", {}).items():
+        kind = rules.get("type")
+        if kind not in ARGUMENT_KEYWORDS:
+            found.append(f"{spec.name}.{name}'s type {kind!r}")
+            continue
+        found += [f"{spec.name}.{name}'s {key!r}" for key in rules if key not in ARGUMENT_KEYWORDS[kind]]
+    return found
 
 
 def checked_value(name: str, value: Any, rules: dict[str, Any]) -> tuple[str | None, Any]:

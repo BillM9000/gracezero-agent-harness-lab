@@ -85,6 +85,22 @@ protected_modules = ["mcp"]
 allowed_importers = ["helpdesk.mcp_server"]
 broken_contract_guidance = "Only helpdesk/mcp_server.py may use the MCP SDK. Put the rule in helpdesk.services or the toolbox, where every way in applies it, and have the server call that."
 
+# Chapter 20: nothing the assistant can reach sends anything outside. The fitness test
+# (tests/fitness/test_nothing_sends_outside.py) reads these packages' own imports; this follows the
+# lab's imports from them, so a service that imports a module which reaches the network breaks it
+# too. The forbidden modules are the fitness test's OUTSIDE, which that test keeps equal; one that no
+# module imports isn't in the graph, and is checked once something imports it.
+[[tool.importlinter.contracts]]
+name = "Nothing the assistant can reach imports a way out"
+type = "forbidden"
+source_modules = ["helpdesk.assistant", "helpdesk.services", "helpdesk.data"]
+forbidden_modules = [
+    "aiohttp", "anthropic", "asyncio", "ctypes", "ftplib", "http", "httpcore", "httpcore2", "httpx",
+    "httpx2", "imaplib", "mcp", "multiprocessing", "poplib", "requests", "smtplib", "socket", "ssl",
+    "subprocess", "telnetlib", "urllib", "urllib3", "webbrowser", "websockets", "xmlrpc",
+]
+broken_contract_guidance = "The assistant's tools and the code they call must not reach another machine or start a program, directly or through another module: an injected ticket could make the model use it (chapter 20). Put the call behind a composition root, such as helpdesk.mcp_server, and give the assistant a tool that files a proposal for a person instead."
+
 # Chapter 19: an agent proposes, a person decides. The code that approves or rejects a proposal is
 # reachable only from the command a person runs, so no tool, agent loop, MCP server or route can call
 # it, whatever a model asks for.

@@ -2079,6 +2079,41 @@ export const MUTATIONS = [
     replace: "        elif False:",
     run: pytest("tests/fitness/test_nothing_sends_outside.py::test_a_module_loaded_by_name_or_a_relative_import_is_found"),
   },
+  // Chapter 20: the same, through the lab's own imports, by import-linter.
+  {
+    guard: "import-linter: a way out is forbidden through other modules too",
+    file: "python/pyproject.toml",
+    find: 'source_modules = ["helpdesk.assistant", "helpdesk.services", "helpdesk.data"]\n',
+    replace: 'source_modules = ["helpdesk.assistant", "helpdesk.services", "helpdesk.data"]\nallow_indirect_imports = true\n',
+    run: pytest(
+      `${LAYERS}::test_a_way_out_reached_through_the_labs_own_imports_is_caught_with_the_fix`,
+      "tests/fitness/test_nothing_sends_outside.py::test_the_import_contract_forbids_these_packages_the_same_modules",
+    ),
+  },
+  {
+    guard: "import-linter: the data layer may not reach a way out",
+    file: "python/pyproject.toml",
+    find: 'source_modules = ["helpdesk.assistant", "helpdesk.services", "helpdesk.data"]\n',
+    replace: 'source_modules = ["helpdesk.assistant", "helpdesk.services"]\n',
+    run: pytest(
+      `${LAYERS}::test_a_way_out_reached_through_the_labs_own_imports_is_caught_with_the_fix`,
+      "tests/fitness/test_nothing_sends_outside.py::test_the_import_contract_forbids_these_packages_the_same_modules",
+    ),
+  },
+  {
+    guard: "import-linter: the ways-out contract forbids every module the fitness test lists",
+    file: "python/pyproject.toml",
+    find: '    "subprocess", "telnetlib",',
+    replace: '    "telnetlib",',
+    run: pytest("tests/fitness/test_nothing_sends_outside.py::test_the_import_contract_forbids_these_packages_the_same_modules"),
+  },
+  {
+    guard: "import-linter: the ways-out contract says how to fix it",
+    file: "python/pyproject.toml",
+    find: 'broken_contract_guidance = "The assistant\'s tools and the code they call must not reach another machine or start a program, directly or through another module: an injected ticket could make the model use it (chapter 20). Put the call behind a composition root, such as helpdesk.mcp_server, and give the assistant a tool that files a proposal for a person instead."\n',
+    replace: "",
+    run: pytest(`${LAYERS}::test_a_way_out_reached_through_the_labs_own_imports_is_caught_with_the_fix`),
+  },
   // Chapter 20: models are components with a retirement date.
   {
     guard: "fitness: every model named is pinned and tracked",

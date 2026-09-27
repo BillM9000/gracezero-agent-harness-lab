@@ -10,11 +10,11 @@ network on purpose; each sits outside these packages, behind a composition root.
 
 It also fails on a module loaded by name (importlib.import_module or __import__) when the name is
 one of those, or isn't written out where it can be read, and on a relative import, which it can't
-resolve without knowing the package. What it doesn't do is follow the lab's own imports: a service
-that imported helpdesk.mcp_server would reach the network through it and pass. Following them
-means the whole import graph, which import-linter already builds (pyproject.toml's contracts,
-with include_external_packages): a forbidden contract from these three packages to the modules
-below would check it transitively.
+resolve without knowing the package. It doesn't follow the lab's own imports: a service that
+imported helpdesk.mcp_server would reach the network through it. import-linter does, over the whole
+import graph: pyproject.toml's contract "Nothing the assistant can reach imports a way out" forbids
+these three packages the modules below, directly or through any other module, and a test here keeps
+its lists equal to REACHABLE and OUTSIDE (tests/guardrails/ plants what it catches).
 
 It's a tripwire for code, not a network boundary: a deployed service needs egress rules too.
 """
@@ -22,9 +22,12 @@ It's a tripwire for code, not a network boundary: a deployed service needs egres
 from __future__ import annotations
 
 import ast
+import tomllib
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "helpdesk"
+PYPROJECT = SRC.parents[1] / "pyproject.toml"
+CONTRACT = "Nothing the assistant can reach imports a way out"
 # The packages the assistant's tools run: its tools, the services they call and the data layer.
 REACHABLE = ("assistant", "services", "data")
 # Modules that can reach another machine, or start a program that can.
@@ -135,6 +138,21 @@ def test_a_module_loaded_by_name_or_a_relative_import_is_found():
         "line 8: a relative import (from ..model import ...), which this check can't follow: write it as "
         "an absolute import",
     ]
+
+
+def test_the_import_contract_forbids_these_packages_the_same_modules():
+    # The contract follows imports through other modules, which this file can't; the two must name
+    # the same packages and the same ways out, or one of them checks less than it says.
+    contracts = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["tool"]["importlinter"]["contracts"]
+    found = [contract for contract in contracts if contract["name"] == CONTRACT]
+    assert len(found) == 1, f'pyproject.toml has no import contract named "{CONTRACT}"'
+    contract = found[0]
+    assert contract["type"] == "forbidden"
+    assert contract.get("allow_indirect_imports", False) is False, "the contract must follow imports"
+    assert sorted(contract["source_modules"]) == sorted(f"helpdesk.{package}" for package in REACHABLE)
+    assert sorted(contract["forbidden_modules"]) == sorted(OUTSIDE), (
+        "Name the same modules in OUTSIDE and in the contract's forbidden_modules"
+    )
 
 
 def test_nothing_the_assistant_can_reach_sends_anything_outside():

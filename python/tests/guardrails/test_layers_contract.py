@@ -54,7 +54,7 @@ def plant(workdir: Path, module: str, line: str) -> None:
 def test_clean_copy_keeps_every_contract(tmp_path):
     code, output = run_guardrail(copy_package(tmp_path))
     assert code == 0, output
-    assert "6 kept, 0 broken" in output
+    assert "7 kept, 0 broken" in output
 
 
 def test_data_layer_importing_a_service_is_caught(tmp_path):
@@ -141,6 +141,29 @@ def test_a_service_importing_the_mcp_sdk_is_caught_with_the_fix(tmp_path):
     assert code != 0, output
     assert "helpdesk.services.tickets -> mcp " in output
     assert "Put the rule in helpdesk.services or the toolbox, where every way in applies it" in output
+
+
+def test_a_way_out_reached_through_the_labs_own_imports_is_caught_with_the_fix(tmp_path):
+    # Chapter 20. The fitness test reads only the assistant's, the services' and the data layer's own
+    # imports, so each of these passed it and the other six contracts: the data layer importing the
+    # MCP client (which starts programs and opens URLs), the assistant importing the Anthropic
+    # client module (which imports the SDK), and a service importing http, which no module imported
+    # before, so it wasn't in the graph until now.
+    workdir = copy_package(tmp_path)
+    plant(workdir, "helpdesk.data.repository", "from helpdesk import mcp_client")
+    plant(workdir, "helpdesk.assistant.agent", "from helpdesk.model import anthropic_client")
+    plant(workdir, "helpdesk.services.tickets", "import http.client")
+    code, output = run_guardrail(workdir)
+    assert code != 0, output
+    assert "6 kept, 1 broken" in output
+    assert "helpdesk.data is not allowed to import subprocess" in output
+    assert "helpdesk.data.repository -> helpdesk.mcp_client (l." in output
+    assert "helpdesk.mcp_client -> subprocess (l." in output
+    assert "helpdesk.assistant is not allowed to import anthropic" in output
+    assert "helpdesk.assistant.agent -> helpdesk.model.anthropic_client (l." in output
+    assert "helpdesk.model.anthropic_client -> anthropic (l." in output
+    assert "helpdesk.services.tickets -> http (l." in output
+    assert "Put the call behind a composition root, such as helpdesk.mcp_server, and give" in output
 
 
 def test_a_tool_that_imports_the_code_that_decides_is_caught_with_the_fix(tmp_path):

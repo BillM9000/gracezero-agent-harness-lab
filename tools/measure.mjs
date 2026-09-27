@@ -190,7 +190,8 @@ export function change(beforePart, beforeWhole, nowPart, nowWhole) {
   if (beforeWhole < FEWEST || nowWhole < FEWEST) return { tooFew: true };
   const p1 = beforePart / beforeWhole;
   const p2 = nowPart / nowWhole;
-  if (p1 > 1 || p2 > 1) return { tooFew: true };
+  // Fixes can outnumber the changes they fix, and then the rate isn't a share: say so, not "too few".
+  if (p1 > 1 || p2 > 1) return { overOne: p1 > 1 && p2 > 1 ? "on both sides" : p1 > 1 ? "in the baseline" : "now" };
   const error = Math.sqrt((p1 * (1 - p1)) / beforeWhole + (p2 * (1 - p2)) / nowWhole);
   const d = p2 - p1;
   return { d, low: d - Z_95 * error, high: d + Z_95 * error };
@@ -198,6 +199,9 @@ export function change(beforePart, beforeWhole, nowPart, nowWhole) {
 
 export function describe(name, c) {
   if (c.tooFew) return `${name}: fewer than ${FEWEST} on a side, too few to tell a change from noise.`;
+  if (c.overOne) {
+    return `${name}: over 100% ${c.overOne}, more than one per agent change, so it isn't a share of them and has no interval. Compare the counts.`;
+  }
   const points = (x) => `${x > 0 ? "+" : ""}${Math.round(100 * x)}`;
   const verdict = c.low > 0 || c.high < 0 ? "more than noise" : "within noise";
   const way = c.d < 0 ? "down" : "up";

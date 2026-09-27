@@ -176,6 +176,17 @@ test("a change in a rate is called only with 30 or more on a side, and only when
   assert.match(describe("Rework", change(10, 20, 5, 20)), /fewer than 30 on a side/);
 });
 
+test("a rate over 100 percent is named as that, not as too few", () => {
+  // 45 fixes on 40 agent changes: plenty on each side, but not a proportion.
+  assert.equal(
+    describe("Rework per agent change", change(45, 40, 10, 40)),
+    "Rework per agent change: over 100% in the baseline, more than one per agent change, so it isn't a share of them and has no interval. Compare the counts.",
+  );
+  assert.match(describe("Rework", change(10, 40, 45, 40)), /: over 100% now, /);
+  assert.match(describe("Rework", change(41, 40, 45, 40)), /: over 100% on both sides, /);
+  assert.doesNotMatch(describe("Rework", change(45, 40, 10, 40)), /fewer than/);
+});
+
 test("--against reports both windows, uses the baseline's length and known failures, and says what's noise", () => {
   const commits = [];
   for (let i = 0; i < 30; i++) commits.push({ day: i * 0.4, subject: `feat: ${i}`, files: { [`a/${i}.js`]: "1" }, agent: true });

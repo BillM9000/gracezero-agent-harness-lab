@@ -3415,6 +3415,20 @@ export const MUTATIONS = [
     run: nodeTest(MEASURE_TESTS, "a change in a rate is called only"),
   },
   {
+    guard: "measure: a rate over 100 percent is named as that, not as too few",
+    file: MEASURE,
+    find: '  if (p1 > 1 || p2 > 1) return { overOne: p1 > 1 && p2 > 1 ? "on both sides" : p1 > 1 ? "in the baseline" : "now" };',
+    replace: "  if (p1 > 1 || p2 > 1) return { tooFew: true };",
+    run: nodeTest(MEASURE_TESTS, "a rate over 100 percent"),
+  },
+  {
+    guard: "measure: a rate over 100 percent says on which side",
+    file: MEASURE,
+    find: '? "on both sides" : p1 > 1 ? "in the baseline" : "now"',
+    replace: '? "on both sides" : "now"',
+    run: nodeTest(MEASURE_TESTS, "a rate over 100 percent"),
+  },
+  {
     guard: "measure: a change is more than noise only when its interval leaves out zero",
     file: MEASURE,
     find: 'const verdict = c.low > 0 || c.high < 0 ? "more than noise" : "within noise";',

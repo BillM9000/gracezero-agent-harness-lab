@@ -35,6 +35,7 @@ from helpdesk.assistant.gating import (
     Rule,
     Verdict,
     chance_of_at_least,
+    healthy_suite_fails,
     held_false_passes,
     judge_calibration,
     judge_suite,
@@ -75,7 +76,7 @@ def settings(path: Path | None = None) -> Settings:
         expected=regression["expected_pass_rate"],
         false_alarm=regression["false_alarm"],
         every_trial=frozenset(data["every_trial"]),
-        paired_min_cases=regression["paired_min_cases"],
+        suite_min_cases=regression["suite_min_cases"],
     )
     if data["judge_trials"] < 1:
         raise ValueError("judge_trials must be 1 or more")
@@ -380,7 +381,7 @@ def run_gate(
     config = settings()
     rule, n = config.rule, trials or config.rule.trials
     if n != rule.trials:
-        rule = Rule(n, rule.expected, rule.false_alarm, rule.every_trial, rule.paired_min_cases)
+        rule = Rule(n, rule.expected, rule.false_alarm, rule.every_trial, rule.suite_min_cases)
     record = load_record()
     if promote and config.require_real and not real:
         print("evals/gate.json requires a real model to promote (require_real): add --real and --max-usd.")
@@ -458,6 +459,8 @@ def check(rules: Path | None = None, record_path: Path | None = None) -> int:
             f"{caught:.0%} of the time. {every.capitalize()} allows no failed trial."
         )
     record = load_record(record_path)
+    if record is not None and fails_at is not None:
+        problems.extend(suite_rules(rule, record, rules.name))
     if record is None:
         problems.append(
             f"evals/{record_path.name} is missing: nothing has passed the gate. Run python -m "
@@ -496,6 +499,44 @@ def check(rules: Path | None = None, record_path: Path | None = None) -> int:
         print("\n".join(problems))
         return 1
     return 0
+
+
+def suite_rules(rule: Rule, record: dict[str, Any], rules_name: str) -> list[str]:
+    """Print, for each gated suite in the record, where the suite rule fails it and how often a
+    healthy suite fails the gate by chance; return a problem for a suite rule that could never fail."""
+    problems: list[str] = []
+    lines = [
+        "A suite fails the gate when the cases that passed every trial at promotion, added up, fail at least:"
+    ]
+    for suite in SUITES:
+        if suite in rule.every_trial or suite not in record["suites"]:
+            continue
+        cases = sum(passed == record["trials"] for passed in record["suites"][suite].values())
+        healthy = healthy_suite_fails(cases, rule)
+        if cases < rule.suite_min_cases:
+            lines.append(
+                f"  {suite}: no suite rule ({cases} cases, under suite_min_cases, {rule.suite_min_cases});\n"
+                f"  a healthy {suite} suite fails the gate {healthy:.1%} of the time."
+            )
+            continue
+        suite_at = rule.suite_fails_at(cases)
+        if suite_at is None:
+            problems.append(
+                f"evals/{rules_name}: no total of failures over {suite}'s {cases} cases is rare enough, "
+                "so the suite rule could never fail it. Run more trials."
+            )
+            continue
+        trials, lower = cases * rule.trials, rule.expected - 0.05
+        by_chance = chance_of_at_least(suite_at, trials, 1 - rule.expected)
+        caught = chance_of_at_least(suite_at, trials, 1 - lower)
+        lines.append(
+            f"  {suite}: {suite_at} of {trials} ({cases} cases). Cases still passing {rule.expected:.0%} "
+            f"of the time do that by chance {by_chance:.1%}\n  of the time, and with the case rule a "
+            f"healthy {suite} suite fails the gate {healthy:.1%} of the time;\n  cases now passing "
+            f"{lower:.0%} of the time are caught {caught:.0%} of the time."
+        )
+    print("\n".join(lines))
+    return problems
 
 
 def main(argv: list[str] | None = None) -> int:

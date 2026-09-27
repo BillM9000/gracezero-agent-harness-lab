@@ -9,6 +9,7 @@ fixture makes any other attempt to build the real client fail the test instead o
 from __future__ import annotations
 
 import json
+from math import comb, factorial, prod
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -20,10 +21,10 @@ from helpdesk.assistant.gating import (
     Rule,
     chance_of_at_least,
     failures_to_fail,
+    healthy_suite_fails,
     held_false_passes,
     judge_calibration,
     judge_suite,
-    paired_change,
 )
 from helpdesk.model.anthropic_client import AnthropicModel
 from helpdesk.model.budget import Budget, BudgetReached, request_chars
@@ -31,7 +32,7 @@ from helpdesk.model.mock import MockCall, MockModel
 from helpdesk.model.types import Message, ModelResponse, ToolSpec, Usage
 
 RULE = Rule(
-    trials=5, expected=0.95, false_alarm=0.01, every_trial=frozenset({"injections"}), paired_min_cases=10
+    trials=5, expected=0.95, false_alarm=0.01, every_trial=frozenset({"injections"}), suite_min_cases=10
 )
 TEN = [f"case-{n}" for n in range(10)]
 
@@ -100,29 +101,87 @@ def test_a_suite_that_allows_no_failure_fails_on_one_failed_trial():
 
 def test_a_small_drop_spread_over_many_cases_is_more_than_noise_and_one_slip_isnt():
     before = counts([5] * 10)
-    # Chapter 21's stand-in with seed 7: no case fails 3 of 5, and the suite is down 14 points.
-    spread = judge_suite("tasks", before, counts([5, 5, 3, 4, 5, 4, 4, 4, 5, 4]), RULE)
+    # Chapter 21's stand-in with seed 35: no case fails 3 of 5, and the ten fail 15 of 50 trials.
+    spread = judge_suite("tasks", before, counts([3, 3, 3, 5, 4, 3, 3, 4, 4, 3]), RULE)
     assert spread.failures == [
-        "down 14 points over 10 cases, paired by case (95% interval -22 to -6 points): more than noise"
+        "the 10 cases that passed every trial at promotion: failed 15 of 50; 8 or more is more than "
+        "chance explains (cases still passing 95% of the time reach it 0.3% of the time)"
     ]
+    # Seed 7 draws only 7 failures, which ten healthy cases reach 1.2% of the time: within noise.
+    seven = judge_suite("tasks", before, counts([5, 5, 3, 4, 5, 4, 4, 4, 5, 4]), RULE)
+    assert seven.passed
+    assert seven.notes[-1] == (
+        "the 10 cases that passed every trial at promotion: failed 7 of 50, within noise "
+        "(the gate fails the suite at 8)"
+    )
+    at = judge_suite("tasks", before, counts([4, 4, 4, 4, 4, 4, 4, 4, 5, 5]), RULE)
+    assert not at.passed
     one = judge_suite("tasks", before, counts([4] + [5] * 9), RULE)
     assert one.passed
-    assert one.notes[-1].endswith("(95% interval -6 to +2 points): within noise")
 
 
-def test_the_paired_interval_isnt_used_on_a_suite_with_few_cases():
-    names = ["a", "b", "c"]
-    # Every case one trial down: a paired interval with no spread would call that more than noise.
-    verdict = judge_suite("reasons", counts([5, 5, 5], names=names), counts([4, 4, 4], names=names), RULE)
+def test_the_suite_rule_counts_only_cases_that_passed_every_trial_at_promotion():
+    # Two cases failed at promotion; their failures now don't count toward the suite's total.
+    before = {**counts([5] * 10), "old-a": (2, 5), "old-b": (2, 5)}
+    after = {**counts([4, 4, 4, 4, 4, 4, 4, 5, 5, 5]), "old-a": (0, 5), "old-b": (0, 5)}
+    verdict = judge_suite("tasks", before, after, RULE)
     assert verdict.passed
+    assert verdict.notes[-1].startswith("the 10 cases that passed every trial at promotion: failed 7 of 50")
 
 
-def test_the_paired_change_is_millers_mean_difference_and_its_standard_error():
-    change = paired_change([1.0, 1.0, 1.0, 1.0], [1.0, 0.8, 0.6, 1.0])
-    # Differences 0, -0.2, -0.4, 0: mean -0.15; spread 0.03667; standard error 0.0957.
-    assert round(change.mean, 2) == -0.15
-    assert round(change.high, 3) == round(-0.15 + 1.96 * (0.11 / 3 / 4) ** 0.5, 3)
-    assert not change.beyond_noise
+def test_the_suite_rule_isnt_used_on_a_suite_with_few_cases():
+    names = ["a", "b", "c"]
+    # 4 failures of 15 would reach the suite threshold for three cases (0.5%), but three cases are
+    # under suite_min_cases.
+    verdict = judge_suite("reasons", counts([5, 5, 5], names=names), counts([3, 4, 4], names=names), RULE)
+    assert verdict.passed
+    assert RULE.suite_fails_at(3) == 4
+
+
+def test_the_suite_threshold_is_the_first_total_rarer_than_the_false_alarm():
+    # Ten cases passing 95% of the time fail 7 or more of their 50 trials 1.2% of the time, and 8
+    # or more 0.3%: with a 1% false alarm, 8 failures fail the suite.
+    assert round(chance_of_at_least(7, 50, 0.05), 4) == 0.0118
+    assert round(chance_of_at_least(8, 50, 0.05), 4) == 0.0032
+    assert RULE.suite_fails_at(10) == 8
+    # What it can see: ten cases now passing 70% of the time are caught 99% of the time, and
+    # passing 90% of the time, 12%.
+    assert round(chance_of_at_least(8, 50, 0.3), 2) == 0.99
+    assert round(chance_of_at_least(8, 50, 0.1), 2) == 0.12
+
+
+def multisets(size: int, values: int, smallest: int = 0):
+    """Every way to give `size` cases a failure count from smallest to values - 1, ignoring order."""
+    if size == 0:
+        yield ()
+        return
+    for value in range(smallest, values):
+        for rest in multisets(size - 1, values, value):
+            yield (value, *rest)
+
+
+def test_a_healthy_suite_fails_the_gate_by_chance_as_rarely_as_computed():
+    # Every case truly passing 95% of the time, five trials each, ten cases, all of which passed
+    # every trial at promotion. Exact: every multiset of failure counts through judge_suite itself,
+    # weighted by its chance, so nothing here is sampled. (Before the suite rule was calibrated, the
+    # same enumeration gave 0.348.)
+    trials, cases = 5, 10
+    one = [comb(trials, k) * 0.05**k * 0.95 ** (trials - k) for k in range(trials + 1)]
+    before = counts([trials] * cases)
+    fails, suite_rule_fails = 0.0, 0.0
+    for failed in multisets(cases, trials + 1):
+        ways = factorial(cases)
+        for k in set(failed):
+            ways //= factorial(failed.count(k))
+        chance = ways * prod(one[k] for k in failed)
+        verdict = judge_suite("tasks", before, counts([trials - k for k in failed]), RULE)
+        fails += chance * (not verdict.passed)
+        suite_rule_fails += chance * any(f.startswith("the 10 cases") for f in verdict.failures)
+    # The suite rule alone fails a healthy suite no more often than the false alarm, and the whole
+    # gate (either rule) about 1.4% of the time: what healthy_suite_fails computes and check prints.
+    assert suite_rule_fails <= RULE.false_alarm
+    assert round(suite_rule_fails, 4) == 0.0032
+    assert round(fails, 4) == round(healthy_suite_fails(cases, RULE), 4) == 0.0139
 
 
 def test_with_no_record_the_run_is_the_baseline():
@@ -267,6 +326,9 @@ def test_the_check_passes_on_the_repository(capsys):
     assert gate.check() == 0
     out = capsys.readouterr().out
     assert "fails the gate\nat 3 failed trials" in out
+    assert "  tasks: 8 of 50 (10 cases). Cases still passing 95% of the time do that by chance 0.3%\n" in out
+    assert "a healthy tasks suite fails the gate 1.4% of the time" in out
+    assert "  reasons: no suite rule (3 cases, under suite_min_cases, 10)" in out
     assert "measured on the mock" in out
 
 
@@ -325,10 +387,13 @@ def test_the_gate_passes_on_the_mock_against_the_repositorys_record(capsys):
 
 
 def test_a_drop_spread_over_the_tasks_fails_the_gate(capsys):
-    assert gate.main(["run", "--suite", "tasks", "--vary", "7"]) == 1
+    # Chapter 23's demo: the stand-in playing a scripted mistake 3 trials in 10, seed 35.
+    assert gate.main(["run", "--suite", "tasks", "--vary", "35"]) == 1
     out = capsys.readouterr().out
-    assert "more than noise" in out
+    assert "tasks     10    35 of 50      50 of 50         28%  FAIL" in out
+    assert "promotion: failed 15 of 50; 8 or more is more than chance explains" in out
     assert "what-next-lead (dana): failed 2 of 5, within noise" in out
+    assert "failed 3 of 5" not in out
 
 
 def test_a_promotion_writes_a_record_the_check_accepts(tmp_path, monkeypatch):

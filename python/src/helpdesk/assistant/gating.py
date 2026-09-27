@@ -9,20 +9,22 @@ Three rules, each for a different way a change can hurt:
   such tasks a regression suite, with a nearly 100% pass rate). It fails the gate when it fails more
   trials than chance explains: the fewest failures that a case still passing at the expected rate
   would reach by chance no more often than the false-alarm rate.
-- A whole suite, paired case by case against the record (Miller's paired differences, a 95%
-  interval): a small drop spread over many cases, which no one case shows, fails the gate when the
-  whole interval is below zero. The interval rests on the normal approximation, so it's used only
-  on suites with enough cases.
+- A whole suite, over the cases that passed every trial at promotion: a small drop spread over many
+  cases, which no one case shows, fails the gate when their failed trials, added up, reach the
+  fewest that cases still passing at the expected rate would reach by chance no more often than the
+  false-alarm rate. Their failures add up to one binomial count, so the threshold is computed
+  exactly, the same way as the per-case one. It's used only on suites with enough such cases.
+
+Each rule holds its own false alarms to the rate; a healthy suite can trip either, so the chance it
+fails the gate is a little more than either alone. healthy_suite_fails computes it exactly, and
+python -m helpdesk.gate check prints it.
 """
 
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
-from math import comb, sqrt
-
-# A 95% interval under the normal approximation (Miller, "Adding Error Bars to Evals", 2024).
-Z_95 = 1.96
+from math import comb
 
 Counts = tuple[int, int]  # (passed, trials)
 
@@ -36,9 +38,10 @@ def chance_of_at_least(failures: int, trials: int, fail_rate: float) -> float:
 
 
 def failures_to_fail(trials: int, expected: float, false_alarm: float) -> int | None:
-    """The fewest failed trials that fail a regression case: the smallest count a case still
-    passing at `expected` reaches by chance no more often than `false_alarm`. None when no count
-    is that unlikely, so the gate could never fail a case: run more trials."""
+    """The fewest failed trials, out of `trials`, that fail a regression case (or a suite's
+    regression cases, their trials added up): the smallest count trials still passing at `expected`
+    reach by chance no more often than `false_alarm`. None when no count is that unlikely, so the
+    gate could never fail a case: run more trials."""
     for failures in range(1, trials + 1):
         if chance_of_at_least(failures, trials, 1 - expected) <= false_alarm:
             return failures
@@ -49,9 +52,9 @@ def failures_to_fail(trials: int, expected: float, false_alarm: float) -> int | 
 class Rule:
     trials: int
     expected: float  # how often a regression case is assumed to pass while nothing is wrong
-    false_alarm: float  # the most often such a case may fail the gate by chance
+    false_alarm: float  # the most often each rule may fail a healthy case, or suite, by chance
     every_trial: frozenset[str]  # suites that allow no failed trial
-    paired_min_cases: int  # the fewest cases the paired interval is used on
+    suite_min_cases: int  # the fewest cases that passed every trial the suite rule is used on
 
     def __post_init__(self) -> None:
         problems = []
@@ -61,8 +64,8 @@ class Rule:
             problems.append("expected_pass_rate must be between 0 and 1")
         if not 0 < self.false_alarm < 0.5:
             problems.append("false_alarm must be between 0 and 0.5")
-        if self.paired_min_cases < 2:
-            problems.append("paired_min_cases must be 2 or more: one case has no spread to measure")
+        if self.suite_min_cases < 2:
+            problems.append("suite_min_cases must be 2 or more: on one case, the suite rule is the case rule")
         if problems:
             raise ValueError("; ".join(problems))
 
@@ -70,30 +73,31 @@ class Rule:
     def fails_at(self) -> int | None:
         return failures_to_fail(self.trials, self.expected, self.false_alarm)
 
-
-@dataclass(frozen=True)
-class Change:
-    """The mean change in pass rate, run minus record, paired by case, with its 95% interval."""
-
-    mean: float
-    low: float
-    high: float
-
-    @property
-    def beyond_noise(self) -> bool:
-        return self.high < 0
+    def suite_fails_at(self, cases: int) -> int | None:
+        """The fewest failed trials, added up over `cases` regression cases, that fail a suite."""
+        return failures_to_fail(cases * self.trials, self.expected, self.false_alarm)
 
 
-def paired_change(before: Sequence[float], after: Sequence[float]) -> Change:
-    """Miller's paired difference: the mean of each case's change, and a standard error from the
-    spread of those changes, so what the two runs share doesn't count as noise."""
-    if len(before) != len(after) or len(before) < 2:
-        raise ValueError("a paired change needs the same cases in both runs, at least two")
-    diffs = [a - b for b, a in zip(before, after, strict=True)]
-    mean = sum(diffs) / len(diffs)
-    spread = sum((d - mean) ** 2 for d in diffs) / (len(diffs) - 1)
-    error = sqrt(spread / len(diffs))
-    return Change(mean, mean - Z_95 * error, mean + Z_95 * error)
+def healthy_suite_fails(cases: int, rule: Rule) -> float:
+    """The chance that `cases` regression cases, each still passing at the expected rate, fail the
+    gate by chance: one case reaching the case rule's count, or all of them the suite rule's. Exact,
+    over every total of failures the cases can have without any one reaching the case rule."""
+    fail_rate = 1 - rule.expected
+    one = [
+        comb(rule.trials, k) * fail_rate**k * (1 - fail_rate) ** (rule.trials - k)
+        for k in range(rule.trials + 1)
+    ]
+    case_at = rule.fails_at if rule.fails_at is not None else rule.trials + 1
+    suite_at = rule.suite_fails_at(cases) if cases >= rule.suite_min_cases else None
+    totals = {0: 1.0}  # chance of each total so far, with no case at the case rule's count
+    for _ in range(cases):
+        grown: dict[int, float] = {}
+        for so_far, chance in totals.items():
+            for k in range(case_at):
+                grown[so_far + k] = grown.get(so_far + k, 0.0) + chance * one[k]
+        totals = grown
+    passes = sum(chance for total, chance in totals.items() if suite_at is None or total < suite_at)
+    return 1 - passes
 
 
 @dataclass
@@ -106,15 +110,6 @@ class Verdict:
     @property
     def passed(self) -> bool:
         return not self.failures
-
-
-def rate(counts: Counts) -> float:
-    return counts[0] / counts[1]
-
-
-def points(share: float) -> int:
-    """A change in pass rate in percentage points, rounded."""
-    return round(share * 100)
 
 
 def judge_suite(suite: str, before: Mapping[str, Counts], after: Mapping[str, Counts], rule: Rule) -> Verdict:
@@ -151,19 +146,21 @@ def judge_suite(suite: str, before: Mapping[str, Counts], after: Mapping[str, Co
             verdict.notes.append(
                 f"{case}: failed {failed} of {trials}, within noise (the gate fails it at {fails_at})"
             )
-    common = [case for case in after if case in before]
-    if suite not in rule.every_trial and len(common) >= rule.paired_min_cases:
-        change = paired_change([rate(before[c]) for c in common], [rate(after[c]) for c in common])
-        fell, span = points(-change.mean), f"{points(change.low):+d} to {points(change.high):+d} points"
-        if change.beyond_noise:
+    regression = [case for case in after if case in before and before[case][0] == before[case][1]]
+    if suite not in rule.every_trial and len(regression) >= rule.suite_min_cases:
+        failed = sum(after[case][1] - after[case][0] for case in regression)
+        trials = sum(after[case][1] for case in regression)
+        suite_at = failures_to_fail(trials, rule.expected, rule.false_alarm)
+        who = f"the {len(regression)} cases that passed every trial at promotion"
+        if suite_at is not None and failed >= suite_at:
+            by_chance = chance_of_at_least(suite_at, trials, 1 - rule.expected)
             verdict.failures.append(
-                f"down {fell} points over {len(common)} cases, paired by case (95% interval {span}): "
-                "more than noise"
+                f"{who}: failed {failed} of {trials}; {suite_at} or more is more than chance explains "
+                f"(cases still passing {rule.expected:.0%} of the time reach it {by_chance:.1%} of the time)"
             )
-        elif change.mean < 0:
+        elif failed:
             verdict.notes.append(
-                f"down {fell} points over {len(common)} cases, paired by case (95% interval {span}): "
-                "within noise"
+                f"{who}: failed {failed} of {trials}, within noise (the gate fails the suite at {suite_at})"
             )
     return verdict
 

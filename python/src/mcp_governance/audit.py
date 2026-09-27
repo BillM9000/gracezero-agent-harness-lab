@@ -46,10 +46,12 @@ class AuditLog:
 
 
 def read(path: Path) -> list[dict[str, Any]]:
-    """Every record in the log, oldest first. A log that doesn't exist yet has none."""
+    """Every record in the log, oldest first. A log that doesn't exist yet has none. Records are
+    split at "\\n" alone: record writes arguments as they were sent, so U+2028, U+0085 and the
+    other characters str.splitlines() also breaks at can be inside one."""
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").split("\n") if line.strip()]
 
 
 def table(records: list[dict[str, Any]]) -> list[str]:

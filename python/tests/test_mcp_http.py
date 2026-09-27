@@ -276,6 +276,19 @@ def test_every_request_is_audited_and_the_token_never_is(served, issuer):
     assert sams not in log.read_text(encoding="utf-8")
 
 
+def test_a_line_break_python_knows_in_the_arguments_doesnt_break_the_log(served, issuer):
+    # json.dumps(ensure_ascii=False) writes U+2028 and U+0085 as they are, and str.splitlines()
+    # breaks a line at both, which made the whole log unreadable.
+    client, log = served
+    odd = "refund" + chr(0x2028) + "policy" + chr(0x85) + "now"
+    call(client, "search_kb", {"query": odd}, token=token(issuer, SAM, "kb:read"))
+    call(client, "search_kb", {"query": odd}, token=None)
+    assert [(r["arguments"], r["outcome"]) for r in read(log)] == [
+        ({"query": odd}, "ok"),
+        ({"query": odd}, "refused 401: no token"),
+    ]
+
+
 def test_the_token_never_reaches_the_mcp_server(issuer, tmp_path):
     seen: list[dict] = []
 

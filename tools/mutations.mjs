@@ -1268,6 +1268,13 @@ export const MUTATIONS = [
     run: pytest(`${HTTP_TESTS}::test_a_request_without_a_token_is_told_where_to_get_one`),
   },
   {
+    guard: "front door: a line break Python knows, inside a record's arguments, doesn't break the log",
+    file: "python/src/mcp_governance/audit.py",
+    find: '.read_text(encoding="utf-8").split("\\n") if line.strip()]',
+    replace: '.read_text(encoding="utf-8").splitlines() if line.strip()]',
+    run: pytest(`${HTTP_TESTS}::test_a_line_break_python_knows_in_the_arguments_doesnt_break_the_log`),
+  },
+  {
     guard: "mcp http: a subject the server doesn't know is refused",
     file: MCP_SERVER,
     find: "person = next((p for p in access.staff(conn) if str(p.id) == subject), None)",

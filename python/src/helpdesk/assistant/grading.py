@@ -109,14 +109,23 @@ def normal(text: str) -> str:
     return " ".join(text.translate(STRAIGHT).lower().split())
 
 
+# No letter just before, or just after: [^\W\d_] is a letter in any alphabet.
+LETTER_BEFORE, LETTER_AFTER = r"(?<![^\W\d_])", r"(?![^\W\d_])"
+
+
 def found(form: str, text: str) -> bool:
     """Whether form is in text. A form that starts or ends with a digit doesn't match inside a
-    longer number, so "#1" is not in "#12" and "14 days" is not in "114 days"."""
+    longer number, so "#1" is not in "#12" and "14 days" is not in "114 days"; one that starts or
+    ends with a letter doesn't match inside a longer word, so "lead" is not in "misleading"."""
     pattern = re.escape(normal(form))
     if form[:1].isdigit():
         pattern = r"(?<!\d)" + pattern
     if form[-1:].isdigit():
         pattern += r"(?!\d)"
+    if form[:1].isalpha():
+        pattern = LETTER_BEFORE + pattern
+    if form[-1:].isalpha():
+        pattern += LETTER_AFTER
     return re.search(pattern, normal(text)) is not None
 
 

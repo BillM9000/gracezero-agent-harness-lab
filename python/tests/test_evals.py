@@ -68,6 +68,17 @@ def test_a_number_never_matches_inside_a_longer_one():
     assert found("14 days", "within 14 days.")
 
 
+def test_a_word_never_matches_inside_a_longer_one():
+    # close-pending's fact is "lead": a run that wrote only "misleading" or "leadership" hasn't said it.
+    assert found("lead", "It needs a lead's approval.")
+    assert found("lead", "Ask a Lead.")
+    assert not found("lead", "That would be misleading.")
+    assert not found("lead", "Ask leadership.")
+    assert not found("Can I downgrade", "Scan I downgrade")
+    assert found("Can I downgrade mid-month?", '"Can I downgrade mid-month?" in ticket 5')
+    assert not found("café", "cafés")
+
+
 def test_matching_ignores_case_spacing_and_curly_quotes():
     assert found("can't see", "I CAN’T   see it")
     assert found("Request a refund", "choose request a\nrefund")

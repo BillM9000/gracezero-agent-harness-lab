@@ -2379,6 +2379,20 @@ export const MUTATIONS = [
     run: evalsTest("test_a_key_with_an_unknown_field_is_refused"),
   },
   {
+    guard: "golden sets: a word doesn't match inside a longer one (before)",
+    file: GRADING,
+    find: "        pattern = LETTER_BEFORE + pattern\n",
+    replace: "",
+    run: evalsTest("test_a_word_never_matches_inside_a_longer_one"),
+  },
+  {
+    guard: "golden sets: a word doesn't match inside a longer one (after)",
+    file: GRADING,
+    find: "        pattern += LETTER_AFTER\n",
+    replace: "",
+    run: evalsTest("test_a_word_never_matches_inside_a_longer_one"),
+  },
+  {
     guard: "golden sets: a number doesn't match inside a longer one (after)",
     file: GRADING,
     find: '        pattern += r"(?!\\d)"',

@@ -98,6 +98,10 @@ PROMPT_SCOPES = {DRAFT_REPLY.name: "tickets:read"}
 RESOURCE_SCOPES = {TICKETS: "tickets:read", ARTICLES: "kb:read"}
 SCOPES_SUPPORTED = sorted({*TOOL_SCOPES.values(), *PROMPT_SCOPES.values(), *RESOURCE_SCOPES.values()})
 HTTP_HOST = "127.0.0.1"  # the specification asks a server running locally to listen on localhost only
+# The origins a browser may call from: the MCP SDK's own list for a server on localhost, which it
+# checks too, behind the front door. The front door checks first, so a bad origin gets 403 with a
+# token or without.
+ALLOWED_ORIGINS = ("http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*")
 HTTP_PORT = 8765
 CATALOG_NAME = "helpdesk"  # this server's entry in the catalog of approved servers
 STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM) + ((signal.SIGBREAK,) if sys.platform == "win32" else ())
@@ -290,6 +294,7 @@ def build_http_app(
         required_scopes=required_scopes,
         for_subject=for_subject,
         audit=audit,
+        allowed_origins=ALLOWED_ORIGINS,
     )
 
 

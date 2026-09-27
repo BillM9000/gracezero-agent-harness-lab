@@ -31,6 +31,7 @@ from helpdesk.mcp_server import (
     build_http_app,
     catalog_problems,
     main,
+    mcp_app_for,
 )
 from helpdesk.services.access import Person
 from mcp_governance import SERVERS, load
@@ -234,6 +235,47 @@ def test_a_request_from_another_web_origin_is_refused(served, issuer):
     client, _ = served
     answer = post(client, "tools/list", token=token(issuer, SAM), Origin="http://evil.example")
     assert answer.status_code == 403
+
+
+def test_a_bad_origin_is_refused_before_the_token_is_looked_at(served, issuer):
+    # The 2026-07-28 Streamable HTTP page: a present, invalid Origin MUST get 403, so a request with
+    # no token, or a bad one, from another origin gets 403, not 401.
+    client, log = served
+    sams = token(issuer, SAM, "tickets:read")
+    evil = "http://evil.example"
+    answers = [
+        post(client, "tools/list", Origin=evil),
+        post(client, "tools/list", token="not-a-token", Origin=evil),
+        post(client, "tools/list", token=sams, Origin=evil),
+        post(client, "tools/list", token=sams, Origin="http://127.0.0.1:8765.evil.example"),
+        post(client, "tools/list", Origin="http://127.0.0.1:8765"),
+        post(client, "tools/list", token=sams, Origin="http://127.0.0.1:8765"),
+        post(client, "tools/list", token=sams),
+    ]
+    assert [a.status_code for a in answers] == [403, 403, 403, 403, 401, 200, 200]
+    assert answers[0].json()["error_description"] == (
+        "Requests from http://evil.example aren't allowed here, whatever their token."
+    )
+    assert "www-authenticate" not in answers[0].headers
+    outcomes = [(r["client"], r["outcome"]) for r in read(log)]
+    assert outcomes[:2] == [("-", "refused 403: the origin http://evil.example isn't allowed")] * 2
+    assert outcomes[4] == ("-", "refused 401: no token")
+
+
+def test_the_mcp_server_behind_the_front_door_refuses_another_origin_too():
+    # Defense in depth: the MCP SDK's own check, for a request that reached the server some other way.
+    conn = connect(":memory:")
+    init_schema(conn)
+    seed(conn)
+    try:
+        # No "with": the app runs the SDK's lifespan itself, once for each request.
+        client = TestClient(
+            mcp_app_for(conn, Person(1, "Sam Rivera", "support")), base_url="http://127.0.0.1:8765"
+        )
+        assert post(client, "tools/list", Origin="http://evil.example").status_code == 403
+        assert post(client, "tools/list", Origin="http://127.0.0.1:8765").status_code == 200
+    finally:
+        conn.close()
 
 
 # The audit log, and the token that never goes further.

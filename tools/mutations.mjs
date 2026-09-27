@@ -1261,6 +1261,27 @@ export const MUTATIONS = [
     run: pytest(`${HTTP_TESTS}::test_every_request_is_audited_and_the_token_never_is`),
   },
   {
+    guard: "front door: a bad origin is refused before the token is looked at",
+    file: FRONT_DOOR,
+    find: "        if origin is not None and not origin_allowed(origin, self.allowed_origins):",
+    replace: "        if False:",
+    run: pytest(`${HTTP_TESTS}::test_a_bad_origin_is_refused_before_the_token_is_looked_at`),
+  },
+  {
+    guard: "front door: an allowed origin's wildcard stands for a port and nothing else",
+    file: FRONT_DOOR,
+    find: "            and origin[len(pattern) - 1 :].isdigit()",
+    replace: "            and True",
+    run: pytest(`${HTTP_TESTS}::test_a_bad_origin_is_refused_before_the_token_is_looked_at`),
+  },
+  {
+    guard: "mcp http: the front door allows the localhost origins",
+    file: MCP_SERVER,
+    find: "        allowed_origins=ALLOWED_ORIGINS,\n",
+    replace: "",
+    run: pytest(`${HTTP_TESTS}::test_a_bad_origin_is_refused_before_the_token_is_looked_at`),
+  },
+  {
     guard: "front door: a refusal says where the metadata is",
     file: FRONT_DOOR,
     find: "        parts.append(f'resource_metadata=\"{self.metadata_url}\"')\n",
@@ -1307,7 +1328,7 @@ export const MUTATIONS = [
     file: MCP_SERVER,
     find: "stateless_http=True, json_response=True, host=HTTP_HOST",
     replace: 'stateless_http=True, json_response=True, host="0.0.0.0"',
-    run: pytest(`${HTTP_TESTS}::test_a_request_from_another_web_origin_is_refused`),
+    run: pytest(`${HTTP_TESTS}::test_the_mcp_server_behind_the_front_door_refuses_another_origin_too`),
   },
   {
     guard: "mcp http: the server is compared with its catalog entry",

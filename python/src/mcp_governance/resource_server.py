@@ -3,6 +3,9 @@
 ResourceServer is an ASGI application that sits in front of an MCP server speaking Streamable HTTP.
 Before a request reaches the server, it:
 
+0. refuses a request whose Origin header is present and not one it allows, with 403, before it looks
+   at the token: the Streamable HTTP page of MCP revision 2026-07-28 says a server MUST, to stop DNS
+   rebinding. A request with no Origin, such as one from a program rather than a browser, goes on;
 1. requires a bearer token on every request to the MCP endpoint and verifies it (tokens.Verifier):
    issued by the trusted issuer, for this server alone, unexpired, for a person the server knows.
    Anything else gets 401 and a challenge that points at the server's metadata;
@@ -18,7 +21,7 @@ Protected Resource Metadata (RFC 9728) that tells a client where tokens for this
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable, Callable, MutableMapping
+from collections.abc import Awaitable, Callable, MutableMapping, Sequence
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -57,8 +60,11 @@ class ResourceServer:
         required_scopes: Callable[[str, str | None], tuple[str, ...]],
         for_subject: Callable[[str], PersonApp | None],
         audit: AuditLog,
+        allowed_origins: Sequence[str] = (),
     ) -> None:
         self.resource = canonical(resource)
+        # Origins a browser may send, exactly or, ending in ":*", with any port. None by default.
+        self.allowed_origins = tuple(allowed_origins)
         parts = urlsplit(self.resource)
         self.path = parts.path or "/"
         # RFC 9728: the well-known path goes between the host and the resource's own path.
@@ -107,6 +113,16 @@ class ResourceServer:
             "arguments": arguments,
             "token": UNKNOWN,
         }
+
+        origin = header(scope, b"origin")
+        if origin is not None and not origin_allowed(origin, self.allowed_origins):
+            self.audit.record(**record, status=403, outcome=f"refused 403: the origin {origin} isn't allowed")
+            forbidden = {
+                "error": "forbidden",
+                "error_description": f"Requests from {origin} aren't allowed here, whatever their token.",
+            }
+            await respond(send, 403, forbidden)
+            return
 
         token = bearer(scope)
         if token is None:
@@ -220,6 +236,28 @@ def replay(body: bytes, receive: Receive) -> Receive:
         return await receive()
 
     return again
+
+
+def header(scope: Scope, name: bytes) -> str | None:
+    """The first value of a request header, or None when the request doesn't send it."""
+    for key, value in scope["headers"]:
+        if key.lower() == name:
+            return value.decode("latin-1")
+    return None
+
+
+def origin_allowed(origin: str, allowed: Sequence[str]) -> bool:
+    """Whether an Origin is one of these, or matches one ending in ":*" with a port: digits alone,
+    where the MCP SDK's own check takes anything after the colon."""
+    return any(
+        origin == pattern
+        or (
+            pattern.endswith(":*")
+            and origin.startswith(pattern[:-1])
+            and origin[len(pattern) - 1 :].isdigit()
+        )
+        for pattern in allowed
+    )
 
 
 def bearer(scope: Scope) -> str | None:

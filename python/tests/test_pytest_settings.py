@@ -28,8 +28,17 @@ def test_an_expected_failure_that_passes_fails_the_run(tmp_path):
         # settings file and the planted test, and collection lists folders other programs may be
         # deleting at that moment, which failed the run now and then on a busy machine.
         [
-            sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
-            "-c", str(PYPROJECT), "--rootdir", str(tmp_path), str(planted),
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "-c",
+            str(PYPROJECT),
+            "--rootdir",
+            str(tmp_path),
+            str(planted),
         ],
         capture_output=True,
         text=True,

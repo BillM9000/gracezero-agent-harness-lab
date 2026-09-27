@@ -81,6 +81,13 @@ def verify(d: Draft, template: Mapping[str, Any], on: date) -> Verdict:
     r = review(d.record, load(RUBRIC), load(READINESS), library, found)
     problems = [f"usecases/{name}.toml: {p}" for p in r.problems]
     leaves = template["promise"]["leaves"]
+    promised, tier = template["promise"].get("tier"), d.record["tier"]
+    if tier != promised:
+        problems.append(
+            f"golden-path/template.toml: [promise] was written for the {promised} tier, and the rubric now "
+            f"puts the path's intake answers in the {tier} tier. Read what readiness.toml asks of {tier}, "
+            "then set the promise's tier and leaves for it."
+        )
     problems += [f"{res.item}: {res.detail}" for res in r.results if not res.ok and res.item not in leaves]
     golden = state(d.record, d.definition, template, library, on)
     problems += [f"golden state: {res.item}: {res.detail}" for res in golden if not res.ok]

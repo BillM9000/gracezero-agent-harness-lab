@@ -18,7 +18,7 @@ from golden_path import TEMPLATE, load
 from golden_path.rules import STATE, Answers, answer_problems, render, state, toml_string, toml_text
 from helpdesk import golden_path as command
 from helpdesk import readiness as readiness_command
-from readiness import USE_CASES
+from readiness import RUBRIC, USE_CASES
 
 TEMPLATE_DATA = load(TEMPLATE)
 LIBRARY = frozenset(c["name"] for c in load(USE_CASES / "library.toml")["capabilities"])
@@ -116,6 +116,21 @@ def test_the_check_fails_when_the_path_would_write_what_the_platform_refuses(
     out = capsys.readouterr().out
     assert "problem(s): a use case started on the path would fail them." in out
     assert f"  {expected}" in out, out
+
+
+def test_the_check_fails_when_the_rubric_moves_the_path_to_another_tier(tmp_path, monkeypatch, capsys):
+    # With high at 2, the path's answers (score 2) are high, and high's red-team item is on the
+    # promise's list, so every failing item was one the path leaves and the old check passed.
+    rubric = tmp_path / "rubric.toml"
+    text = RUBRIC.read_text(encoding="utf-8")
+    assert text.count("high = 4") == 1
+    rubric.write_text(text.replace("high = 4", "high = 2"), encoding="utf-8")
+    monkeypatch.setattr(command, "RUBRIC", rubric)
+    assert command.main(["check"]) == 1
+    assert (
+        "  golden-path/template.toml: [promise] was written for the medium tier, and the rubric now puts "
+        "the path's intake answers in the high tier." in capsys.readouterr().out
+    )
 
 
 def test_the_check_fails_when_what_the_path_writes_would_be_off_the_golden_path(

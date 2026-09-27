@@ -4291,6 +4291,20 @@ export const MUTATIONS = [
     run: readinessTest("test_the_check_shows_an_excused_item_and_judges_it_on_the_day_given"),
   },
   {
+    guard: "golden path: the check fails when the rubric moves the path to another tier",
+    file: GOLDEN,
+    find: "    if tier != promised:",
+    replace: "    if False:",
+    run: goldenTest("test_the_check_fails_when_the_rubric_moves_the_path_to_another_tier"),
+  },
+  {
+    guard: "golden path: the promise names the tier it was written for",
+    file: "python/golden-path/template.toml",
+    find: 'tier = "medium"',
+    replace: 'tier = "low"',
+    run: goldenTest("test_the_check_passes_and_names_what_the_path_leaves_to_the_team"),
+  },
+  {
     guard: "golden path: a name must be safe for files and routes",
     file: GOLDEN_RULES,
     find: "    if not NAME.fullmatch(answers.name):",

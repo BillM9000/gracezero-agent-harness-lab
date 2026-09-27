@@ -26,7 +26,10 @@ audience = "staff"
 
 # The readiness items the path can't meet for a team: a promotion needs the team's golden sets run
 # through the gate, and a sign-off needs a person. Every other item passes from the first commit.
+# tier is the tier this promise was written for, the one the rubric gives the intake answers above:
+# check fails when the rubric moves the path to another, whose items this list never considered.
 [promise]
+tier = "medium"
 leaves = ["promotion", "red-team", "sign-off"]
 
 # The first paragraph of every agent's system prompt, with the team's own description of the job.

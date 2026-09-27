@@ -5,9 +5,12 @@ text of its own; final_text is what tells those apart from a finished answer (ch
 rule makes the sentence fail the build.
 
 It is an AST visitor. Function by function, it tracks which names hold a model response: the
-result of a .complete(...) call, or a parameter annotated ModelResponse. It reports a .text read
-on one of them, and on a .complete(...) call directly. A text search for ".text" would flag
-block.text and every other object with a text attribute; the visitor flags only model responses.
+result of a .complete(...) call, or a parameter annotated ModelResponse, and a name bound to one of
+those by a plain alias (r2 = r), the walrus operator (r := ...) or unpacking a tuple written out
+(r, n = model.complete(...), 1). It reports a .text read on one of them, and on a .complete(...)
+call directly. It can't follow a response through a container, an attribute or another function.
+A text search for ".text" would flag block.text and every other object with a text attribute; the
+visitor flags only model responses.
 
 A line that reads the text for another reason carries an exception with its reason, on the same
 line or on a comment line just above it: `# HDK101: <why>`. An exception with no reason is
@@ -101,17 +104,41 @@ class ModelTextVisitor(ast.NodeVisitor):
     def visit_Lambda(self, node: ast.Lambda) -> None:
         self._function(node)
 
+    def _responds(self, value: ast.expr | None) -> bool:
+        """A model response: a .complete(...) call, or a name that holds one."""
+        if is_complete_call(value):
+            return True
+        return isinstance(value, ast.Name) and any(value.id in scope for scope in self.scopes)
+
+    def _bind(self, target: ast.expr, value: ast.expr | None) -> None:
+        """Track a name bound to a response: `r = model.complete(...)`, a plain alias `r2 = r`, and
+        each name of a tuple unpacked from a tuple written out (`r, n = model.complete(...), 1`)."""
+        if isinstance(target, ast.Name):
+            if self._responds(value):
+                self.scopes[-1].add(target.id)
+        elif (
+            isinstance(target, (ast.Tuple, ast.List))
+            and isinstance(value, (ast.Tuple, ast.List))
+            and len(target.elts) == len(value.elts)
+        ):
+            for t, v in zip(target.elts, value.elts, strict=True):
+                self._bind(t, v)
+
     def visit_Assign(self, node: ast.Assign) -> None:
         self.generic_visit(node)
-        if is_complete_call(node.value):
-            self.scopes[-1].update(t.id for t in node.targets if isinstance(t, ast.Name))
+        for target in node.targets:
+            self._bind(target, node.value)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         self.generic_visit(node)
-        if isinstance(node.target, ast.Name) and (
-            is_model_response_annotation(node.annotation) or is_complete_call(node.value)
-        ):
+        if isinstance(node.target, ast.Name) and is_model_response_annotation(node.annotation):
             self.scopes[-1].add(node.target.id)
+        self._bind(node.target, node.value)
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        # The walrus: `if (r := model.complete(...)).stop_reason ...` binds r like an assignment.
+        self.generic_visit(node)
+        self._bind(node.target, node.value)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if node.attr == "text" and isinstance(node.ctx, ast.Load):
@@ -119,6 +146,8 @@ class ModelTextVisitor(ast.NodeVisitor):
                 self.reads.append((node.lineno, node.col_offset, node.value.id))
             elif is_complete_call(node.value):
                 self.reads.append((node.lineno, node.col_offset, "response"))
+            elif isinstance(node.value, ast.NamedExpr) and self._responds(node.value.value):
+                self.reads.append((node.lineno, node.col_offset, node.value.target.id))
         self.generic_visit(node)
 
 

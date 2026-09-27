@@ -41,6 +41,26 @@ def test_reading_the_text_straight_off_the_call_is_caught():
     assert len(problems("def answer(model):\n    return model.complete(system='s', messages=[]).text\n")) == 1
 
 
+def test_a_response_under_another_name_is_followed():
+    # A review (2026-09-26) found each of these passed: the rule tracked only names assigned the
+    # call itself.
+    call = "model.complete(system='s', messages=[])"
+    planted = {
+        "a plain alias": f"def f(model):\n    response = {call}\n    r = response\n    return r.text\n",
+        "aliases of aliases": f"def f(model):\n    a = {call}\n    b = a\n    c: X = b\n    return c.text\n",
+        "the walrus operator": f"def f(model):\n    if (r := {call}):\n        return r.text\n",
+        "the walrus, read at once": f"def f(model):\n    return (r := {call}).text\n",
+        "tuple unpacking": f"def f(model):\n    r, n = {call}, 1\n    return r.text\n",
+        "nested unpacking": f"def f(model):\n    [(r, n), m] = ({call}, 1), 2\n    return r.text\n",
+    }
+    for how, source in planted.items():
+        found = problems(source)
+        assert len(found) == 1, how
+        assert "HDK101" in found[0], how
+    # The other names in the same statements hold no response.
+    assert problems(f"def f(model):\n    r, n = {call}, page\n    return final_text(r) + n.text\n") == []
+
+
 def test_final_text_and_other_objects_text_pass():
     # A text search for ".text" would flag block.text and page.text; the visitor knows which names
     # hold a model response.

@@ -40,6 +40,7 @@ from helpdesk.assistant.gating import (
     held_false_passes,
     judge_calibration,
     judge_suite,
+    suite_fails_gate,
 )
 from helpdesk.assistant.grading import pass_hat_k
 from helpdesk.assistant.judging import Criterion, Rubric
@@ -617,8 +618,10 @@ def check(rules: Path | None = None, record_path: Path | None = None) -> int:
 
 
 def suite_rules(rule: Rule, record: dict[str, Any], rules_name: str) -> list[str]:
-    """Print, for each gated suite in the record, where the suite rule fails it and how often a
-    healthy suite fails the gate by chance; return a problem for a suite rule that could never fail."""
+    """Print, for each gated suite in the record, where the suite rule fails it, how often a healthy
+    suite fails the gate by chance and how often the gate catches a small drop (both counting both
+    rules, with the suite rule's alone beside the second); return a problem for a suite rule that
+    could never fail."""
     problems: list[str] = []
     lines = [
         "A suite fails the gate when the cases that passed every trial at promotion, added up, fail at least:"
@@ -643,12 +646,14 @@ def suite_rules(rule: Rule, record: dict[str, Any], rules_name: str) -> list[str
             continue
         trials, lower = cases * rule.trials, rule.expected - 0.05
         by_chance = chance_of_at_least(suite_at, trials, 1 - rule.expected)
-        caught = chance_of_at_least(suite_at, trials, 1 - lower)
+        caught = suite_fails_gate(cases, rule, lower)
+        suite_alone = chance_of_at_least(suite_at, trials, 1 - lower)
         lines.append(
             f"  {suite}: {suite_at} of {trials} ({cases} cases). Cases still passing {rule.expected:.0%} "
-            f"of the time do that by chance {by_chance:.1%}\n  of the time, and with the case rule a "
-            f"healthy {suite} suite fails the gate {healthy:.1%} of the time;\n  cases now passing "
-            f"{lower:.0%} of the time are caught {caught:.0%} of the time."
+            f"of the time do that by chance {by_chance:.1%}\n  of the time. Counting both rules, a "
+            f"healthy {suite} suite fails the gate {healthy:.1%} of the time,\n  and cases now passing "
+            f"{lower:.0%} of the time are caught {caught:.0%} of the time (by the suite rule\n  alone, "
+            f"{suite_alone:.0%})."
         )
     print("\n".join(lines))
     return problems

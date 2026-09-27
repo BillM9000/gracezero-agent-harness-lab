@@ -16,8 +16,9 @@ Three rules, each for a different way a change can hurt:
   exactly, the same way as the per-case one. It's used only on suites with enough such cases.
 
 Each rule holds its own false alarms to the rate; a healthy suite can trip either, so the chance it
-fails the gate is a little more than either alone. healthy_suite_fails computes it exactly, and
-python -m helpdesk.gate check prints it.
+fails the gate is a little more than either alone. suite_fails_gate computes it exactly, for cases
+passing at any rate: at the expected rate it's the false alarm (healthy_suite_fails), and below it,
+how often the gate catches the drop. python -m helpdesk.gate check prints both, counting both rules.
 """
 
 from __future__ import annotations
@@ -78,11 +79,11 @@ class Rule:
         return failures_to_fail(cases * self.trials, self.expected, self.false_alarm)
 
 
-def healthy_suite_fails(cases: int, rule: Rule) -> float:
-    """The chance that `cases` regression cases, each still passing at the expected rate, fail the
-    gate by chance: one case reaching the case rule's count, or all of them the suite rule's. Exact,
-    over every total of failures the cases can have without any one reaching the case rule."""
-    fail_rate = 1 - rule.expected
+def suite_fails_gate(cases: int, rule: Rule, pass_rate: float) -> float:
+    """The chance that `cases` regression cases, each now passing at `pass_rate`, fail the gate: one
+    case reaching the case rule's count, or all of them the suite rule's. Exact, over every total of
+    failures the cases can have without any one reaching the case rule."""
+    fail_rate = 1 - pass_rate
     one = [
         comb(rule.trials, k) * fail_rate**k * (1 - fail_rate) ** (rule.trials - k)
         for k in range(rule.trials + 1)
@@ -98,6 +99,12 @@ def healthy_suite_fails(cases: int, rule: Rule) -> float:
         totals = grown
     passes = sum(chance for total, chance in totals.items() if suite_at is None or total < suite_at)
     return 1 - passes
+
+
+def healthy_suite_fails(cases: int, rule: Rule) -> float:
+    """The chance that `cases` regression cases, each still passing at the expected rate, fail the
+    gate by chance, by either rule: its false alarm."""
+    return suite_fails_gate(cases, rule, rule.expected)
 
 
 @dataclass

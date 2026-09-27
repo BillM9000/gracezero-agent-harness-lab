@@ -2864,10 +2864,24 @@ export const MUTATIONS = [
     run: gateTest("test_a_healthy_suite_fails_the_gate_by_chance_as_rarely_as_computed"),
   },
   {
+    guard: "gate: a suite's chance of failing the gate is for cases passing at the rate given",
+    file: GATING,
+    find: "    fail_rate = 1 - pass_rate\n",
+    replace: "    fail_rate = 1 - rule.expected\n",
+    run: gateTest("test_the_suite_threshold_is_the_first_total_rarer_than_the_false_alarm"),
+  },
+  {
     guard: "gate check: it prints each suite's threshold and how often a healthy suite fails",
     file: GATE,
     find: "        problems.extend(suite_rules(rule, record, rules.name))",
     replace: "        pass",
+    run: gateTest("test_the_check_passes_on_the_repository"),
+  },
+  {
+    guard: "gate check: how often a drop is caught counts both rules, as the false alarm does",
+    file: GATE,
+    find: "        caught = suite_fails_gate(cases, rule, lower)",
+    replace: "        caught = chance_of_at_least(suite_at, trials, 1 - lower)",
     run: gateTest("test_the_check_passes_on_the_repository"),
   },
   {

@@ -26,6 +26,7 @@ from helpdesk.assistant.gating import (
     held_false_passes,
     judge_calibration,
     judge_suite,
+    suite_fails_gate,
 )
 from helpdesk.model.anthropic_client import AnthropicModel
 from helpdesk.model.anthropic_client import to_api as anthropic_to_api
@@ -140,18 +141,6 @@ def test_the_suite_rule_isnt_used_on_a_suite_with_few_cases():
     assert RULE.suite_fails_at(3) == 4
 
 
-def test_the_suite_threshold_is_the_first_total_rarer_than_the_false_alarm():
-    # Ten cases passing 95% of the time fail 7 or more of their 50 trials 1.2% of the time, and 8
-    # or more 0.3%: with a 1% false alarm, 8 failures fail the suite.
-    assert round(chance_of_at_least(7, 50, 0.05), 4) == 0.0118
-    assert round(chance_of_at_least(8, 50, 0.05), 4) == 0.0032
-    assert RULE.suite_fails_at(10) == 8
-    # What it can see: ten cases now passing 70% of the time are caught 99% of the time, and
-    # passing 90% of the time, 12%.
-    assert round(chance_of_at_least(8, 50, 0.3), 2) == 0.99
-    assert round(chance_of_at_least(8, 50, 0.1), 2) == 0.12
-
-
 def multisets(size: int, values: int, smallest: int = 0):
     """Every way to give `size` cases a failure count from smallest to values - 1, ignoring order."""
     if size == 0:
@@ -162,13 +151,12 @@ def multisets(size: int, values: int, smallest: int = 0):
             yield (value, *rest)
 
 
-def test_a_healthy_suite_fails_the_gate_by_chance_as_rarely_as_computed():
-    # Every case truly passing 95% of the time, five trials each, ten cases, all of which passed
-    # every trial at promotion. Exact: every multiset of failure counts through judge_suite itself,
-    # weighted by its chance, so nothing here is sampled. (Before the suite rule was calibrated, the
-    # same enumeration gave 0.348.)
+def gate_fails(pass_rate: float) -> tuple[float, float]:
+    """The chance that ten cases, each passing every one of five trials at promotion and now passing
+    at `pass_rate`, fail the gate, and fail its suite rule. Exact: every multiset of failure counts
+    through judge_suite itself, weighted by its chance, so nothing here is sampled."""
     trials, cases = 5, 10
-    one = [comb(trials, k) * 0.05**k * 0.95 ** (trials - k) for k in range(trials + 1)]
+    one = [comb(trials, k) * (1 - pass_rate) ** k * pass_rate ** (trials - k) for k in range(trials + 1)]
     before = counts([trials] * cases)
     fails, suite_rule_fails = 0.0, 0.0
     for failed in multisets(cases, trials + 1):
@@ -179,11 +167,37 @@ def test_a_healthy_suite_fails_the_gate_by_chance_as_rarely_as_computed():
         verdict = judge_suite("tasks", before, counts([trials - k for k in failed]), RULE)
         fails += chance * (not verdict.passed)
         suite_rule_fails += chance * any(f.startswith("the 10 cases") for f in verdict.failures)
+    return fails, suite_rule_fails
+
+
+def test_the_suite_threshold_is_the_first_total_rarer_than_the_false_alarm():
+    # Ten cases passing 95% of the time fail 7 or more of their 50 trials 1.2% of the time, and 8
+    # or more 0.3%: with a 1% false alarm, 8 failures fail the suite.
+    assert round(chance_of_at_least(7, 50, 0.05), 4) == 0.0118
+    assert round(chance_of_at_least(8, 50, 0.05), 4) == 0.0032
+    assert RULE.suite_fails_at(10) == 8
+    # What it can see: ten cases now passing 70% of the time fail the suite rule 99% of the time,
+    # and passing 90% of the time, 12%.
+    assert round(chance_of_at_least(8, 50, 0.3), 2) == 0.99
+    assert round(chance_of_at_least(8, 50, 0.1), 2) == 0.12
+    # The case rule catches some of those too (a case failing 3 of 5), so the gate as a whole, the
+    # figure check prints, catches cases passing 90% of the time 17% of the time, and 70%, 99%.
+    for pass_rate, whole, suite_rule in ((0.90, 0.1661, 0.1221), (0.70, 0.9937, 0.9927)):
+        fails, suite_rule_fails = gate_fails(pass_rate)
+        assert round(suite_rule_fails, 4) == round(chance_of_at_least(8, 50, 1 - pass_rate), 4) == suite_rule
+        assert round(fails, 4) == round(suite_fails_gate(10, RULE, pass_rate), 4) == whole
+
+
+def test_a_healthy_suite_fails_the_gate_by_chance_as_rarely_as_computed():
+    # Every case truly passing 95% of the time, five trials each, ten cases, all of which passed
+    # every trial at promotion. (Before the suite rule was calibrated, the same enumeration gave
+    # 0.348.)
+    fails, suite_rule_fails = gate_fails(0.95)
     # The suite rule alone fails a healthy suite no more often than the false alarm, and the whole
     # gate (either rule) about 1.4% of the time: what healthy_suite_fails computes and check prints.
     assert suite_rule_fails <= RULE.false_alarm
     assert round(suite_rule_fails, 4) == 0.0032
-    assert round(fails, 4) == round(healthy_suite_fails(cases, RULE), 4) == 0.0139
+    assert round(fails, 4) == round(healthy_suite_fails(10, RULE), 4) == 0.0139
 
 
 def test_with_no_record_the_run_is_the_baseline():
@@ -381,8 +395,13 @@ def test_the_check_passes_on_the_repository(capsys):
     assert gate.check() == 0
     out = capsys.readouterr().out
     assert "fails the gate\nat 3 failed trials" in out
-    assert "  tasks: 8 of 50 (10 cases). Cases still passing 95% of the time do that by chance 0.3%\n" in out
-    assert "a healthy tasks suite fails the gate 1.4% of the time" in out
+    # Each figure says which rules it counts: the false alarm and the drop caught both count both.
+    assert (
+        "  tasks: 8 of 50 (10 cases). Cases still passing 95% of the time do that by chance 0.3%\n"
+        "  of the time. Counting both rules, a healthy tasks suite fails the gate 1.4% of the time,\n"
+        "  and cases now passing 90% of the time are caught 17% of the time (by the suite rule\n"
+        "  alone, 12%).\n"
+    ) in out
     assert "  reasons: no suite rule (3 cases, under suite_min_cases, 10)" in out
     assert "measured on the mock" in out
 

@@ -155,6 +155,16 @@ test("the loop's record counts each attempt by what it did", () => {
   assert.equal(m.byCheck["Python lint (ruff check)"], 2);
 });
 
+test("an attempt that moved HEAD counts with the ones that silenced a rule or changed the checks", () => {
+  const entries = [
+    { outcome: "moved HEAD", failing: ["Python lint (ruff check)"] },
+    { outcome: "silenced a rule", failing: ["Python lint (ruff check)"] },
+    { outcome: "still failing", failing: ["Python lint (ruff check)"] },
+  ];
+  const m = loopMeasures(entries);
+  assert.deepEqual([m.attempts, m.fixed, m.silencedOrChanged, m.other], [3, 0, 2, 1]);
+});
+
 test("a change in a rate is called only with 30 or more on a side, and only when its interval leaves out zero", () => {
   const big = change(14, 40, 4, 40);
   assert.deepEqual([Math.round(100 * big.d), Math.round(100 * big.low), Math.round(100 * big.high)], [-25, -42, -8]);

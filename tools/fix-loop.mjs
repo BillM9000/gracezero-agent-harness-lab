@@ -6,8 +6,8 @@
 // Run it from the repository root. The agent command runs through the shell with the prompt on
 // stdin, the way `claude -p` and `codex exec` read one; the command is yours, so the shell is too.
 // The loop stops early, and exits 1, when:
-//   - the agent moved HEAD (it committed, or checked out another commit), which the prompt says not
-//     to do: its changes would leave the working tree a person reviews;
+//   - the agent moved HEAD (it committed, or checked out another commit): everything below is
+//     measured against the commit the loop started from, and the prompt says not to commit;
 //   - the agent changed the checks themselves (tools/protected.mjs: every check's code and data, and
 //     a tool's configuration file wherever it appears): a person decides that;
 //   - the agent silenced a rule in the code, with a line tools/silenced.mjs recognizes (chapter 26);
@@ -19,7 +19,7 @@
 //
 // With --record FILE it appends one JSON line per attempt (chapter 26): which checks failed, what the
 // attempt did about them (fixed, silenced a rule, changed the checks, no progress, still failing,
-// didn't finish), and the lines or files behind that. tools/measure.mjs counts them.
+// didn't finish, moved HEAD), and the lines or files behind that. tools/measure.mjs counts them.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -31,6 +31,8 @@ import { newlyAdded, workingSilenced } from "./silenced.mjs";
 // git's own files that decide what it lists and diffs: a pattern added to info/exclude hides a new
 // file from the list below as surely as one added to a .gitignore, which the protected list names.
 const GIT_OWN = ["info/exclude", "config"];
+// git's empty tree: what a repository with no commit yet is compared with.
+const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 const AGENT_TIMEOUT_MS = 20 * 60 * 1000;
 
 function option(name) {
@@ -129,9 +131,10 @@ if (spawnSync("git", ["rev-parse", "--git-dir"], { cwd: root }).status !== 0) {
   process.exit(2);
 }
 
-// Where the loop started: an attempt that moves HEAD, by committing or checking out another commit,
-// stops the loop.
+// Everything an attempt did is measured against where the loop started, not against HEAD, which
+// an agent can move.
 const start = head(root);
+const base = start ?? EMPTY_TREE;
 const before = protectedFiles(root);
 let checks = runFastChecks(root);
 if (checks.passed) {
@@ -141,7 +144,7 @@ if (checks.passed) {
 for (let attempt = 1; attempt <= attempts; attempt++) {
   console.log(`fix-loop: the fast checks fail. Attempt ${attempt} of ${attempts}: handing the report to the agent.`);
   const failed = failing(checks.output);
-  const silencedBefore = workingSilenced(root);
+  const silencedBefore = workingSilenced(root, base);
   const started = Date.now();
   const run = spawnSync(agent, {
     cwd: root,
@@ -154,7 +157,7 @@ for (let attempt = 1; attempt <= attempts; attempt++) {
   if (run.stdout) process.stdout.write(run.stdout);
   if (run.error) {
     console.log(`fix-loop: the agent command didn't finish (${run.error.message}). Stopping.`);
-    record({ attempt, failing: failed, outcome: "didn't finish", still_failing: failed, silenced: [], checks_changed: [] });
+    record({ attempt, failing: failed, outcome: "didn't finish", still_failing: failed, silenced: [], checks_changed: [], head_moved: false });
     finish(root, 1, checks);
   }
   const seconds = Math.round((Date.now() - started) / 1000);
@@ -164,24 +167,27 @@ for (let attempt = 1; attempt <= attempts; attempt++) {
   const now = head(root);
   const moved = now !== start;
   const changed = changedChecks(before, protectedFiles(root));
-  const silenced = newlyAdded(silencedBefore, workingSilenced(root));
+  const silenced = newlyAdded(silencedBefore, workingSilenced(root, base));
   const previous = checks;
   checks = runFastChecks(root);
   const unchanged = withoutTimes(checks.output) === withoutTimes(previous.output);
-  const outcome = changed.length
-    ? "changed the checks"
-    : silenced.length
-      ? "silenced a rule"
-      : checks.passed
-        ? "fixed"
-        : unchanged
-          ? "no progress"
-          : "still failing";
-  record({ attempt, failing: failed, outcome, still_failing: failing(checks.output), silenced, checks_changed: changed });
+  const outcome = moved
+    ? "moved HEAD"
+    : changed.length
+      ? "changed the checks"
+      : silenced.length
+        ? "silenced a rule"
+        : checks.passed
+          ? "fixed"
+          : unchanged
+            ? "no progress"
+            : "still failing";
+  record({ attempt, failing: failed, outcome, still_failing: failing(checks.output), silenced, checks_changed: changed, head_moved: moved });
   if (moved) {
     const short = (commit) => (commit ? commit.slice(0, 7) : "no commit");
     console.log(`fix-loop: the agent moved HEAD from ${short(start)} to ${short(now)}: it committed, or checked out another commit.`);
     if (changed.length) console.log(`It changed the checks themselves: ${changed.join(", ")}.`);
+    if (silenced.length) console.log(`It silenced a rule:\n${silenced.map((line) => `  ${line}`).join("\n")}`);
     console.log(`Stopping: a person needs to review what changed since ${short(start)}, where the loop started.`);
     finish(root, 1, checks);
   }

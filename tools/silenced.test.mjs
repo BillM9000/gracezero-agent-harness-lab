@@ -22,6 +22,27 @@ const SWITCHED_OFF = [
   "describe.skip('the parser', () => {});",
 ];
 
+// Switched off for a whole file, or a stretch of one: `# noqa` alone doesn't match these.
+const FILE_WIDE = [
+  "# ruff: noqa: F401",
+  "# ruff: noqa",
+  "# flake8: noqa",
+  "# ruff: disable[F401]",
+  "# fmt: off",
+  "x = [1,2]  # fmt: skip",
+  "# mypy: ignore-errors",
+  "# pyright: basic",
+  "# pylint: disable=unused-import",
+  "# pragma: no branch",
+  "pytestmark = pytest.mark.skip(reason='later')",
+  "@pytest.mark.skipif(True, reason='later')",
+  "pytest.importorskip('fastapi')",
+  "    pytest.xfail('later')",
+  "it.only('the one that runs', () => {});",
+  "test.skipIf(process.platform === 'win32')('reads a path', () => {});",
+  'test("the parser", { skip: true }, () => {});',
+];
+
 const LEFT_ALONE = [
   "import os",
   "# a comment about the type of ignore lists",
@@ -29,10 +50,17 @@ const LEFT_ALONE = [
   "items.skip(3)",
   "const disabled = true;",
   "notes = 'noqa is a ruff directive'",
+  "# the ruff format check runs in CI",
+  "only = items.only_one()",
+  "skipped = {'skip': 1}",
 ];
 
 test("each way of switching a rule off is recognized", () => {
   for (const line of SWITCHED_OFF) assert.match(line, SILENCED, line);
+});
+
+test("a rule switched off for a whole file or a stretch of one is recognized", () => {
+  for (const line of FILE_WIDE) assert.match(line, SILENCED, line);
 });
 
 test("ordinary lines that mention the words are left alone", () => {

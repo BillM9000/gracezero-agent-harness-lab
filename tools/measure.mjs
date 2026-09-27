@@ -90,11 +90,12 @@ export function loopMeasures(entries) {
     for (const check of e.failing ?? []) byCheck[check] = (byCheck[check] ?? 0) + 1;
   }
   const n = (name) => outcomes[name] ?? 0;
+  // A commit hides what an attempt changed from a diff against HEAD, so it counts with the rest.
   return {
     attempts: entries.length,
     fixed: n("fixed"),
-    silencedOrChanged: n("silenced a rule") + n("changed the checks"),
-    other: entries.length - n("fixed") - n("silenced a rule") - n("changed the checks"),
+    silencedOrChanged: n("silenced a rule") + n("changed the checks") + n("moved HEAD"),
+    other: entries.length - n("fixed") - n("silenced a rule") - n("changed the checks") - n("moved HEAD"),
     byCheck,
   };
 }

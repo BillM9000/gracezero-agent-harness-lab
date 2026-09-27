@@ -213,8 +213,8 @@ test("without --record the loop writes no record", () => {
   assert.equal(existsSync(join(root, "records")), false);
 });
 
-// The holes a review found (2026-09-26): what the protected list didn't cover, and a commit, which
-// takes an attempt's changes out of the working tree a person reviews.
+// The holes a review found (2026-09-26): what the protected list didn't cover, a rule switched off for
+// a whole file, and a commit that hid a silenced line from a diff against HEAD.
 const FIXED = 'writeFileSync("app.txt", "ok\\n");';
 
 test("a new tool configuration file stops the loop, in any folder: python/ruff.toml", () => {
@@ -247,23 +247,48 @@ test("hiding a new configuration file from git stops the loop: .gitignore and in
   assert.match(excluded.output, /the agent changed the checks themselves \(\.git\/info\/exclude\)/);
 });
 
+test("a rule switched off for a whole file stops the loop: # ruff: noqa", () => {
+  AGENTS.filewide = `${FIXED} writeFileSync("app.py", "# ruff: noqa: F401\\nimport os\\n");`;
+  const { code, output } = loop(repository(), "--agent", agent("filewide").command);
+  assert.equal(code, 1, output);
+  assert.match(output, /the agent silenced a rule instead of fixing the code, and with that the checks pass:\n {2}app\.py: # ruff: noqa: F401\n/);
+});
+
 // The agent commits through tools/git-run.mjs, as the fixtures are built, so its commit can't flake.
 const GIT_RUN = JSON.stringify(pathToFileURL(join(dirname(LOOP), "git-run.mjs")).href);
 const COMMITTER = `${FIXED} writeFileSync("app.py", "import os  # noqa: F401\\n"); const { git } = await import(${GIT_RUN}); git(process.cwd(), ["add", "-A"]); git(process.cwd(), ["-c", "user.email=a@example.com", "-c", "user.name=a", "commit", "-q", "-m", "fix"]);`;
 
-test("a commit stops the loop, even one that makes the checks pass", () => {
+test("a commit stops the loop, and what it hid is measured against where the loop started", () => {
   const root = repository();
   const start = git(root, "rev-parse", "--short=7", "HEAD").trim();
   AGENTS.committer = COMMITTER;
-  const { code, output } = loop(root, "--agent", agent("committer").command);
+  const record = join(temporary("record-"), "fix-loop.jsonl");
+  const { code, output } = loop(root, "--agent", agent("committer").command, "--record", record);
   assert.equal(code, 1, output);
   assert.match(output, new RegExp(`the agent moved HEAD from ${start} to [0-9a-f]{7}: it committed, or checked out another commit\\.`));
+  assert.match(output, /It silenced a rule:\n {2}app\.py: import os {2}# noqa: F401\n/);
   assert.match(output, new RegExp(`Stopping: a person needs to review what changed since ${start}, where the loop started\\.`));
   assert.doesNotMatch(output, /pass after/);
+  const [line] = readFileSync(record, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  assert.equal(line.outcome, "moved HEAD");
+  assert.equal(line.head_moved, true);
+  assert.deepEqual(line.silenced, ["app.py: import os  # noqa: F401"]);
 });
 
 test("the prompt says a commit stops the run", () => {
   const fake = agent("fixer");
   loop(repository(), "--agent", fake.command);
   assert.match(fake.prompt(), /Don't commit: leave your changes in the working tree\. A commit, or a checkout of another commit, stops the run too\./);
+});
+
+test("a file .gitattributes marks as binary still shows the silenced lines it gains", () => {
+  const root = repository();
+  writeFileSync(join(root, ".gitattributes"), "*.py -diff\n");
+  writeFileSync(join(root, "app.py"), "import os\n");
+  git(root, "add", ".");
+  git(root, "commit", "-q", "-m", "more fixture");
+  AGENTS.binary = `${FIXED} writeFileSync("app.py", "import os  # noqa: F401\\n");`;
+  const { code, output } = loop(root, "--agent", agent("binary").command);
+  assert.equal(code, 1, output);
+  assert.match(output, /the agent silenced a rule instead of fixing the code, and with that the checks pass:\n {2}app\.py: import os {2}# noqa: F401\n/);
 });

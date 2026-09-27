@@ -2297,7 +2297,7 @@ export const MUTATIONS = [
   {
     guard: "import-linter: the ways-out contract says how to fix it",
     file: "python/pyproject.toml",
-    find: 'broken_contract_guidance = "The assistant\'s tools and the code they call must not reach another machine or start a program, directly or through another module: an injected ticket could make the model use it (chapter 20). Put the call behind a composition root, such as helpdesk.mcp_server, and give the assistant a tool that files a proposal for a person instead."\n',
+    find: 'broken_contract_guidance = "The assistant\'s tools and the code they call must not reach another machine or start a program, directly or through another module: an injected ticket could make the model use it (chapter 20). Put the call behind a composition root, such as helpdesk.mcp_server or the gateway, and give the assistant a tool that files a proposal for a person instead."\n',
     replace: "",
     run: pytest(`${LAYERS}::test_a_way_out_reached_through_the_labs_own_imports_is_caught_with_the_fix`),
   },

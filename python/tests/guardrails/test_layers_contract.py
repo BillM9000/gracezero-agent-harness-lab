@@ -178,7 +178,7 @@ def test_a_way_out_reached_through_the_labs_own_imports_is_caught_with_the_fix(t
     assert "helpdesk.assistant.agent -> helpdesk.model.anthropic_client (l." in output
     assert "helpdesk.model.anthropic_client -> anthropic (l." in output
     assert "helpdesk.services.tickets -> http (l." in output
-    assert "Put the call behind a composition root, such as helpdesk.mcp_server, and give" in output
+    assert "Put the call behind a composition root, such as helpdesk.mcp_server or the gateway" in output
 
 
 def test_a_tool_that_imports_the_code_that_decides_is_caught_with_the_fix(tmp_path):

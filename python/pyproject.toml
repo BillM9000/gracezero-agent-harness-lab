@@ -99,7 +99,7 @@ forbidden_modules = [
     "httpx2", "imaplib", "mcp", "multiprocessing", "poplib", "requests", "smtplib", "socket", "ssl",
     "subprocess", "telnetlib", "urllib", "urllib3", "webbrowser", "websockets", "xmlrpc",
 ]
-broken_contract_guidance = "The assistant's tools and the code they call must not reach another machine or start a program, directly or through another module: an injected ticket could make the model use it (chapter 20). Put the call behind a composition root, such as helpdesk.mcp_server, and give the assistant a tool that files a proposal for a person instead."
+broken_contract_guidance = "The assistant's tools and the code they call must not reach another machine or start a program, directly or through another module: an injected ticket could make the model use it (chapter 20). Put the call behind a composition root, such as helpdesk.mcp_server or the gateway, and give the assistant a tool that files a proposal for a person instead."
 
 # Chapter 19: an agent proposes, a person decides. The code that approves or rejects a proposal is
 # reachable only from the command a person runs, so no tool, agent loop, MCP server or route can call

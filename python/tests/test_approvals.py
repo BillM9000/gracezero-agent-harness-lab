@@ -229,6 +229,21 @@ def test_a_reply_and_a_close_approved_at_once_on_one_ticket_cant_both_succeed(tm
         assert tickets.get_ticket(first, 2)["status"] == "closed"
         assert repository.get_proposal(first, reply_id)["status"] == "pending"
         assert [e[0] for e in events(first)] == ["proposed", "proposed", "approved", "refused"]
+
+        # The wait has a limit: the connection's busy timeout (SQLite's 5 seconds by default, here
+        # 50 milliseconds). Held past it, the lock refuses the decision in words, not with the
+        # database's own error, and nothing changes; the refusal can't be logged without the lock.
+        second.execute("BEGIN IMMEDIATE")
+        first.execute("PRAGMA busy_timeout = 50")
+        with pytest.raises(Conflict) as waited:
+            decisions.reject(first, person(first, "sam"), reply_id, "The ticket is closed.", clock)
+        second.rollback()
+        assert str(waited.value) == (
+            f"Another decision or change held the helpdesk's database for longer than this reject would "
+            f"wait, so #{reply_id} wasn't rejected. Nothing changed; try again."
+        )
+        assert repository.get_proposal(first, reply_id)["status"] == "pending"
+        assert [e[0] for e in events(first)] == ["proposed", "proposed", "approved", "refused"]
     finally:
         second.close()
         first.close()

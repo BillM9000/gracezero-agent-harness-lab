@@ -1693,8 +1693,15 @@ export const MUTATIONS = [
   {
     guard: "decisions: the checks and the change hold the write lock together",
     file: DECISIONS,
-    find: "    repository.begin_decision(conn)\n",
-    replace: "",
+    find: "        repository.begin_decision(conn)\n",
+    replace: "        pass\n",
+    run: approvals("test_a_reply_and_a_close_approved_at_once_on_one_ticket_cant_both_succeed"),
+  },
+  {
+    guard: "decisions: a decision that waits past the lock's limit is refused in words",
+    file: DECISIONS,
+    find: "    except sqlite3.OperationalError as busy:",
+    replace: "    except ZeroDivisionError as busy:",
     run: approvals("test_a_reply_and_a_close_approved_at_once_on_one_ticket_cant_both_succeed"),
   },
   {

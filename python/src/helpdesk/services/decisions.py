@@ -9,9 +9,10 @@ who comes from whoever runs the command, never from an agent.
   The decision, the change and its record in the approval log commit together, or not at all.
 - approve and reject take the database's write lock before those checks and hold it until they
   commit, so nothing can change between the checks and the change: when a reply and a close on one
-  ticket are approved at the same moment, whichever comes second is checked against the first.
+  ticket are approved at the same moment, whichever comes second is checked against the first. It
+  waits for the lock up to SQLite's busy timeout (5 seconds), and past that is refused.
 - reject needs a reason. It's what the assistant reads the next time it looks at the ticket.
-- Refusals are recorded too.
+- Refusals are recorded too, except one that couldn't take the lock, which recording needs.
 """
 
 from __future__ import annotations
@@ -101,11 +102,24 @@ def _decidable(
 
 
 @contextmanager
-def _deciding(conn: sqlite3.Connection) -> Iterator[None]:
+def _deciding(conn: sqlite3.Connection, proposal_id: int, verb: str) -> Iterator[None]:
     """One decision, from its checks to its commit, holding the write lock throughout. Checks that
     only read, followed by writes, would leave a moment in which another approval on the same ticket
-    could pass the same checks and write first (a reply sent on a ticket just closed)."""
-    repository.begin_decision(conn)
+    could pass the same checks and write first (a reply sent on a ticket just closed).
+
+    Taking the lock waits for another connection's write to finish, but only as long as the
+    connection's busy timeout (SQLite's default through Python, 5 seconds; a decision takes
+    milliseconds). Past that, the decision is refused with a sentence rather than a database error.
+    That refusal isn't in the approval log: writing it needs the lock that wasn't free."""
+    try:
+        repository.begin_decision(conn)
+    except sqlite3.OperationalError as busy:
+        if busy.sqlite_errorname != "SQLITE_BUSY":
+            raise
+        raise Conflict(
+            f"Another decision or change held the helpdesk's database for longer than this {verb} "
+            f"would wait, so #{proposal_id} wasn't {verb.rstrip('e')}ed. Nothing changed; try again."
+        ) from None
     try:
         yield
     except Exception:
@@ -118,7 +132,7 @@ def _deciding(conn: sqlite3.Connection) -> Iterator[None]:
 def approve(conn: sqlite3.Connection, person: Person, proposal_id: int, clock: Clock = utc_now) -> str:
     """Approve a proposal, and make the change it proposed. Returns what happened, in words."""
     now = clock()
-    with _deciding(conn):
+    with _deciding(conn, proposal_id, "approve"):
         proposal, ticket = _decidable(conn, person, proposal_id, "approve", now)
         if not repository.decide_proposal(conn, proposal_id, "approved", person.id, None, now):
             raise Conflict(f"#{proposal_id} was decided by someone else a moment ago. Nothing changed.")
@@ -146,7 +160,7 @@ def reject(
             "ticket, so say what to change."
         )
     now = clock()
-    with _deciding(conn):
+    with _deciding(conn, proposal_id, "reject"):
         proposal, ticket = _decidable(conn, person, proposal_id, "reject", now)
         if not repository.decide_proposal(conn, proposal_id, "rejected", person.id, reason.strip(), now):
             raise Conflict(f"#{proposal_id} was decided by someone else a moment ago. Nothing changed.")

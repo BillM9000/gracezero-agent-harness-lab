@@ -4833,6 +4833,27 @@ export const MUTATIONS = [
     run: templatesTest("the fitness test template"),
   },
   {
+    guard: "templates: the fitness test follows a router imported under another name",
+    file: "templates/test_fitness.py",
+    find: "            constructors |= {alias.asname or alias.name for alias in node.names if alias.name in CONSTRUCTORS}\n",
+    replace: "",
+    run: templatesTest("the fitness test template"),
+  },
+  {
+    guard: "templates: the fitness test finds the real code's router",
+    file: "templates/test_fitness.py",
+    find: "            return func.id in constructors\n",
+    replace: "            return False\n",
+    run: templatesTest("the fitness test template"),
+  },
+  {
+    guard: "templates: the fitness test checks a route added without a decorator",
+    file: "templates/test_fitness.py",
+    find: 'and _on_a_router(node.func, routers, {"add_api_route"})',
+    replace: 'and _on_a_router(node.func, routers, {"add_route"})',
+    run: templatesTest("the fitness test template"),
+  },
+  {
     guard: "templates: the fitness test reads the decorator's arguments",
     file: "templates/test_fitness.py",
     find: '                and not any(keyword.arg == "response_model" for keyword in decorator.keywords)\n',

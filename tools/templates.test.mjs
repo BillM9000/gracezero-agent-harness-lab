@@ -200,7 +200,7 @@ test("the lint rule template refuses a folder with no Python files, rather than 
 test("the fitness test template passes on the lab's routes, and catches its planted violations", () => {
   const { status, output } = python(["-m", "pytest", "-q", "-p", "no:cacheprovider", "test_fitness.py"], TEMPLATES);
   assert.equal(status, 0, output);
-  assert.match(output, /\b4 passed\b/);
+  assert.match(output, /\b6 passed\b/);
 });
 
 // --- The judge's rubric (chapter 22) ------------------------------------------------------------

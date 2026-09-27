@@ -459,6 +459,10 @@ MALFORMED: tuple[tuple[str, ModelResponse], ...] = (
     ("true for pass", answer(verdict_with(verdict=True))),
     ("the wrong criterion", answer(verdict_with(criterion="tone"))),
     ("a quote the text doesn't contain", answer(verdict_with(quote="we'll refund you"))),
+    (
+        "a verdict given twice, fail then pass",
+        answer(verdict_with(verdict="fail")[:-1] + ', "verdict": "pass"}'),
+    ),
     ("a refusal", answer(json.dumps(GOOD), "refusal")),
     ("an answer cut off at max_tokens", answer(json.dumps(GOOD)[:30], "max_tokens")),
 )

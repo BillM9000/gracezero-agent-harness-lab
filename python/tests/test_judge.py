@@ -87,6 +87,13 @@ def test_a_field_the_schema_doesnt_have_is_refused():
     assert judged(says(score=4)).error == "malformed verdict: score: Extra inputs are not permitted"
 
 
+def test_a_key_given_twice_is_refused_not_read_as_its_last_value():
+    # json.loads keeps the last value, so this read as a pass before.
+    twice = '{"criterion": "tone", "verdict": "fail", "reason": "Because.", "verdict": "pass"}'
+    assert judged(twice).error == 'malformed verdict: it gives "verdict" more than once'
+    assert judged(twice).outcome == "error"
+
+
 def test_an_answer_about_another_criterion_is_refused():
     assert judged(says(criterion="answers")).error == (
         'malformed verdict: asked about "tone", it answered about "answers"'
@@ -309,7 +316,7 @@ def test_a_repeated_criterion_is_refused(tmp_path):
 
 def test_the_check_passes_on_the_repository(capsys):
     assert judge.main(["check"]) == 0
-    assert "every one of 12 malformed answers is refused" in capsys.readouterr().out
+    assert "every one of 13 malformed answers is refused" in capsys.readouterr().out
 
 
 def replies() -> tuple[Rubric, list[judge.Labeled]]:

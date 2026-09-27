@@ -115,10 +115,21 @@ class MalformedVerdict(ValueError):
     """What the judge wrote isn't a verdict this code accepts. It's an error, never a pass."""
 
 
+def once_each(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """An object whose keys are each given once. json.loads keeps the last of a repeated key, so
+    "verdict": "fail" then "verdict": "pass" would read as a pass."""
+    data: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in data:
+            raise MalformedVerdict(f'it gives "{key}" more than once')
+        data[key] = value
+    return data
+
+
 def read_verdict(text: str, criterion: Criterion, judged: str) -> Verdict:
     """The judge's answer as a Verdict, or MalformedVerdict saying what's wrong with it."""
     try:
-        data = json.loads(text)
+        data = json.loads(text, object_pairs_hook=once_each)
     except json.JSONDecodeError as error:
         raise MalformedVerdict(f"not one JSON object ({error.msg}, at character {error.pos})") from None
     try:

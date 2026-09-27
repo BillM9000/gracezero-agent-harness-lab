@@ -2593,6 +2593,13 @@ export const MUTATIONS = [
     run: judgeTest("test_a_field_the_schema_doesnt_have_is_refused"),
   },
   {
+    guard: "judges: a key the verdict gives twice is refused, not read as its last value",
+    file: JUDGING,
+    find: "        data = json.loads(text, object_pairs_hook=once_each)",
+    replace: "        data = json.loads(text)",
+    run: judgeTest("test_a_key_given_twice_is_refused_not_read_as_its_last_value"),
+  },
+  {
     guard: "judges: a verdict is pass, fail or unknown, nothing else",
     file: JUDGING,
     find: '    verdict: Literal["pass", "fail", "unknown"]',

@@ -19,7 +19,7 @@ import pytest
 from helpdesk import evals
 from helpdesk import gateway as command
 from helpdesk.model.anthropic_client import AnthropicModel
-from helpdesk.model.budget import price
+from helpdesk.model.budget import price, request_chars
 from helpdesk.model.calls import CallLog, read, summary
 from helpdesk.model.gateway import (
     Deployment,
@@ -68,6 +68,8 @@ class Provider:
                 play = queue.pop(0) if queue else "ok"
                 if play == "refusal":
                     return ModelResponse("refusal", usage=Usage(100, 0))
+                if play == "late refusal":  # wrote 500 tokens, then refused: all of it billed
+                    return ModelResponse("refusal", usage=Usage(1000, 500))
                 if play == "boom":
                     raise KeyError("a bug, not an outage")
                 if play == "cut":
@@ -253,6 +255,42 @@ def test_a_call_that_could_take_the_team_past_its_month_is_refused_before_it_is_
         ask(gateway, "Another.", team="billing")
     assert len(provider.received) == 1
     assert read(path)[-1].outcome == "over the budget"
+
+
+def test_a_fallback_after_a_refusal_cant_take_the_team_past_its_month(tmp_path):
+    # The month is checked once, at the request's worst, and a refused call is billed. When the
+    # month has room for one call at its worst and no more, the fallback must be refused: sonnet's
+    # refusal and opus's answer together would pass the budget.
+    team = Team("billing", 1.00, 60, 200_000)
+    provider = Provider(**{f"{SONNET}@primary": ["late refusal"], f"{OPUS}@primary": ["cut"]})
+    gateway, path, _ = build(tmp_path, provider, teams=(team,))
+    text = "Summarize this. " + "word " * 520
+    sent = request_chars("You summarize.", [Message("user", text)], ()) / 2.5
+    assert sent >= 1000  # the estimate covers the input tokens the stand-in provider reports
+    worst = price(OPUS, sent, 1000)
+    before = team.monthly_usd - worst - 0.0001  # just under: room for one call at its worst
+    gateway.spent[("billing", "2026-09")] = before  # as if read back from the record
+    refused, fallback = price(SONNET, 1000, 500), price(OPUS, 1000, 1000)
+    assert fallback <= worst  # the fallback alone fits the check; the two together don't
+    assert before + refused + fallback > team.monthly_usd
+    with pytest.raises(OverBudget, match=f"trying the next model after {SONNET} refused") as over:
+        ask(gateway, text, team="billing")
+    assert "Nothing more was sent." in str(over.value)
+    assert provider.received == [(SONNET, "primary")]
+    assert gateway.month_spent("billing") == pytest.approx(before + refused)
+    assert gateway.month_spent("billing") <= team.monthly_usd
+    assert outcomes(path) == [(SONNET, "primary", "refusal"), (OPUS, "", "over the budget")]
+
+
+def test_a_fallback_after_a_refusal_takes_its_own_place_in_the_teams_minute(tmp_path):
+    # The refused call took the team's one request this minute; the fallback is a second request.
+    team = Team("billing", 10.0, 1, 200_000)
+    provider = Provider(**{f"{SONNET}@primary": ["refusal"]})
+    gateway, path, _ = build(tmp_path, provider, teams=(team,))
+    with pytest.raises(RateLimited, match="at its limit of 1 requests"):
+        ask(gateway, team="billing")
+    assert provider.received == [(SONNET, "primary")]
+    assert outcomes(path) == [(SONNET, "primary", "refusal"), (OPUS, "", "rate limited")]
 
 
 def test_the_months_spend_is_read_back_from_the_record_and_a_new_month_starts_at_zero(tmp_path):

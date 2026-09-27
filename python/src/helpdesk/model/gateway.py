@@ -6,8 +6,17 @@ case, and the team's share of the rate limits (requests and input tokens a minut
 wait is short and refusing when it isn't. Then it routes: the cheapest model on the route first, at
 the first of its deployments that isn't cooling down. A deployment that is overloaded, rate limited
 or unreachable cools down, and the call goes to the model's next deployment, then to the next model.
-A refusal goes to the next model on the route, never back to the one that refused. A route may also
-answer an identical request from the same team from its cache, for a set time, with no call made.
+A refusal goes to the next model on the route, never back to the one that refused; the refused call
+was billed, so the month and the minute are checked again first, and a fallback the month can't
+cover is refused. A route may also answer an identical request from the same team from its cache,
+for a set time, with no call made.
+
+The budgets and the rate windows are held in this process: the month's spend in memory, read back
+from the record when the gateway starts, and each team's minute in memory alone. Two gateways, in
+two processes or two objects, each allow a team its whole share, and neither sees what the other
+spent until it starts again. A gateway shared by several commands or machines needs one service
+that every call goes through, or an atomic check-and-reserve in a shared store (a database row
+updated in one transaction, say) in place of the reads and writes here.
 
 Every attempt is a line in the record (calls.py): the team, the route, where it went and how it
 ended, so cost is attributed as it's spent and a month's spend is read back from the same record.
@@ -170,12 +179,17 @@ class Gateway:
         """The route's models, cheapest first for this request. A tie keeps the route's order."""
         return sorted(route.models, key=lambda model: price(model, sent, max_tokens))
 
-    def check_budget(self, team: Team, worst: float) -> None:
+    def check_budget(self, team: Team, worst: float, after: str = "") -> None:
+        """Refuse a call that could take the team past its month. after, when the call follows one
+        that was made and refused, says which, since that one was sent and billed."""
         spent = self.month_spent(team.name)
         if spent + worst > team.monthly_usd:
+            call, sent = ("this call", "Nothing was sent.")
+            if after:
+                call, sent = (f"trying the next model after {after} refused", "Nothing more was sent.")
             raise OverBudget(
-                f"{team.name} has spent {money(spent)} this month, and this call could cost up to "
-                f"{money(worst)}, past its {money(team.monthly_usd)} a month. Nothing was sent. "
+                f"{team.name} has spent {money(spent)} this month, and {call} could cost up to "
+                f"{money(worst)}, past its {money(team.monthly_usd)} a month. {sent} "
                 "Raising a team's budget is the platform team's call."
             )
 
@@ -302,8 +316,21 @@ class _Door:
             raise
 
         refusal: ModelResponse | None = None
+        refused_by = ""  # the model whose refusal was just billed, until the next call is admitted
         tried: list[str] = []
-        for model in models:
+        for index, model in enumerate(models):
+            if refused_by:
+                # A refused call was sent and billed, and the next model is another call. Check the
+                # month again, at the dearest model still to try, and take another place in the
+                # team's minute, or the fallback could carry the team past either.
+                try:
+                    worst = max(price(m, sent, self.max_tokens) for m in models[index:])
+                    g.check_budget(team, worst, after=refused_by)
+                    entry = g.admit(team, sent)
+                except Refused as refused:
+                    self.write(refused.outcome, model, error=type(refused).__name__)
+                    raise
+                refused_by = ""
             for deployment in g.deployments[model]:
                 if g.cooling.get(deployment, 0.0) > g.clock.time():
                     tried.append(f"{model} at {deployment.name}, cooling down")
@@ -339,6 +366,7 @@ class _Door:
                 if outcome == "refusal":
                     # The same model refuses again wherever it runs: try the next model on the route.
                     refusal = response
+                    refused_by = model
                     tried.append(f"{model} at {deployment.name}, refused")
                     break
                 if key is not None and outcome == "ok":

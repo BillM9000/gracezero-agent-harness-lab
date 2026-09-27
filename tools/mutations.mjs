@@ -3471,9 +3471,33 @@ export const MUTATIONS = [
   {
     guard: "gateway: a model that isn't on the route is never tried",
     file: GATEWAY,
-    find: "        for model in models:\n            for deployment in g.deployments[model]:",
-    replace: "        for model in [*models, *g.deployments]:\n            for deployment in g.deployments[model]:",
+    find: "        for index, model in enumerate(models):",
+    replace: "        for index, model in enumerate([*models, *g.deployments]):",
     run: gatewayTest("test_a_model_that_isnt_on_the_route_is_never_tried_however_cheap"),
+  },
+  {
+    guard: "gateway: after a refusal, the month is checked again before the next model",
+    file: GATEWAY,
+    find: "                    g.check_budget(team, worst, after=refused_by)\n",
+    replace: "",
+    run: gatewayTest("test_a_fallback_after_a_refusal_cant_take_the_team_past_its_month"),
+  },
+  {
+    guard: "gateway: after a refusal, the next model takes its own place in the minute",
+    file: GATEWAY,
+    find: "                    entry = g.admit(team, sent)\n",
+    replace: "",
+    run: gatewayTest("test_a_fallback_after_a_refusal_takes_its_own_place_in_the_teams_minute"),
+  },
+  {
+    guard: "gateway: a billed refusal is what triggers the checks again",
+    file: GATEWAY,
+    find: "                    refused_by = model\n",
+    replace: "",
+    run: pytest(
+      "tests/test_gateway.py::test_a_fallback_after_a_refusal_cant_take_the_team_past_its_month",
+      "tests/test_gateway.py::test_a_fallback_after_a_refusal_takes_its_own_place_in_the_teams_minute",
+    ),
   },
   {
     guard: "gateway: a deployment that failed rests before it is tried again",

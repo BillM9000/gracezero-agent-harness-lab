@@ -67,6 +67,7 @@ test("the checks' data and records are protected, the app's own files aren't", (
     "python/src/helpdesk/assistant/gating.py",
     "python/requirements-lock.txt",
     "postings/tally.test.mjs",
+    "templates/rubric.json",
   ]) {
     assert.ok(isProtected(file), file);
   }

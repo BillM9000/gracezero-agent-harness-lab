@@ -65,7 +65,7 @@ export const CHECK_FILES = {
   "TypeScript import rules (eslint)": [/^ts\/eslint\.config\.js$/, /^ts\/scripts\/eslint-rules\//],
   "TypeScript dependency rules (dependency-cruiser)": [/^ts\/\.dependency-cruiser\.cjs$/],
   "TypeScript tests": [/^ts\/test\//, /^ts\/package\.json$/],
-  "Script tests": [TOOLS, /^postings\/[^/]+\.test\.mjs$/, /^postings\/sample-[^/]+\.json$/],
+  "Script tests": [TOOLS, /^postings\/[^/]+\.test\.mjs$/, /^postings\/sample-[^/]+\.json$/, /^templates\//],
   "Setup's path limit (tools/install-paths.mjs)": [TOOLS, /^setup\.mjs$/],
   "Lock files (tools/lockfiles.mjs)": [TOOLS, /^python\/requirements-lock\.txt$/, /^ts\/package-lock\.json$/],
   "Instruction files (tools/instruction-files.mjs)": [TOOLS],

@@ -4,6 +4,8 @@ package layers_test
 
 import (
 	"go/build"
+	"io/fs"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -13,7 +15,7 @@ const module = "example.com/helpdesk"
 
 // allowed lists, for each package, the only helpdesk packages it may import: api calls services,
 // services call data, and data calls nothing. Anything else, including a helpdesk package added
-// later, is a violation.
+// later, is a violation. TestEveryPackageHasARule fails when a package in the tree has no entry here.
 var allowed = map[string][]string{
 	"api":      {module + "/services"},
 	"services": {module + "/data"},
@@ -36,6 +38,55 @@ func violations(t *testing.T, dir string, allow []string) []string {
 		}
 	}
 	return found
+}
+
+// packages returns every folder under root, at any depth, that holds a Go file other than a test,
+// as a slash-separated path from root. testdata and folders starting with "." or "_" are skipped,
+// as the go tool skips them.
+func packages(t *testing.T, root string) []string {
+	t.Helper()
+	var found []string
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		name := entry.Name()
+		if entry.IsDir() {
+			if path != root && (name == "testdata" || strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") {
+			dir, _ := filepath.Rel(root, filepath.Dir(path))
+			if dir != "." && !slices.Contains(found, filepath.ToSlash(dir)) {
+				found = append(found, filepath.ToSlash(dir))
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking %s: %v", root, err)
+	}
+	slices.Sort(found)
+	return found
+}
+
+func TestEveryPackageHasARule(t *testing.T) {
+	// The rule is checked for the packages in allowed; one added later, or nested in another, would
+	// otherwise go unchecked.
+	for _, dir := range packages(t, ".") {
+		if _, ok := allowed[dir]; !ok {
+			t.Errorf("%s is a package with no entry in allowed, so its imports go unchecked. Add it, with the helpdesk packages it may import.", dir)
+		}
+	}
+}
+
+func TestANewPackageIsFound(t *testing.T) {
+	// The control: a package planted in testdata, nested, is found when the walk starts there.
+	if found := packages(t, "testdata/planted"); !slices.Equal(found, []string{"data"}) {
+		t.Fatalf("the planted package testdata/planted/data was not found; found %v", found)
+	}
 }
 
 func TestLayers(t *testing.T) {

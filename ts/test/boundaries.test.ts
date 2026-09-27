@@ -3,7 +3,7 @@
 // real source is never touched; the real package, which breaks no rule, is the control. ESLint
 // lints a line of code as if it were in a given file, so it needs no copy.
 import { spawnSync } from "node:child_process";
-import { appendFileSync, cpSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,21 +13,36 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const DEPCRUISE = join(ROOT, "node_modules", "dependency-cruiser", "bin", "dependency-cruiser.mjs");
-const FOLDERS = ["src", "scripts", "test"];
+// Every top-level folder with a TypeScript file in it, read from the disk rather than listed by
+// hand, so a folder added later is cruised too (it was ["src", "scripts", "test"], typed here).
+function sourceFolders(root: string): string[] {
+  const hasTypeScript = (folder: string) =>
+    readdirSync(join(root, folder), { recursive: true, encoding: "utf8" }).some((name) => name.endsWith(".ts"));
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name !== "node_modules" && !entry.name.startsWith("."))
+    .map((entry) => entry.name)
+    .filter(hasTypeScript)
+    .sort();
+}
+const FOLDERS = sourceFolders(ROOT);
 
-// Every TypeScript file in the package, read from the disk rather than listed by hand.
-function typeScriptFiles(): string[] {
-  return FOLDERS.flatMap((folder) =>
-    readdirSync(join(ROOT, folder), { recursive: true, encoding: "utf8" })
+// Every TypeScript file in those folders.
+function typeScriptFiles(root = ROOT, folders = FOLDERS): string[] {
+  return folders.flatMap((folder) =>
+    readdirSync(join(root, folder), { recursive: true, encoding: "utf8" })
       .filter((name) => name.endsWith(".ts"))
       .map((name) => `${folder}/${name.replaceAll("\\", "/")}`),
   ).sort();
 }
 
-function depcruise(cwd: string, outputType: "json" | "err-long"): { code: number | null; output: string } {
+function depcruise(
+  cwd: string,
+  outputType: "json" | "err-long",
+  folders = FOLDERS,
+): { code: number | null; output: string } {
   const result = spawnSync(
     process.execPath,
-    [DEPCRUISE, ...FOLDERS, "--config", ".dependency-cruiser.cjs", "--output-type", outputType],
+    [DEPCRUISE, ...folders, "--config", ".dependency-cruiser.cjs", "--output-type", outputType],
     { cwd, encoding: "utf8" },
   );
   const output = result.stdout + result.stderr;
@@ -59,6 +74,28 @@ describe("dependency-cruiser", () => {
     const modules = (JSON.parse(output) as { modules: { source: string }[] }).modules;
     const read = modules.map((m) => m.source).filter((source) => source.endsWith(".ts") && !source.startsWith("node_modules"));
     expect(read.sort()).toEqual(typeScriptFiles());
+  });
+
+  it("cruises every top-level folder with TypeScript in it, and npm run deps names the same ones", () => {
+    expect(FOLDERS).toContain("src");
+    const { scripts } = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { scripts: { deps: string } };
+    // "depcruise src scripts test --config ...": the words between the command and the first option.
+    const named = scripts.deps.split(" --", 1)[0]?.split(" ").slice(1).sort();
+    expect(named, "package.json's deps script must cruise every top-level folder with TypeScript in it").toEqual(FOLDERS);
+  });
+
+  it("covers a folder added later, without a list to update", () => {
+    const dir = plant("src/client.ts", "");
+    mkdirSync(join(dir, "lib"));
+    writeFileSync(join(dir, "lib", "extra.ts"), 'export const extra = "planted";\n');
+    const folders = sourceFolders(dir);
+    expect(folders).toContain("lib");
+    const { code, output } = depcruise(dir, "json", folders);
+    expect(code, output).toBe(0);
+    const modules = (JSON.parse(output) as { modules: { source: string }[] }).modules;
+    const read = modules.map((m) => m.source).filter((source) => source.endsWith(".ts") && !source.startsWith("node_modules"));
+    expect(read.sort()).toEqual(typeScriptFiles(dir, folders));
+    expect(read).toContain("lib/extra.ts");
   });
 
   it("finds no violation in the real package", () => {

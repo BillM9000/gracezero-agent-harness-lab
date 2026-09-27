@@ -665,7 +665,13 @@ def team_trial(
 
             team = patterns.build_team(conn, person, worker, worker_model)
             lead = Recorded(models["orchestrator"](""))
-            team_run = run_team(lead, team, system=orchestrator["system"], task=patterns.BATCH_TASK)
+            team_run = run_team(
+                lead,
+                team,
+                system=orchestrator["system"],
+                tools=orchestrator["tools"],
+                task=patterns.BATCH_TASK,
+            )
             drafts = [
                 (
                     w.ticket_ids,

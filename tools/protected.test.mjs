@@ -52,6 +52,7 @@ test("what check.mjs runs is protected: each Python module, each script and the 
 test("the checks' data and records are protected, the app's own files aren't", () => {
   for (const file of [
     "python/evals/tasks.json",
+    "python/evals/rubrics/reply.json",
     "python/catalog/servers.toml",
     "python/agents/models.toml",
     "python/src/mcp_governance/catalog.py",

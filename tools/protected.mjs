@@ -32,6 +32,12 @@ export const CHECK_FILES = {
     /^python\/src\/helpdesk\/assistant\/grading\.py$/,
     /^python\/evals\/(tasks|reasons|injections)\.json$/,
   ],
+  "Model judges (python -m helpdesk.judge check)": [
+    /^python\/src\/helpdesk\/judge\.py$/,
+    /^python\/src\/helpdesk\/assistant\/judging\.py$/,
+    /^python\/evals\/(judged|judge-mock)\.json$/,
+    /^python\/evals\/rubrics\//,
+  ],
   "API contract (python -m helpdesk.contract)": [/^python\/src\/helpdesk\/contract\.py$/],
   "Python tests (pytest)": [/^python\/tests\//, /^python\/pyproject\.toml$/],
   "TypeScript API types (npm run api-types)": [/^ts\/scripts\//, /^ts\/package\.json$/],

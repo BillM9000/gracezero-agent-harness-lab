@@ -107,6 +107,23 @@ test("each workflow template is the lab's own workflow, trimmed, in the same ord
   }
 });
 
+// A token that can write lets a compromised step change the repository, and a tag can be moved to
+// other code after it was reviewed; a commit SHA can't.
+test("every workflow, the lab's and the templates', gives its token read access alone and pins each action to a commit", () => {
+  for (const name of WORKFLOWS) {
+    for (const where of [`templates/workflows/${name}.yml`, `.github/workflows/${name}.yml`]) {
+      const text = read(join(ROOT, where));
+      assert.match(text, /^permissions:\n {2}contents: read\n(?! )/m, `${where} must set "permissions:" with "contents: read" alone at the top, so no job's token can write.`);
+      assert.doesNotMatch(text, /:\s*write\b|write-all|read-all/, `${where} gives a token more than read access to the code.`);
+      const uses = [...text.matchAll(/^ +(?:- )?uses: (.*)$/gm)].map((m) => m[1]);
+      assert.ok(uses.length, `${where} uses no actions`);
+      for (const action of uses) {
+        assert.match(action, /^[\w.-]+\/[\w.\/-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+$/, `${where}: "uses: ${action}" must name a full commit SHA with its version in a comment, such as actions/checkout@<40 hex digits> # v7.0.1. gh api repos/OWNER/REPO/commits/TAG gives the SHA.`);
+      }
+    }
+  }
+});
+
 test("every command the workflow templates run is setup, the mutation run, or a check node check.mjs --list prints", () => {
   const listed = node("check.mjs", "--list");
   assert.equal(listed.status, 0, listed.output);

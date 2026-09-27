@@ -12,6 +12,13 @@ on:
     - cron: "17 4 * * *"
   workflow_dispatch:
 
+# The token each job gets reads the code and nothing more: no job here writes to the repository,
+# and without this line it gets the repository's default, which can include write access. Each
+# action is pinned to a full commit SHA, its version in the comment, because a tag can be moved
+# to other code and a commit can't. `gh api repos/OWNER/REPO/commits/TAG` gives a new version's SHA.
+permissions:
+  contents: read
+
 jobs:
   mutations:
     runs-on: ubuntu-latest
@@ -19,11 +26,11 @@ jobs:
     env:
       HELPDESK_PYTHON: python
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
       - run: node setup.mjs
@@ -43,11 +50,11 @@ jobs:
     env:
       HELPDESK_PYTHON: python
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
       - run: node setup.mjs

@@ -18,6 +18,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# The token each job gets reads the code and nothing more: no job here writes to the repository,
+# and without this line it gets the repository's default, which can include write access. Each
+# action is pinned to a full commit SHA, its version in the comment, because a tag can be moved
+# to other code and a commit can't. `gh api repos/OWNER/REPO/commits/TAG` gives a new version's SHA.
+permissions:
+  contents: read
+
 jobs:
   # The same two commands a reader runs: node setup.mjs, then node check.mjs, on the three systems
   # readers use (chapter 5's path limit is Windows-only), with the Python the lab is tested with,
@@ -40,11 +47,11 @@ jobs:
     env:
       HELPDESK_PYTHON: python
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
       - run: node setup.mjs
@@ -60,8 +67,8 @@ jobs:
       run:
         working-directory: boundaries/go
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: boundaries/go/go.mod
           cache: false # the module has no dependencies to cache
@@ -74,8 +81,8 @@ jobs:
       run:
         working-directory: boundaries/java
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: "25"
@@ -88,8 +95,8 @@ jobs:
       run:
         working-directory: boundaries/dotnet
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: "10.0.x"
       - run: dotnet run

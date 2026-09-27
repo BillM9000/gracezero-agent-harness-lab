@@ -24,7 +24,13 @@ def test_an_expected_failure_that_passes_fails_the_run(tmp_path):
     planted = tmp_path / "test_planted.py"
     planted.write_text(PLANTED, encoding="utf-8")
     run = subprocess.run(
-        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-c", str(PYPROJECT), str(planted)],
+        # --rootdir keeps pytest inside tmp_path. Without it, the root is the common folder of the
+        # settings file and the planted test, and collection lists folders other programs may be
+        # deleting at that moment, which failed the run now and then on a busy machine.
+        [
+            sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
+            "-c", str(PYPROJECT), "--rootdir", str(tmp_path), str(planted),
+        ],
         capture_output=True,
         text=True,
     )

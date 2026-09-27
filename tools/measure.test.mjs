@@ -164,10 +164,10 @@ test("an attempt that changed a reference counts with the ones that silenced a r
   assert.deepEqual([m.attempts, m.fixed, m.silencedOrChanged, m.other], [2, 1, 1, 0]);
 });
 
-test("an attempt that moved HEAD counts with the ones that silenced a rule or changed the checks", () => {
+test("an attempt that moved HEAD counts with them too", () => {
   const entries = [
     { outcome: "moved HEAD", failing: ["Python lint (ruff check)"] },
-    { outcome: "silenced a rule", failing: ["Python lint (ruff check)"] },
+    { outcome: "changed a reference", failing: ["Documentation claims (tools/doc-claims.mjs)"] },
     { outcome: "still failing", failing: ["Python lint (ruff check)"] },
   ];
   const m = loopMeasures(entries);

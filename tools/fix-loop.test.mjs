@@ -318,11 +318,7 @@ test("a new tool configuration file stops the loop, in any folder: python/ruff.t
 });
 
 test("the checks' records and data stop the loop: the gate's promotion record", () => {
-  const root = repository();
-  mkdirSync(join(root, "python", "evals"), { recursive: true });
-  writeFileSync(join(root, "python", "evals", "promoted.json"), '{"promoted": "2026-09-25"}\n');
-  git(root, "add", ".");
-  git(root, "commit", "-q", "-m", "more fixture");
+  const root = commit(repository(), { "python/evals/promoted.json": '{"promoted": "2026-09-25"}\n' });
   AGENTS.promoter = `${FIXED} writeFileSync("python/evals/promoted.json", '{"promoted": "2026-09-27"}\\n');`;
   const { code, output } = loop(root, "--agent", agent("promoter").command);
   assert.equal(code, 1, output);
@@ -375,11 +371,7 @@ test("the prompt says a commit stops the run", () => {
 });
 
 test("a file .gitattributes marks as binary still shows the silenced lines it gains", () => {
-  const root = repository();
-  writeFileSync(join(root, ".gitattributes"), "*.py -diff\n");
-  writeFileSync(join(root, "app.py"), "import os\n");
-  git(root, "add", ".");
-  git(root, "commit", "-q", "-m", "more fixture");
+  const root = commit(repository(), { ".gitattributes": "*.py -diff\n", "app.py": "import os\n" });
   AGENTS.binary = `${FIXED} writeFileSync("app.py", "import os  # noqa: F401\\n");`;
   const { code, output } = loop(root, "--agent", agent("binary").command);
   assert.equal(code, 1, output);

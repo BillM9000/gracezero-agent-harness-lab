@@ -34,7 +34,7 @@ const CHECKS = [
   [
     "Script tests",
     process.execPath,
-    ["--test", "postings/tally.test.mjs", "tools/harness-inventory.test.mjs", "tools/install-paths.test.mjs"],
+    ["--test", "postings/tally.test.mjs", "tools/harness-inventory.test.mjs", "tools/install-paths.test.mjs", "tools/git-run.test.mjs"],
     { cwd: ROOT },
   ],
   ["Setup's path limit (tools/install-paths.mjs)", process.execPath, ["tools/install-paths.mjs"], { cwd: ROOT }],

@@ -7,7 +7,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { git as runGit } from "./git-run.mjs";
 
 const LOOP = join(dirname(fileURLToPath(import.meta.url)), "fix-loop.mjs");
 const made = [];
@@ -21,8 +22,10 @@ function temporary(prefix) {
   return dir;
 }
 
+// Through tools/git-run.mjs: the machine's git setup stays out, and a failed call throws with
+// everything git printed. Returns git's stdout.
 function git(root, ...args) {
-  return spawnSync("git", ["-c", "user.email=test@example.com", "-c", "user.name=test", ...args], { cwd: root, encoding: "utf8" });
+  return runGit(root, ["-c", "user.email=test@example.com", "-c", "user.name=test", ...args]);
 }
 
 // The check prints what app.txt says, so an attempt that changes it changes the report.
@@ -138,7 +141,7 @@ test("stops when the agent changes the checks, and leaves the change for a perso
   assert.equal(code, 1);
   assert.match(output, /the agent changed the checks themselves \(check\.mjs\), and with that change they pass\. Stopping: a person needs to review that\./);
   assert.doesNotMatch(output, /pass after/);
-  assert.match(git(root, "status", "--short").stdout, /M check\.mjs/);
+  assert.match(git(root, "status", "--short"), /M check\.mjs/);
 });
 
 test("an agent command that fails to run is reported, and not tried again", () => {
@@ -189,11 +192,13 @@ test("hiding a new configuration file from git stops the loop: .gitignore and in
   assert.match(excluded.output, /the agent changed the checks themselves \(\.git\/info\/exclude\)/);
 });
 
-const COMMITTER = `${FIXED} writeFileSync("app.py", "import os  # noqa: F401\\n"); execSync("git add -A && git -c user.email=a@example.com -c user.name=a commit -q -m fix");`;
+// The agent commits through tools/git-run.mjs, as the fixtures are built, so its commit can't flake.
+const GIT_RUN = JSON.stringify(pathToFileURL(join(dirname(LOOP), "git-run.mjs")).href);
+const COMMITTER = `${FIXED} writeFileSync("app.py", "import os  # noqa: F401\\n"); const { git } = await import(${GIT_RUN}); git(process.cwd(), ["add", "-A"]); git(process.cwd(), ["-c", "user.email=a@example.com", "-c", "user.name=a", "commit", "-q", "-m", "fix"]);`;
 
 test("a commit stops the loop, even one that makes the checks pass", () => {
   const root = repository();
-  const start = git(root, "rev-parse", "--short=7", "HEAD").stdout.trim();
+  const start = git(root, "rev-parse", "--short=7", "HEAD").trim();
   AGENTS.committer = COMMITTER;
   const { code, output } = loop(root, "--agent", agent("committer").command);
   assert.equal(code, 1, output);

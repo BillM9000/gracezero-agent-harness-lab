@@ -6,9 +6,9 @@
 // trailer) or alone: a sign-up form, an account page, a settings page and an export, and fixes. Every commit updates the
 // changelog and every fix bumps the version, the way many real projects do, which is what makes
 // a first rework count misleading. The dates are fixed, so the counts are the same for everyone.
-import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { git as runGit } from "./git-run.mjs";
 
 const BASE = Date.parse("2026-03-02T09:00:00Z");
 const HOUR = 60 * 60 * 1000;
@@ -41,10 +41,8 @@ if (existsSync(root) && readdirSync(root).length) {
   process.exit(2);
 }
 mkdirSync(root, { recursive: true });
-const git = (args, env = {}) => {
-  const run = spawnSync("git", args, { cwd: root, encoding: "utf8", env: { ...process.env, ...env } });
-  if (run.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${run.stderr}`);
-};
+// Through tools/git-run.mjs: your own git settings (a hook, signing) stay out of the demo.
+const git = (args, env = {}) => runGit(root, args, { env });
 git(["init", "-q"]);
 
 let version = 0;

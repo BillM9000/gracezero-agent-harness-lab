@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { git } from "./git-run.mjs";
 import { isFix, main } from "./rework.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "rework.mjs");
@@ -20,10 +21,12 @@ const START = Date.parse("2026-01-01T12:00:00Z");
 const AGENT_TRAILER = "\n\nCo-Authored-By: Claude <noreply@anthropic.com>";
 
 // commits: [{ day, subject, files: { path: content }, agent: "trailer" | "author" | undefined }]
+// git runs through tools/git-run.mjs, so the machine's git setup stays out and a failed step throws
+// with everything git printed.
 function repository(commits) {
   const root = mkdtempSync(join(tmpdir(), "rework-"));
   made.push(root);
-  spawnSync("git", ["init", "-q"], { cwd: root });
+  git(root, ["init", "-q"]);
   for (const c of commits) {
     for (const [path, content] of Object.entries(c.files)) {
       mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -32,12 +35,10 @@ function repository(commits) {
     const date = new Date(START + c.day * DAY).toISOString();
     const name = c.agent === "author" ? "Copilot" : "A Person";
     const message = c.subject + (c.agent === "trailer" ? AGENT_TRAILER : "");
-    spawnSync("git", ["add", "-A"], { cwd: root });
-    const commit = spawnSync("git", ["-c", `user.name=${name}`, "-c", "user.email=someone@example.com", "commit", "-q", "-m", message], {
-      cwd: root,
-      env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
+    git(root, ["add", "-A"]);
+    git(root, ["-c", `user.name=${name}`, "-c", "user.email=someone@example.com", "commit", "-q", "-m", message], {
+      env: { GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
     });
-    assert.equal(commit.status, 0, String(commit.stderr));
   }
   return root;
 }

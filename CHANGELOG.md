@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-27, CI on request
+
+- **`ci.yml` can be run on request** (`workflow_dispatch`; `gh workflow run ci.yml`), from this history's second commit, so CI can be run at any tag. It skips a push that changes only Markdown, which runs `docs.yml` instead (chapter 24), and a run on request covers that case.
+
 ## 2026-09-24, the guardrail tests read lint-imports in the encoding they ask it to write
 
 - **The guardrail tests no longer depend on the shell's encoding.** Found verifying chapter 20: with `PYTHONIOENCODING=utf-8` set, as some shells set it, `tests/guardrails/test_layers_contract.py` gave 12 failed and 12 errors on Windows (unset, or set to `cp1252`, 12 passed), because `run_guardrail` read lint-imports' output with `text=True`, in the locale's code page, while lint-imports wrote its box-drawing characters in UTF-8. The test now sets `PYTHONIOENCODING=utf-8` in lint-imports' environment and reads its output as UTF-8, so both ends agree whatever the shell says. A new test runs the guardrail with the variable unset and set to `utf-8`, `cp1252` and `utf-16`: remove the setting from lint-imports' environment and the `cp1252` and `utf-16` cases fail (1 failed and 1 error, checked on Windows), because lint-imports then writes in whatever the shell set while the test reads UTF-8. The variable decides what lint-imports writes on every platform, so those two cases should fail anywhere; only Windows has run them. 16 tests in the file now, and all 16 pass with the variable unset and set to each of the three.

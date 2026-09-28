@@ -2,12 +2,12 @@
 // files, and says "none found" instead of guessing.
 // Run: node --test tools/harness-inventory.test.mjs
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
 
+import { git } from "./git-run.mjs";
 import { inventory, report } from "./harness-inventory.mjs";
 
 const base = mkdtempSync(join(tmpdir(), "inventory-"));
@@ -80,19 +80,17 @@ test("an empty repository gets 'none found' for every part it can see, never a g
 
 test("in a git repository only tracked files count", () => {
   const root = repo({ "AGENTS.md": "tracked\n", "CLAUDE.md": "untracked\n" });
-  const git = (...args) => execFileSync("git", ["-C", root, ...args], { stdio: "ignore" });
-  git("init", "-q");
-  git("add", "AGENTS.md");
-  git("-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "-m", "one file");
+  git(root, ["init", "-q"]);
+  git(root, ["add", "AGENTS.md"]);
+  git(root, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "-m", "one file"]);
   assert.deepEqual(inventory(root).context, ["AGENTS.md (1 line)"]);
 });
 
 test("a git hooks path set in the repository's config is reported", () => {
   const root = repo({ "AGENTS.md": "x\n" });
-  const git = (...args) => execFileSync("git", ["-C", root, ...args], { stdio: "ignore" });
-  git("init", "-q");
-  git("config", "core.hooksPath", "bin/git-hooks");
-  git("add", ".");
-  git("-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "-m", "x");
+  git(root, ["init", "-q"]);
+  git(root, ["config", "core.hooksPath", "bin/git-hooks"]);
+  git(root, ["add", "."]);
+  git(root, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "-m", "x"]);
   assert.deepEqual(inventory(root).feedback, ["git hooks path: bin/git-hooks"]);
 });

@@ -52,4 +52,4 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
-      - run: node --test postings/tally.test.mjs tools/harness-inventory.test.mjs
+      - run: node --test postings/tally.test.mjs tools/harness-inventory.test.mjs tools/git-run.test.mjs

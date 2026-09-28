@@ -14,6 +14,11 @@
 
 - **`ci.yml` can be run on request** (`workflow_dispatch`; `gh workflow run ci.yml`), from this history's second commit, so CI can be run at any tag. It skips a push that changes only Markdown, which runs `docs.yml` instead (chapter 24), and a run on request covers that case.
 
+## 2026-09-27, the intermittent rework test, fixed at its cause
+
+- **The script tests build their git repositories through `tools/git-run.mjs`** (new). On Windows, git's rename of a file it has just written (a loose object, the new index) now and then fails with "Permission denied" while another program, such as an on-access virus scanner, holds the file open; a test helper that ignored `git add`'s result then failed at `git commit`, which says "no changes added" on stdout only. The runner runs git with no system or global configuration, no GIT_ variable or `XDG_CONFIG_HOME` from the caller, HOME in the folder it runs in, and a fixed name, email and default branch with signing off; a call's own `-c` settings and environment still apply. A failure throws with git's exit code, stdout and stderr. A fatal "Permission denied" or "unable to write new index file" is tried again, up to 5 more times over about 3 seconds, and so is a git Windows couldn't start (exit 0xC0000142); each retry is reported on stderr. A lock another git holds is not retried.
+- The script tests that build a git repository do it through the runner: `tools/harness-inventory.test.mjs`.
+
 ## 2026-09-27, more fixes from the review of the book against the lab
 
 - **The tally refuses a posting missing a field that may be null** (chapter 1, `postings/tally.mjs`). `yearsRequired`, `degreeRequired` and `alsoType` were checked only when present, and the counts read a missing one as null, so a misspelled `yearsRequried` counted that posting as stating no years: with P05's key renamed, the sample's "Years of experience stated on 27 of 33" became 26 of 33, with no error. Each of the three must now be in every posting, null or not, and a missing one is refused like the other fields, naming the posting, the field and what to set it to (`P05: "yearsRequired" is missing. Set it to a number, or null if the posting does not say.`). The sample and the template have all three on every posting, so their tallies are unchanged.

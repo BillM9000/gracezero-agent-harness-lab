@@ -13,7 +13,7 @@ What each working session did, newest first. Add an entry at the end of every se
 
 - `tools/rework.test.mjs` failed now and then on a `git commit` that exited 1 with nothing on stderr. The cause: Windows refused git a file it had just written ("Permission denied" on renaming an object or the index into place, while another program held it open), the helper ignored the failed `git add -A`, and the commit said "no changes added" on stdout only. `CHANGELOG.md` has the evidence and what was ruled out.
 - `tools/git-run.mjs` (new) builds the script tests' repositories: no machine or caller git setup, full output on failure, and a bounded retry for a refused file or a git that never started. Six test files and `tools/rework-demo.mjs` use it; `tools/git-run.test.mjs` (4 tests) proves it; 5 new mutation entries (635).
-- Checked with: a stress script and a planted hold on `.git/index` (neither in the repository), the changed test files 30 times in a row under load, and `node check.mjs` 4 times.
+- Checked with: a stress script and a planted hold on `.git/index` (neither in the repository), the changed test files 30 times in a row under load, and `node check.mjs` 4 times; after the commit (`cfc3a2d`), `node tools/mutate.mjs --only git-run:` caught 5 of 5 on the clean tree.
 - Not run: `--real`, for any command.
 - Next: the next rebuild of the history moves each change to its tag (`CHANGELOG.md` lists them: `ch04`, `ch08`, `ch24`, `ch25`, `ch26`, `ch31`).
 

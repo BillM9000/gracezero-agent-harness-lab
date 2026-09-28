@@ -1,11 +1,11 @@
 // Tests for tools/measure.mjs (chapter 26). Each test builds a small git repository with set dates,
 // authors and co-author trailers, and sometimes a records folder, then checks what it measures.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
+import { git } from "./git-run.mjs";
 import { change, ciMeasures, clip, describe, loopMeasures, main, measure, reviewMeasures, spendMeasures } from "./measure.mjs";
 
 const made = [];
@@ -19,10 +19,12 @@ const AGENT_TRAILER = "\n\nCo-Authored-By: Claude <noreply@anthropic.com>";
 const at = (day) => new Date(START + day * DAY).toISOString();
 
 // commits: [{ day, subject, files: { path: content }, agent: true | undefined, tag }]
+// git runs through tools/git-run.mjs, so the machine's git setup stays out and a failed step throws
+// with everything git printed.
 function repository(commits) {
   const root = mkdtempSync(join(tmpdir(), "measure-"));
   made.push(root);
-  spawnSync("git", ["init", "-q"], { cwd: root });
+  git(root, ["init", "-q"]);
   const hashes = [];
   for (const c of commits) {
     for (const [path, content] of Object.entries(c.files)) {
@@ -30,14 +32,12 @@ function repository(commits) {
       writeFileSync(join(root, path), content);
     }
     const message = c.subject + (c.agent ? AGENT_TRAILER : "");
-    spawnSync("git", ["add", "-A"], { cwd: root });
-    const commit = spawnSync("git", ["-c", "user.name=A Person", "-c", "user.email=someone@example.com", "commit", "-q", "-m", message], {
-      cwd: root,
-      env: { ...process.env, GIT_AUTHOR_DATE: at(c.day), GIT_COMMITTER_DATE: at(c.day) },
+    git(root, ["add", "-A"]);
+    git(root, ["-c", "user.name=A Person", "-c", "user.email=someone@example.com", "commit", "-q", "-m", message], {
+      env: { GIT_AUTHOR_DATE: at(c.day), GIT_COMMITTER_DATE: at(c.day) },
     });
-    assert.equal(commit.status, 0, String(commit.stderr));
-    hashes.push(spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim());
-    if (c.tag) spawnSync("git", ["tag", c.tag], { cwd: root });
+    hashes.push(git(root, ["rev-parse", "HEAD"]).trim());
+    if (c.tag) git(root, ["tag", c.tag]);
   }
   return { root, hashes };
 }

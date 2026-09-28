@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { git as runGit } from "./git-run.mjs";
 
 const RUNNER = join(dirname(fileURLToPath(import.meta.url)), "mutate.mjs");
 const made = [];
@@ -20,8 +21,10 @@ const TEST =
   'import assert from "node:assert/strict";\nimport { test } from "node:test";\nimport { isEven } from "./guard.mjs";\n' +
   'test("isEven", () => {\n  assert.equal(isEven(2), true);\n  assert.equal(isEven(3), false);\n});\n';
 
+// Through tools/git-run.mjs: the machine's git setup stays out, and a failed call throws with
+// everything git printed. Returns git's stdout.
 function git(root, ...args) {
-  return spawnSync("git", ["-c", "user.email=test@example.com", "-c", "user.name=test", ...args], { cwd: root, encoding: "utf8" });
+  return runGit(root, ["-c", "user.email=test@example.com", "-c", "user.name=test", ...args]);
 }
 
 // A committed repository whose tools/mutations.mjs holds the given entries.
@@ -44,7 +47,7 @@ function mutate(root) {
 }
 
 const RUN_TEST = { node: ["--test", "guard.test.mjs"] };
-const clean = (root) => git(root, "status", "--porcelain", "--untracked-files=no").stdout.trim() === "";
+const clean = (root) => git(root, "status", "--porcelain", "--untracked-files=no").trim() === "";
 
 test("a mutation the test notices is caught, and the file is put back", () => {
   const root = repository([{ guard: "evenness", file: "guard.mjs", find: "n % 2 === 0", replace: "true", run: RUN_TEST }]);

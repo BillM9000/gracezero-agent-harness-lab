@@ -22,7 +22,7 @@
 ## 2026-09-27, the intermittent rework test, fixed at its cause
 
 - **The script tests build their git repositories through `tools/git-run.mjs`** (new). On Windows, git's rename of a file it has just written (a loose object, the new index) now and then fails with "Permission denied" while another program, such as an on-access virus scanner, holds the file open; a test helper that ignored `git add`'s result then failed at `git commit`, which says "no changes added" on stdout only. The runner runs git with no system or global configuration, no GIT_ variable or `XDG_CONFIG_HOME` from the caller, HOME in the folder it runs in, and a fixed name, email and default branch with signing off; a call's own `-c` settings and environment still apply. A failure throws with git's exit code, stdout and stderr. A fatal "Permission denied" or "unable to write new index file" is tried again, up to 5 more times over about 3 seconds, and so is a git Windows couldn't start (exit 0xC0000142); each retry is reported on stderr. A lock another git holds is not retried.
-- The script tests that build a git repository do it through the runner: `tools/harness-inventory.test.mjs` and `tools/doc-claims.test.mjs`.
+- The script tests that build a git repository do it through the runner: `tools/harness-inventory.test.mjs`, `tools/doc-claims.test.mjs` and `tools/mutate.test.mjs`.
 
 ## 2026-09-27, the flaky pytest settings test, fixed at its cause
 

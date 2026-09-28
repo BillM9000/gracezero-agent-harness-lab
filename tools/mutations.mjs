@@ -1,9 +1,9 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 16 to 18 are here, chapter 7's
-// consumer test and chapter 1's tally's check for missing fields; the guards from earlier chapters
-// were broken by hand when they were built (CHANGELOG.md records each time) and are the next
-// candidates to add.
+// must then fail. Add entries when a chapter adds a guard. Chapters 16 to 18 are here, the script
+// tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter 1's tally's check
+// for missing fields; the guards from earlier chapters were broken by hand when they were built
+// (CHANGELOG.md records each time) and are the next candidates to add.
 
 const pytest = (...tests) => ({ cwd: "python", python: ["-m", "pytest", "-q", "-p", "no:cacheprovider", ...tests] });
 const vitest = (file, name) => ({ cwd: "ts", vitest: [file, "-t", name] });
@@ -25,6 +25,9 @@ const FAKE_FITNESS = "python/tests/fitness/test_tests_fake_the_model_client.py";
 const FAKE_FITNESS_TEST = "tests/fitness/test_tests_fake_the_model_client.py";
 const PROGRESS = "tools/progress.mjs";
 const progressTest = (name) => nodeTest("tools/progress.test.mjs", name);
+// The git runner the script tests build their repositories with, proved by tools/git-run.test.mjs.
+const GIT_RUN = "tools/git-run.mjs";
+const gitRunTest = (name) => nodeTest("tools/git-run.test.mjs", name);
 
 export const MUTATIONS = [
   // Chapter 3, after the 2026-09-30 review: an id too big for SQLite is one that doesn't exist.
@@ -726,5 +729,43 @@ export const MUTATIONS = [
     find: '    return {**doc, "info": {**doc["info"], "x-generated-by": GENERATED_BY}}',
     replace: "    return doc",
     run: pytest("tests/test_contract.py::test_the_contract_says_what_made_it_in_its_first_lines"),
+  },
+
+  // The script tests' git runner (tools/git-run.mjs): the caller's git setup stays out, a failure
+  // carries what git printed, and only a file another program held open is tried again.
+  {
+    guard: "git-run: the caller's GIT_ variables are dropped",
+    file: GIT_RUN,
+    find: "    if (!/^GIT_/i.test(name) && !/^XDG_CONFIG_HOME$/i.test(name)) env[name] = value;",
+    replace: "    env[name] = value;",
+    run: gitRunTest("the caller's git configuration and GIT_ variables"),
+  },
+  {
+    guard: "git-run: a failure carries git's stdout",
+    file: GIT_RUN,
+    find: '\\n--- stdout ---\\n${run.stdout ?? ""}',
+    replace: "",
+    run: gitRunTest("a failed call throws"),
+  },
+  {
+    guard: "git-run: only a fatal error is tried again",
+    file: GIT_RUN,
+    find: "return status === 128 && /Permission",
+    replace: "return /Permission",
+    run: gitRunTest("only a file another program held open"),
+  },
+  {
+    guard: "git-run: a commit that landed isn't run again",
+    file: GIT_RUN,
+    find: "/Permission denied|unable to write new index file/",
+    replace: "/Permission denied|unable to write/",
+    run: gitRunTest("only a file another program held open"),
+  },
+  {
+    guard: "git-run: a lock another git holds isn't waited out",
+    file: GIT_RUN,
+    find: "/Permission denied|unable to write new index file/",
+    replace: "/Permission denied|unable to write new index file|index\\.lock/",
+    run: gitRunTest("only a file another program held open"),
   },
 ];

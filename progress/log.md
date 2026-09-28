@@ -9,6 +9,14 @@ What each working session did, newest first. Add an entry at the end of every se
 - Not run: `--real`, for any command; no key was set, and nothing called a provider. The full `node tools/mutate.mjs`; the nightly job runs it.
 - Next: the history rebuild places each change before its chapter's tag; chapters 15, 16, 18, 20, 22, 27 and 30 and Appendix B quote files these changes touched (`CHANGELOG.md` names them).
 
+## 2026-09-27: the intermittent rework test
+
+- `tools/rework.test.mjs` failed now and then on a `git commit` that exited 1 with nothing on stderr. The cause: Windows refused git a file it had just written ("Permission denied" on renaming an object or the index into place, while another program held it open), the helper ignored the failed `git add -A`, and the commit said "no changes added" on stdout only. `CHANGELOG.md` has the evidence and what was ruled out.
+- `tools/git-run.mjs` (new) builds the script tests' repositories: no machine or caller git setup, full output on failure, and a bounded retry for a refused file or a git that never started. Six test files and `tools/rework-demo.mjs` use it; `tools/git-run.test.mjs` (4 tests) proves it; 5 new mutation entries (635).
+- Checked with: a stress script and a planted hold on `.git/index` (neither in the repository), the changed test files 30 times in a row under load, and `node check.mjs` 4 times.
+- Not run: `--real`, for any command.
+- Next: the next rebuild of the history moves each change to its tag (`CHANGELOG.md` lists them: `ch04`, `ch08`, `ch24`, `ch25`, `ch26`, `ch31`).
+
 ## 2026-09-27: fixes from a second review, and what the counts below mean
 
 - The mutation-entry counts recorded in the entries below predate the review fixes of 27 September 2026 and the fixes of 30 September 2026. This history places those fixes, and their mutation entries, before the chapter tags, and the capstone's work (Appendix B's templates, the kit and the gap check, chapter 30) ahead of chapters 32 to 36, so the list at a tag can hold more entries than the log entry beside it records (at the `ch34` and `ch35` tags the log says 476 and 479; the list there holds more). Count the list at a tag by importing that tag's copy of `tools/mutations.mjs`, which `git show chNN:tools/mutations.mjs` prints, and reading the length of its `MUTATIONS`; on the working tree, `node tools/mutate.mjs --list` prints every entry and the total. Trust the count, not a number here.

@@ -260,7 +260,7 @@ test("stops when an attempt rewrites a claimed number to match the code, and nam
   );
   assert.doesNotMatch(output, /pass after/);
   assert.match(readFileSync(join(root, "README.md"), "utf8"), /<!-- claim: rules -->5 rules/);
-  assert.match(git(root, "status", "--short").stdout, /M README\.md/);
+  assert.match(git(root, "status", "--short"), /M README\.md/);
 });
 
 // Fixes app.txt, and regenerates the contract from code that no longer has a route.

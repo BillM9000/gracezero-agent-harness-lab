@@ -2,12 +2,13 @@
 // alone what it says it doesn't check.
 // Run: node --test tools/doc-claims.test.mjs
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, test } from "node:test";
+import { git } from "./git-run.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "doc-claims.mjs");
 const base = mkdtempSync(join(tmpdir(), "doc-claims-"));
@@ -95,10 +96,9 @@ test("a marker written in backticks is an example of the syntax, not a claim", (
 
 test("a file on disk that git doesn't track is reported as untracked, not as present", () => {
   const root = repo({ "README.md": "Run `tools/a.mjs`, then `tools/new.mjs`.\n" });
-  const git = (...args) => execFileSync("git", ["-C", root, ...args], { encoding: "utf8" });
-  git("init", "-q");
-  git("add", "README.md", "tools/a.mjs");
-  git("-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "-m", "fixture");
+  git(root, ["init", "-q"]);
+  git(root, ["add", "README.md", "tools/a.mjs"]);
+  git(root, ["-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-q", "-m", "fixture"]);
   writeFileSync(join(root, "tools", "new.mjs"), "");
   const { status, output } = check(root);
   assert.equal(status, 1);

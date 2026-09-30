@@ -124,6 +124,21 @@ test("every workflow, the lab's and the templates', gives its token read access 
   }
 });
 
+// The lab has no YAML parser, and GitHub rejects a workflow it can't parse without running any job,
+// so the commonest slip is checked by hand: in a run command that isn't quoted, YAML reads ": " as a
+// key and " #" as the start of a comment. (docs.yml once ran "^kit: " unquoted, and GitHub ran none
+// of its jobs.)
+test("every workflow's run commands are YAML that reads as written: unquoted, none holds ': ' or ' #'", () => {
+  for (const name of WORKFLOWS) {
+    for (const where of [`templates/workflows/${name}.yml`, `.github/workflows/${name}.yml`]) {
+      for (const [, command] of read(join(ROOT, where)).matchAll(/^ +(?:- )?run: (.+)$/gm)) {
+        if (/^["']/.test(command)) continue;
+        assert.doesNotMatch(command, /: | #|:$/, `${where}: "run: ${command}" isn't read as written; quote the whole command, or reword it.`);
+      }
+    }
+  }
+});
+
 test("every command the workflow templates run is setup, the mutation run, or a check node check.mjs --list prints", () => {
   const listed = node("check.mjs", "--list");
   assert.equal(listed.status, 0, listed.output);

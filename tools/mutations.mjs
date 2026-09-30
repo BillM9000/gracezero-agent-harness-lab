@@ -5164,6 +5164,13 @@ export const MUTATIONS = [
     replace: "",
     run: templatesTest("kit: a change to Markdown alone"),
   },
+  {
+    guard: "templates: a workflow's run command is YAML that reads as written",
+    file: ".github/workflows/docs.yml",
+    find: '      - run: node --test --test-name-pattern "^kit:" tools/templates.test.mjs\n',
+    replace: '      - run: node --test --test-name-pattern "^kit: " tools/templates.test.mjs\n',
+    run: templatesTest("every workflow's run commands are YAML"),
+  },
 
   // Chapter 1: the tally counts only data it can trust.
   {

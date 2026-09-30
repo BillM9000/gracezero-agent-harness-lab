@@ -99,6 +99,13 @@ export const MUTATIONS = [
     run: pytest("tests/test_api.py::test_an_id_too_big_for_sqlite_is_one_that_does_not_exist"),
   },
   {
+    guard: "data: a proposal number too big for SQLite is a missing proposal",
+    file: "python/src/helpdesk/data/repository.py",
+    find: "    if proposal_id not in IDS:\n        return None\n",
+    replace: "",
+    run: approvals("test_a_proposal_number_too_big_for_sqlite_is_one_nobody_can_see"),
+  },
+  {
     guard: "data: the ids SQLite can store are 8 bytes, signed",
     file: "python/src/helpdesk/data/repository.py",
     find: "IDS = range(-(2**63), 2**63)",

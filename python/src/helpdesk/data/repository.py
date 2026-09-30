@@ -137,6 +137,8 @@ def insert_proposal(
 
 
 def get_proposal(conn: sqlite3.Connection, proposal_id: int) -> Row | None:
+    if proposal_id not in IDS:
+        return None
     return _row(conn.execute("SELECT * FROM proposals WHERE id = ?", (proposal_id,)).fetchone())
 
 

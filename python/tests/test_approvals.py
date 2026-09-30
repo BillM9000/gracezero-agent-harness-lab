@@ -271,6 +271,13 @@ def test_only_someone_who_may_decide_sees_where_a_reply_goes(conn):
         decisions.recipient(conn, person(conn, "priya"), 1)
 
 
+def test_a_proposal_number_too_big_for_sqlite_is_one_nobody_can_see(conn):
+    # SQLite stores an integer in at most 8 bytes; a larger number used to raise OverflowError.
+    huge = 10**20
+    with pytest.raises(NotFound, match=f"no proposal #{huge} that Dana Whitfield can see"):
+        decisions.approve(conn, person(conn, "dana"), huge, clock)
+
+
 def test_a_role_the_rules_dont_know_can_change_and_approve_nothing():
     ticket = {"id": 2, "assignee_id": 9}
     auditor = access.Person(9, "Ann Auditor", "auditor")

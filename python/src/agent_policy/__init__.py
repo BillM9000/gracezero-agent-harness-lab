@@ -20,8 +20,10 @@ POLICY = AGENTS / "policy.toml"
 MODELS = AGENTS / "models.toml"
 # The files in the agents folder that aren't agent definitions.
 NOT_DEFINITIONS = (POLICY.name, MODELS.name)
-# Fixes the day the policy checks as of (YYYY-MM-DD). The tests set it, so they pass on any day; CI's
-# python -m agent_policy and the assistant leave it unset, so they check as of today.
+# Fixes the day the policy checks as of (YYYY-MM-DD). The tests set it, and node check.mjs sets it to
+# the "read" date in agents/models.toml (tools/policy-date.mjs), so both pass or fail the same way on
+# any day. python -m agent_policy run on its own, the nightly job and the assistant leave it unset, so
+# they check as of today.
 TODAY_VARIABLE = "AGENT_POLICY_TODAY"
 
 

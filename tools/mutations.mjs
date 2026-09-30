@@ -79,6 +79,9 @@ const guardTest = (name) => nodeTest(GUARD_TESTS, name);
 // The git runner the script tests build their repositories with, proved by tools/git-run.test.mjs.
 const GIT_RUN = "tools/git-run.mjs";
 const gitRunTest = (name) => nodeTest("tools/git-run.test.mjs", name);
+// check.mjs itself (chapters 5, 20 and 24), proved by tools/check.test.mjs.
+const POLICY_DATE = "tools/policy-date.mjs";
+const checkTest = (name) => nodeTest("tools/check.test.mjs", name);
 
 export const MUTATIONS = [
   // Chapter 3, after the 2026-09-30 review: an id too big for SQLite is one that doesn't exist.
@@ -580,6 +583,43 @@ export const MUTATIONS = [
     find: "if (text.split(m.find).length !== 2) {",
     replace: "if (false) {",
     run: { node: ["--test", "tools/mutate.test.mjs"] },
+  },
+
+  // Chapter 20: the day check.mjs judges retirement dates as of, and the nightly job that uses today.
+  {
+    guard: "check: the checks run as of the models file's read day",
+    file: POLICY_DATE,
+    find: "return { ...env, [VARIABLE]: given || pinnedDay(root) };",
+    replace: "return { ...env };",
+    run: checkTest("every check runs as of the models file's read day"),
+  },
+  {
+    guard: "check: a caller's AGENT_POLICY_TODAY comes first",
+    file: POLICY_DATE,
+    find: "[VARIABLE]: given || pinnedDay(root)",
+    replace: "[VARIABLE]: pinnedDay(root)",
+    run: checkTest("every check runs as of the models file's read day"),
+  },
+  {
+    guard: "check: every check is given the day",
+    file: "check.mjs",
+    find: '{ encoding: "utf8", env: CHECK_ENV, ...options }',
+    replace: '{ encoding: "utf8", ...options }',
+    run: checkTest("every check runs as of the models file's read day"),
+  },
+  {
+    guard: "check: a day that isn't YYYY-MM-DD stops the run before any check",
+    file: POLICY_DATE,
+    find: 'if (given !== undefined && given !== "" && !DAY.test(given)) {',
+    replace: "if (false) {",
+    run: checkTest("a day that isn't YYYY-MM-DD"),
+  },
+  {
+    guard: "check: a models file with no read day stops the run, saying why",
+    file: POLICY_DATE,
+    find: "  if (!found) {\n",
+    replace: "  if (false) {\n",
+    run: checkTest("a day that isn't YYYY-MM-DD"),
   },
 
   // Chapter 25: sending failures back to the agent, and the limits on doing it.

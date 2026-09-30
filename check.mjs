@@ -12,10 +12,17 @@
 // node check.mjs --list prints the checks' names and runs nothing.
 // node check.mjs --fast skips the three test suites and runs the rest, the tier cheap enough to
 // run after every edit (chapter 24). The full run is still what counts: CI runs it.
+//
+// The checks judge the models' retirement dates as of one day, the "read" date in
+// python/agents/models.toml, so they pass or fail the same way on any date (tools/policy-date.mjs).
+// Set AGENT_POLICY_TODAY=YYYY-MM-DD to check as of another day. python -m agent_policy on its own,
+// and the nightly workflow's retirement job, check as of today.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { checkEnvironment } from "./tools/policy-date.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const WINDOWS = process.platform === "win32";
@@ -69,6 +76,7 @@ const CHECKS = [
       "tools/rework.test.mjs",
       "tools/protected.test.mjs",
       "tools/git-run.test.mjs",
+      "tools/check.test.mjs",
     ],
     { cwd: ROOT },
     SUITE,
@@ -97,12 +105,21 @@ if (missing.length) {
   process.exit(1);
 }
 
+// Every check runs with AGENT_POLICY_TODAY set: the caller's day, or the one the repository records.
+let CHECK_ENV;
+try {
+  CHECK_ENV = checkEnvironment(ROOT);
+} catch (error) {
+  console.error(`${error.message} Nothing was checked.`);
+  process.exit(1);
+}
+
 const fast = process.argv.includes("--fast");
 const selected = CHECKS.filter(([, , , , kind]) => !(fast && kind === SUITE));
 let failed = 0;
 for (const [label, command, args, options] of selected) {
   const started = Date.now();
-  const run = spawnSync(command, args, { encoding: "utf8", ...options });
+  const run = spawnSync(command, args, { encoding: "utf8", env: CHECK_ENV, ...options });
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
   const ok = run.status === 0;
   console.log(`${ok ? "PASS" : "FAIL"}  ${label} (${seconds}s)`);

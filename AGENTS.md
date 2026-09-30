@@ -10,10 +10,10 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 
 | Path | What it is |
 |---|---|
-| `python/src/helpdesk/api/` | HTTP routes (FastAPI) and the request and response models. Calls services only. |
-| `python/src/helpdesk/services/` | Business rules: what each member of staff may see and change (`access.py`), retrieval and citations (chapter 9), the approval queue (`proposals.py`, `decisions.py`, chapter 19), customers' text as data (`untrusted.py`, chapter 20). Calls the data layer. |
+| `python/src/helpdesk/api/` | HTTP routes (FastAPI) and the request and response models. |
+| `python/src/helpdesk/services/` | Business rules: what each member of staff may see and change (`access.py`), retrieval and citations (chapter 9), the approval queue (`proposals.py`, `decisions.py`, chapter 19), customers' text as data (`untrusted.py`, chapter 20). |
 | `python/src/helpdesk/data/` | SQL and the SQLite connection. |
-| `python/src/helpdesk/assistant/` | The triage assistant: its loop (`agent.py`), tools (`tools.py`; `proposing.py` for those that only file a proposal), a comparison set (`narrow.py`) and chapter 14's patterns. A tool acts for the person it was built for, never one in its arguments. Calls services. |
+| `python/src/helpdesk/assistant/` | The triage assistant: its loop (`agent.py`), tools (`tools.py`; `proposing.py` for those that only file a proposal), a comparison set (`narrow.py`) and chapter 14's patterns. A tool acts for the person it was built for, never one in its arguments. |
 | `python/src/helpdesk/model/` | The model interface, a deterministic mock, the Anthropic client, stop reasons (`stops.py`) and costs (`cost.py`). Imports nothing else from the helpdesk. |
 | `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. |
 | `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
@@ -43,7 +43,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (`python/.venv`, the pinned packages, `npm ci`)
-- Check: `node check.mjs` (all <!-- claim: checks -->20 checks; CI runs the same command)
+- Check: `node check.mjs` (all <!-- claim: checks -->20 checks; CI runs the same command). Model retirement dates are checked as of `read` in `python/agents/models.toml`; `AGENT_POLICY_TODAY=YYYY-MM-DD` sets another day.
 - Check quickly: `node check.mjs --fast` skips the three test suites; the full run is what counts
 - After changing a pin: `node tools/lockfiles.mjs hashes`, `node setup.mjs`, then `node tools/install-paths.mjs`.
 - After changing a request or response model: `node tools/regenerate.mjs`, then fix what `node check.mjs` reports.
@@ -53,7 +53,7 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Test: `pytest`
 - Lint: `ruff check .` and `ruff format --check .`
 - Guardrails: `lint-imports`, and `python -m helpdesk_lint` for the lab's own rule
-- Policies: `python -m agent_policy` for agents (`--today` checks retirement dates as of a day), `python -m mcp_governance` for MCP servers (also `allowlist`, `audit`); `tests/policy_fixtures/` and `tests/catalog_fixtures/` show what each rule accepts and refuses
+- Policies: `python -m agent_policy` for agents, as of today (`--today`: another day), `python -m mcp_governance` for MCP servers (also `allowlist`, `audit`); `tests/policy_fixtures/` and `tests/catalog_fixtures/` show what each rule accepts and refuses
 - Run: `uvicorn --factory helpdesk.main:create_default_app` (`HELPDESK_DB` sets the database file)
 - The triage assistant: `python -m helpdesk.triage` (the mock, scripted); `--real "..."` calls Anthropic's API
 - Red team: `python -m helpdesk.injections run`, and `flag "text"`
@@ -74,15 +74,14 @@ TypeScript, from `ts/`:
 Scripts, from the repository root. Each has a test file beside it: run `node --test` on that file.
 
 - `node postings/tally.mjs postings/sample-2026-09-22.json` counts chapter 1's sample, a dated record: never edit its codes.
-- `node tools/harness-inventory.mjs <path>` lists the evidence a repository's files give for each part of a harness (chapter 4).
 - `node tools/install-paths.mjs` checks setup's Windows path limit against the installed packages (chapter 5).
 - `node tools/lockfiles.mjs` checks every pin has its hashes and what's installed matches the locks (chapter 20).
 - `node tools/instruction-files.mjs <path>` reports what each instruction file loads, and when (chapter 6).
 - `node tools/doc-claims.mjs [path]` checks the paths and marked numbers in these documents (chapter 8).
 - `node tools/progress.mjs [path]` shows the work list and the last log entry, and fails if a done item's test doesn't exist (chapter 10).
 - `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it; when you add a guard, add its entry (chapter 24).
-- `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command, with limits; `node tools/stand-in-agent.mjs` stands in for one (chapter 25).
-- `node tools/rework.mjs [path]` shows where fixes landed on recent agent work; `node tools/rework-demo.mjs <folder>` builds a history to try it on (chapter 31).
+- `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command, with limits (chapter 25).
+- For readers, each described in its header and the README: `tools/harness-inventory.mjs`, `tools/rework.mjs`.
 
 ## Rules
 

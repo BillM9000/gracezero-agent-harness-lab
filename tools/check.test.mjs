@@ -95,3 +95,14 @@ test("the lab's checks run as of the latest day a provider's section of python/a
   assert.equal(pinnedDay(ROOT), read.at(-1));
 });
 
+// The nightly job exists to notice a retirement the day its notice window opens, so it must not
+// inherit the pinned day: it runs python -m agent_policy itself, never through check.mjs.
+test("the nightly retirement job checks as of today, never a pinned day", () => {
+  const text = readFileSync(join(ROOT, ".github", "workflows", "nightly.yml"), "utf8").replaceAll("\r\n", "\n");
+  const code = (block) => block.split("\n").filter((line) => line.trim() && !line.trim().startsWith("#")).join("\n");
+  const jobs = (text.split(/^jobs:\n/m)[1] ?? "").split(/^(?= {2}[\w-]+:\n)/m);
+  const retirement = jobs.find((job) => /-m agent_policy\b/.test(code(job)));
+  assert.ok(retirement, "nightly.yml has no job that runs python -m agent_policy");
+  assert.doesNotMatch(code(retirement), /--today|check\.mjs/, "the retirement job must run python -m agent_policy as of today");
+  assert.doesNotMatch(code(text), new RegExp(VARIABLE), `nightly.yml must not set ${VARIABLE}: the retirement job checks as of today`);
+});

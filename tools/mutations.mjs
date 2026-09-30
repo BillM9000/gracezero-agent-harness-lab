@@ -640,6 +640,13 @@ export const MUTATIONS = [
     replace: "  if (false) {\n",
     run: checkTest("a day that isn't YYYY-MM-DD"),
   },
+  {
+    guard: "nightly: the retirement job checks as of today",
+    file: ".github/workflows/nightly.yml",
+    find: "      - run: .venv/bin/python -m agent_policy\n",
+    replace: "      - run: .venv/bin/python -m agent_policy --today 2026-09-24\n",
+    run: checkTest("the nightly retirement job checks as of today"),
+  },
 
   // Chapter 25: sending failures back to the agent, and the limits on doing it.
   {

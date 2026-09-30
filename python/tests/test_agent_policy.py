@@ -16,6 +16,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
+import lab_sample
 import pytest
 
 from agent_policy import AGENTS, MODELS, POLICY, TODAY_VARIABLE, load
@@ -237,7 +238,8 @@ def test_a_model_that_retires_later_is_suggested_by_name():
 
 
 def test_the_policy_command_checks_as_of_the_day_it_is_given(capsys):
-    assert main(["--today", "2027-07-01"]) == 1
+    # The lab's own definitions, whatever a reader has added beside them (tests/lab_sample.py).
+    assert main([*(str(AGENTS / name) for name in lab_sample.DEFINITIONS), "--today", "2027-07-01"]) == 1
     out = capsys.readouterr().out
     assert "agents/triage.toml: model: claude-opus-5-5 may retire as soon as 2027-09-22, in 83 days" in out
     # One problem a definition on claude-opus-5-5: the triage assistant, the orchestrator and the

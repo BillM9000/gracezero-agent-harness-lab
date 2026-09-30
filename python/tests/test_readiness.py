@@ -9,11 +9,11 @@ exceptions. Nothing here calls a model.
 from __future__ import annotations
 
 import copy
-import shutil
 from datetime import date
 from pathlib import Path
 from typing import Any
 
+import lab_sample
 import pytest
 
 from agent_policy import POLICY, today
@@ -256,7 +256,8 @@ def test_the_promotion_is_current_only_while_nothing_it_measured_changed(monkeyp
     assert found is not None and not found.current
 
 
-def test_the_check_passes_on_the_lab_and_says_whats_left(capsys):
+def test_the_check_passes_on_the_lab_and_says_whats_left(tmp_path, monkeypatch, capsys):
+    lab_copy(tmp_path, monkeypatch)
     assert command.main(["check"]) == 0
     out = capsys.readouterr().out
     assert "triage-assistant: production, high (score 5)" in out
@@ -265,8 +266,10 @@ def test_the_check_passes_on_the_lab_and_says_whats_left(capsys):
 
 
 def lab_copy(tmp_path: Path, monkeypatch) -> Path:
-    folder = tmp_path / "usecases"
-    shutil.copytree(USE_CASES, folder)
+    """A copy of the lab's own use cases, and its agent definitions, that the command reads instead, so
+    a use case a reader has started beside them changes nothing here (tests/lab_sample.py)."""
+    agents, folder = lab_sample.copy(tmp_path)
+    monkeypatch.setattr(command, "AGENTS", agents)
     monkeypatch.setattr(command, "USE_CASES", folder)
     return folder
 

@@ -4437,6 +4437,15 @@ export const MUTATIONS = [
     replace: "    if False:\n        print(\"\\n\".join(problems))",
     run: goldenTest("test_new_refuses_answers_it_cant_use_and_says_what_to_do"),
   },
+  // Chapter 29, after the 2026-09-30 review: a use case a reader starts with golden_path new sits
+  // beside the lab's own, and the tests that count the lab read only the lab's own files.
+  {
+    guard: "golden path: the tests that count the lab read only its own files",
+    file: "python/tests/lab_sample.py",
+    find: "        for name in names:\n",
+    replace: "        for name in (p.name for p in source.iterdir()):\n",
+    run: goldenTest("test_the_tests_that_count_the_lab_read_its_own_files_whatever_sits_beside_them"),
+  },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code
   // and data, a tool's configuration anywhere, file-wide silencing, and HEAD watched.

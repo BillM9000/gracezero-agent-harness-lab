@@ -5,12 +5,12 @@ are on it. Nothing here calls a model, and nothing is written outside a temporar
 
 from __future__ import annotations
 
-import shutil
 import tomllib
 from datetime import date
 from pathlib import Path
 from typing import Any
 
+import lab_sample
 import pytest
 
 from agent_policy.__main__ import main as policy_main
@@ -37,10 +37,9 @@ ANSWERS_ARGS = [
 
 
 def lab_copy(tmp_path: Path, monkeypatch) -> tuple[Path, Path]:
-    """Copies of agents/ and usecases/ that every command here reads and writes instead."""
-    agents, use_cases = tmp_path / "agents", tmp_path / "usecases"
-    shutil.copytree(readiness_command.AGENTS, agents)
-    shutil.copytree(USE_CASES, use_cases)
+    """Copies of the lab's own files in agents/ and usecases/ that every command here reads and
+    writes instead, so a use case a reader has started beside them changes nothing here."""
+    agents, use_cases = lab_sample.copy(tmp_path)
     for module in (command, readiness_command):
         monkeypatch.setattr(module, "AGENTS", agents)
         monkeypatch.setattr(module, "USE_CASES", use_cases)
@@ -65,6 +64,24 @@ def test_a_use_case_started_on_the_golden_path_passes_every_check_from_its_first
     assert command.main(["report", "--today", "2026-09-24"]) == 0
     assert "  on        ticket-summaries   building" in capsys.readouterr().out
     assert (use_cases / "ticket-summaries.toml").exists()
+
+
+def test_the_tests_that_count_the_lab_read_its_own_files_whatever_sits_beside_them(tmp_path):
+    # Chapter 29's Try it leaves a team's two files in agents/ and usecases/. The tests that count the
+    # lab's definitions and use cases read tests/lab_sample.py's copy, which leaves them out, so the
+    # suite passes with them in place, as the platform's checks do.
+    agents = tmp_path / "lab" / "agents"
+    use_cases = tmp_path / "lab" / "usecases"
+    for source, folder in ((readiness_command.AGENTS, agents), (USE_CASES, use_cases)):
+        folder.mkdir(parents=True)
+        for path in source.glob("*.toml"):
+            (folder / path.name).write_bytes(path.read_bytes())
+        (folder / "ticket-summaries.toml").write_text('name = "ticket-summaries"\n', encoding="utf-8")
+    copied_agents, copied_use_cases = lab_sample.copy(tmp_path / "copy", agents, use_cases)
+    assert sorted(p.name for p in copied_agents.iterdir()) == sorted(lab_sample.AGENT_FILES)
+    assert sorted(p.name for p in copied_use_cases.iterdir()) == sorted(lab_sample.USE_CASE_FILES)
+    original = readiness_command.AGENTS / "triage.toml"
+    assert (copied_agents / "triage.toml").read_bytes() == original.read_bytes()
 
 
 def test_the_check_passes_and_names_what_the_path_leaves_to_the_team(capsys):
@@ -252,7 +269,8 @@ def test_the_golden_state_takes_a_use_case_off_the_path_for_each_check():
     assert results(excused, definition, date(2026, 9, 25))["exceptions"] is True
 
 
-def test_the_report_counts_the_lab_by_team_and_by_check(capsys):
+def test_the_report_counts_the_lab_by_team_and_by_check(tmp_path, monkeypatch, capsys):
+    lab_copy(tmp_path, monkeypatch)
     assert command.main(["report", "--today", "2026-09-24"]) == 0
     out = capsys.readouterr().out
     assert "support-tools: 1 of 2 use case(s) on the golden path, and 1 proposed" in out

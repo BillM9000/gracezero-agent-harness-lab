@@ -18,7 +18,7 @@ import { join, posix } from "node:path";
 
 import { listFiles } from "./harness-inventory.mjs";
 
-const DOCS = ["README.md", "AGENTS.md", "CLAUDE.md", "templates/README.md"];
+const DOCS = ["README.md", "AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md", "SECURITY.md", "templates/README.md"];
 // Folders the lab's setup creates; git ignores them, so paths inside them can't be checked.
 const CREATED_BY_SETUP = ["python/.venv", "ts/node_modules"];
 

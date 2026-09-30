@@ -1,8 +1,47 @@
 # agent-harness-lab
 
-The companion lab for a plain-English book on AI platform engineering by Bill McCoy, in progress. Each guardrail the book teaches is built here, with a test that proves it catches what it claims to.
+The companion lab for *Keeping AI Agents Honest: What AI Platform Engineers and Architects Actually Do, and How to Do It*, by Bill McCoy (`<book-url>`). Each guardrail the book teaches is built here, with a test that proves it catches what it claims to, and each chapter's Try it steps run here. Everything runs against a deterministic mock model unless you ask for a real one, so none of it costs anything to run.
 
-## What is here so far
+## Quick start
+
+You need git, Node 24 and Python 3.12 or newer. CI runs the lab with Python 3.14 on Linux, Windows and macOS, and with Python 3.12, the oldest the package declares, on Linux.
+
+On Windows, clone into a short folder such as `C:\src`. One of the Python packages installs files with very long names, and Windows limits a whole path to 260 characters unless long paths are enabled. The setup script checks the length before it installs anything, and says what to do if your folder's path is too long.
+
+```bash
+git clone <clone-url> agent-harness-lab
+cd agent-harness-lab
+node setup.mjs
+node check.mjs
+```
+
+`node setup.mjs` creates `python/.venv` and installs the pinned Python packages, every download checked against its hash, and the TypeScript packages; it takes about a minute. `node check.mjs` runs every check, one line each, and takes a few minutes: about 2 on GitHub's Linux and macOS runners, and 4 to 6 on Windows. `node check.mjs --fast` leaves out the three test suites and takes seconds. CI runs the same two commands. `AGENTS.md` has every individual command and the rules for changing the code.
+
+Or open it in a codespace: on the repository's GitHub page, choose Code, then Codespaces, then Create codespace. `.devcontainer/devcontainer.json` gives it Python 3.14 and Node 24 and runs `node setup.mjs` once it starts, so `node check.mjs` is ready to run. The codespace's own time counts against your GitHub account's Codespaces allowance.
+
+**The checks give the same answer on any date.** Models have retirement dates (chapter 20), and the policy refuses an agent whose model may retire within 90 days, so a check against today's date would start failing on its own once a model's notice window opens. `node check.mjs` therefore checks the dates as of one day recorded in the repository: the latest `read` date in `python/agents/models.toml`, which has a section for each provider and, in each, the day its dates were copied from that provider's page. `AGENT_POLICY_TODAY` sets any other day, for `check.mjs` and for every Python command that checks the policy (`AGENT_POLICY_TODAY=2027-04-01 node check.mjs` in bash, `$env:AGENT_POLICY_TODAY = "2027-04-01"` then `node check.mjs` in PowerShell). Today's date is still checked where that's the point: `python -m agent_policy`, run on its own from `python/`, and the nightly workflow's retirement job.
+
+## The chapters' tags
+
+Each chapter's state of the repository has a tag, `ch01` to `ch36`, and `appB` for Appendix B. A tag holds everything the chapters before it built, and each chapter's Try it starts at its own: `git checkout ch05` shows the lab as chapter 5 left it, and `git checkout main` comes back to the newest. Run `node setup.mjs` after checking out a tag, since a tag may pin other packages; the virtual environment can keep packages a later tag installed, which the earlier code doesn't use. `CHANGELOG.md` records what each chapter added, and every change since.
+
+## Real models, credentials and caps
+
+Only a command given `--real` calls a model: setup, the checks and CI never do, and no workflow holds a key. `--real` calls each agent's model on its provider's API through the lab's gateway (`python/src/helpdesk/model/gateway.py`, chapter 27), which has an adapter for Anthropic's API and one for OpenAI's, and needs that provider's credential in your environment: `ANTHROPIC_API_KEY` for an Anthropic model, `OPENAI_API_KEY` for an OpenAI one. A command whose models need a credential that isn't set refuses in words before its first call. Keep a key in your environment, never in a file here (`SECURITY.md`).
+
+Two limits stand between a command and a bill. The commands that make many calls (`python -m helpdesk.evals`, `helpdesk.judge`, `helpdesk.gate` and `helpdesk.spec_review`) refuse `--real` without `--max-usd DOLLARS`, and stop before a call that could take the run past it; `python -m helpdesk.gate estimate` says what a gate run would cost first. And the gateway charges every call to the team that owns the agent, and refuses one that could take the team past its monthly budget (`monthly_usd` in `python/agents/policy.toml`: $50 for `support-tools`, the lab's one team). The triage assistant's own `--real` run is one conversation, held to its turn limit and its tokens a call. Every call the gateway makes, however it ends, is written to `records/gateway.jsonl`, which git ignores.
+
+## Opening it in Claude Code
+
+`.claude/settings.json` wires two hooks, so a Claude Code session in this repository runs them. Before every shell command, `tools/hooks/destructive-guard.mjs` looks for a command that can lose work, such as `git reset --hard` or `rm -rf`: it asks you first where Claude Code can show a prompt, and denies it in modes that can't. When the agent says it's done, `tools/hooks/stop-check.mjs` runs `node check.mjs --fast`, for up to 120 seconds, and sends any failure back to the agent, at most three rounds in a row. The same settings deny force pushes, and edits to the hooks and the settings through Claude Code's file tools. `CLAUDE.md` imports `AGENTS.md`, the rules any coding agent here follows, and `.claude/skills/add-a-guard/` is a skill for adding a guard the way those rules require.
+
+## CI, and what a fork gets
+
+`.github/workflows/ci.yml` runs `node setup.mjs` and `node check.mjs` on Linux, Windows and macOS with Python 3.14, and on Linux with 3.12, and chapter 16's Go, Java and .NET layer rules, on every push to `main` and every pull request that changes more than Markdown, and on request. `docs.yml` checks the documents and the kit when only Markdown changed. `nightly.yml` runs every planted break in `tools/mutations.mjs`, which takes up to 100 minutes, and checks the models' retirement dates as of the real day, every night at 04:17 UTC and on request. Every job's token can only read the code, and no workflow uses a secret, so none can bill a model provider.
+
+In a fork, GitHub's documentation says workflows don't run until you enable GitHub Actions in the fork's Actions tab. Then pushes run `ci` and `docs`, and the nightly job adds up to 100 minutes a day: free on a public fork's standard runners, and counted against a private fork's Actions minutes, at a higher rate for Windows and macOS. In a public repository GitHub switches scheduled workflows off after 60 days without activity. A pull request from a fork gets a token that can only read, which is all these jobs need.
+
+## What is here
 
 - **A small helpdesk service** in Python (FastAPI on SQLite): tickets, replies and a knowledge base, with invented sample data. It is split into three layers (routes, services, data), wired together in one place.
 - **A TypeScript client and command-line tool** for the helpdesk API.
@@ -36,7 +75,7 @@ The companion lab for a plain-English book on AI platform engineering by Bill Mc
 - **Skills by kind of job** (chapter 32): `node postings/skills.mjs postings/sample-2026-09-22.json --type KIND` counts what the sample's postings of one kind ask for, names the chapters that build each skill, and lays out a path through the book for that kind, starting from chapter 1's table. `--evidence` adds each chapter's lab files, the checks that show the work, and what the lab alone can't show, such as anything that needs a real model. `--questions` (chapter 33) prints each chapter's likely interview question under the skill it builds that most of those postings ask for: the postings list requirements, and the questions are the book's. The map, `postings/skills-map.json`, holds no counts, and the script refuses it when a skill is left out, a path isn't in the repository, a check isn't one `node check.mjs` runs, or a chapter has no question.
 - **When the code or its record could be the wrong one** (chapter 34): some checks compare the code with a record of what it should be, the API contract, the types made from it or a number a document claims. `node tools/fix-loop.mjs` stops an attempt that changes the record to match the code, because either side can be wrong and a person decides which; `node tools/stand-in-agent.mjs --rewrite-docs` makes such an attempt, so you can watch it stop.
 - **One guardrail's planted breaks at a time** (chapter 24): `node tools/mutate.mjs --only PREFIX` runs only the entries in `tools/mutations.mjs` whose name starts with the prefix, such as `"guard:"` for the destructive-command guard, and refuses the run when a prefix selects nothing, so a typo can't check nothing and report every mutation caught. `--list` prints every entry and every group, with how many entries each has, and runs nothing.
-- **A nightly job with room to finish** (chapter 36): the job in `.github/workflows/nightly.yml` that runs every entry now stops at 100 minutes, not 30, because full runs had reached 22 to 29 minutes on one Windows machine. A test in `tools/mutate.test.mjs` fails when the list outgrows the job, or the job stops running the whole list.
+- **A nightly job with room to finish** (chapter 36): the job in `.github/workflows/nightly.yml` that runs every entry stops at 100 minutes, room for 5 minutes of setup and 7 seconds an entry. A test in `tools/mutate.test.mjs` fails when the list outgrows the job, or the job stops running the whole list.
 - **The gap check** (Appendix B's Ask stage): `python -m helpdesk.spec_review BRIEF --out GAPS.json` sends an intake brief, as a JSON string, to each reviewer defined in `python/agents/` (`spec-reviewer-a.toml` and `spec-reviewer-b.toml`, on two providers' models, Anthropic's and OpenAI's), merges the questions they say it leaves open, and writes them as a gap list in the kit's format, with who decides each and the decision left for a person. An answer it can't read stops the run with nothing written, and a second run onto the same file keeps every decision and adds only new questions. On the mock, the reviewers play `python/spec-review/scripted.json`, and `check`, one of the checks, proves the mock turns the kit's example brief into the kit's example gap list; `--real` calls the models through the gateway and needs `--max-usd` and both providers' credentials.
 - **The Zero to Prod kit** (Appendix B): `templates/` holds every file the path from a request to production produces, by stage. Ask: an intake brief, and a gap list with its decisions. Agree: a one-page project spec, and a locked spec whose features each rest on a decision and name their proof test, with a states document generated from it. Ship: a skill, the guard and Stop hook with the settings that wire them, a handoff, a changelog convention, a change record, a release card with its deploy declaration and a runbook with stage gates, beside the instruction files, work list, CI workflows, lint rule and fitness test. Prove: a claims file, from which `node tools/claims.mjs` measures and writes a proof page, and a judge's rubric. Each has a filled example and its check (`node tools/kit.mjs` for the documents, decisions, skills and changelog; `node tools/features-lock.mjs` for the locked spec), and `tools/templates.test.mjs` proves each; `templates/README.md` lists them all. Chapter 31's assessment checklist is there too, for a person; no code runs it.
 - **One command to set up and one to check** (chapter 5): `node setup.mjs` and `node check.mjs`, the same two commands CI runs.
@@ -48,29 +87,10 @@ The companion lab for a plain-English book on AI platform engineering by Bill Mc
 
 Each chapter that adds to the lab says what it added in `CHANGELOG.md`.
 
-## Quick start
+## Contributing, and reporting a security problem
 
-You need Python and Node. The lab is tested with Python 3.14 and Node 24. The Python package declares 3.12 as its minimum, which hasn't been tested.
-
-On Windows, clone into a short folder such as `C:\src`. One of the Python packages installs files with very long names, and Windows limits a whole path to 260 characters unless long paths are enabled. The setup script checks the length before it installs anything, and says what to do if your folder's path is too long.
-
-From the repository's root folder:
-
-```bash
-node setup.mjs
-node check.mjs
-```
-
-`setup.mjs` creates `python/.venv`, installs the pinned Python packages and the TypeScript packages. `check.mjs` runs every check and prints one line each; CI runs the same two commands. Run `node setup.mjs` again after pulling a new chapter, in case the pinned packages changed.
-
-**The checks give the same answer on any date.** Models have retirement dates (chapter 20), and the policy refuses an agent whose model may retire within 90 days, so a check against today's date would start failing on its own once a model's notice window opens. `node check.mjs` therefore checks the dates as of one day recorded in the repository: the latest `read` date in `python/agents/models.toml`, which has a section for each provider and, in each, the day its dates were copied from that provider's page. `AGENT_POLICY_TODAY` sets any other day, for `check.mjs` and for every Python command that checks the policy (`AGENT_POLICY_TODAY=2027-04-01 node check.mjs` in bash, `$env:AGENT_POLICY_TODAY = "2027-04-01"` then `node check.mjs` in PowerShell). Today's date is still checked where that's the point: `python -m agent_policy`, run on its own from `python/`, and the nightly workflow's retirement job.
-
-Or open it in a codespace: on the repository's GitHub page, choose Code, then Codespaces, then Create codespace. `.devcontainer/devcontainer.json` gives it Python 3.14 and Node 24 and runs `node setup.mjs` once it starts, so `node check.mjs` is ready to run. Setup and the checks run against the mock model, so no model provider bills anything (only a command given `--real` calls one); the codespace's own time counts against your GitHub account's Codespaces allowance.
-
-Each chapter's state of the repository has a tag: `git checkout ch03` shows the lab as chapter 3 left it.
-
-`AGENTS.md` has every individual command and the rules for changing the code.
+`CONTRIBUTING.md` says how to propose a change and what every change needs; `SECURITY.md` says how to report a vulnerability privately.
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See `LICENSE`. The kit in `templates/` is under the same license.

@@ -9,6 +9,13 @@ What each working session did, newest first. Add an entry at the end of every se
 - Not run: `--real`, for any command; no key was set, and nothing called a provider. The full `node tools/mutate.mjs`; the nightly job runs it.
 - Next: the history rebuild places each change before its chapter's tag; chapters 15, 16, 18, 20, 22, 27 and 30 and Appendix B quote files these changes touched (`CHANGELOG.md` names them).
 
+## 2026-09-30: the review's lab work, the kit and the gap check
+
+- `node check.mjs` checks retirement dates as of `read` in `python/agents/models.toml` (`AGENT_POLICY_TODAY` overrides); the nightly retirement job still uses the real day. Seven defects from the review fixed, each with planted breaks (the MCP audit's order, the quoted customer name, the golden-path tests, ids too big for SQLite, chapter 35's second guardrail, the contract's generated marker, `mutate.mjs --list`). CI adds macOS and Python 3.12; the nightly workflow is enabled on GitHub. `templates/` became the Zero to Prod kit, with `tools/kit.mjs`, `tools/features-lock.mjs` and `tools/claims.mjs`. `python -m helpdesk.spec_review` is the gap check, and its `check` the 27th check. The README, `CONTRIBUTING.md` and `SECURITY.md` are written for a stranger; P01 is described like the other postings.
+- Checked with: `node check.mjs` before each commit (all checks passed each time); `node tools/mutate.mjs --only` for every group each change touched, on the working tree before commit and on the commit after; `gh workflow run ci.yml`, whose seven jobs passed, the macOS and Python 3.12 legs included (`CHANGELOG.md` has the details).
+- Not run: `--real`, for any command, and the full `node tools/mutate.mjs`; the nightly job runs it.
+- Next: the tag rebuild places each change at its chapter's tag (`CHANGELOG.md` names each one), and moves the capstone to chapter 30.
+
 ## 2026-09-27: the intermittent rework test
 
 - `tools/rework.test.mjs` failed now and then on a `git commit` that exited 1 with nothing on stderr. The cause: Windows refused git a file it had just written ("Permission denied" on renaming an object or the index into place, while another program held it open), the helper ignored the failed `git add -A`, and the commit said "no changes added" on stdout only. `CHANGELOG.md` has the evidence and what was ruled out.

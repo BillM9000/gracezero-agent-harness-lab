@@ -104,6 +104,8 @@
 
 - **`ci.yml`'s check job runs on `ubuntu-latest`, `windows-latest` and `macos-latest` with Python 3.14, and once more on `ubuntu-latest` with Python 3.12**, the minimum `python/pyproject.toml` declares (`requires-python = ">=3.12"`), which no run had tested. `setup-python` takes `${{ matrix.python }}`; the timeouts are unchanged (30 minutes for the check job). Appendix B's `templates/workflows/ci.yml` carries the same matrix, with two `TEMPLATE:` lines, so it still matches the lab's workflow line for line.
 - `tools/check.test.mjs`: the CI test also requires the three systems, the matrix's Python in `setup-python`, and a leg at the Python version `requires-python` names, read from the file. 3 new entries in `tools/mutations.mjs` (671), under `check:`; they and the 9 workflow entries under `templates:` applied and caught on the working tree before commit.
+- The nightly workflow is enabled on GitHub after this push (`gh workflow enable nightly.yml`); the file is unchanged.
+- Checked with: `node check.mjs`, all 26 checks passed (231 seconds), on Windows with Python 3.14; the new legs run on GitHub.
 
 ## 2026-09-30, seven defects from the review of 2026-09-30, each with a planted break
 

@@ -27,6 +27,39 @@ const PROGRESS = "tools/progress.mjs";
 const progressTest = (name) => nodeTest("tools/progress.test.mjs", name);
 
 export const MUTATIONS = [
+  // Chapter 3, after the 2026-09-30 review: an id too big for SQLite is one that doesn't exist.
+  {
+    guard: "data: a ticket number too big for SQLite is a missing ticket",
+    file: "python/src/helpdesk/data/repository.py",
+    find: "    if ticket_id not in IDS:\n        return None\n",
+    replace: "",
+    run: pytest(
+      "tests/test_triage_tools.py::test_a_ticket_number_too_big_for_sqlite_is_a_ticket_that_doesnt_exist",
+      "tests/test_api.py::test_an_id_too_big_for_sqlite_is_one_that_does_not_exist",
+    ),
+  },
+  {
+    guard: "data: a customer id too big for SQLite is a missing customer",
+    file: "python/src/helpdesk/data/repository.py",
+    find: "    if customer_id not in IDS:\n        return False\n",
+    replace: "",
+    run: pytest("tests/test_api.py::test_an_id_too_big_for_sqlite_is_one_that_does_not_exist"),
+  },
+  {
+    guard: "data: a staff id too big for SQLite is a missing member of staff",
+    file: "python/src/helpdesk/data/repository.py",
+    find: "    if staff_id not in IDS:\n        return False\n",
+    replace: "",
+    run: pytest("tests/test_api.py::test_an_id_too_big_for_sqlite_is_one_that_does_not_exist"),
+  },
+  {
+    guard: "data: the ids SQLite can store are 8 bytes, signed",
+    file: "python/src/helpdesk/data/repository.py",
+    find: "IDS = range(-(2**63), 2**63)",
+    replace: "IDS = range(-(2**63), 2**64)",
+    run: pytest("tests/test_triage_tools.py::test_a_ticket_number_too_big_for_sqlite_is_a_ticket_that_doesnt_exist"),
+  },
+
   // Chapter 16: import rules in Python.
   {
     guard: "import-linter: only helpdesk.model imports the anthropic SDK",
@@ -641,6 +674,42 @@ export const MUTATIONS = [
     replace: "      if (false) problems.push(",
     run: nodeTest("postings/tally.test.mjs", "a missing or misspelled field that may be null"),
   },
+  // Chapter 1, the sample extended: the gateway signal, and the fields that date each posting.
+  {
+    guard: "tally: the gateway is checked like every other signal",
+    file: "postings/tally.mjs",
+    find: '  "gateway",\n];',
+    replace: "];",
+    run: nodeTest("postings/tally.test.mjs", "a missing gateway code stops the run"),
+  },
+  {
+    guard: "tally: every posting has the day it was read",
+    file: "postings/tally.mjs",
+    find: "    if (!isDate(p.readOn)) {",
+    replace: "    if (false) {",
+    run: nodeTest("postings/tally.test.mjs", "a posting without its read date stops the run"),
+  },
+  {
+    guard: "tally: a gateway basis is text, reread or note",
+    file: "postings/tally.mjs",
+    find: 'if ("gatewayBasis" in p && !GATEWAY_BASIS.includes(p.gatewayBasis)) {',
+    replace: "if (false) {",
+    run: nodeTest("postings/tally.test.mjs", "a gateway basis must be text, reread or note"),
+  },
+  {
+    guard: "tally: an architect title says whether public work is asked for",
+    file: "postings/tally.mjs",
+    find: 'if ((isArchitect(p) || "publicWorkAsked" in p) && ',
+    replace: 'if (("publicWorkAsked" in p) && ',
+    run: nodeTest("postings/tally.test.mjs", "an architect title without publicWorkAsked"),
+  },
+  {
+    guard: "tally: every exclusion record has the day it was screened",
+    file: "postings/tally.mjs",
+    find: "    if (isDate(e?.screenedOn)) return;",
+    replace: "    return;",
+    run: nodeTest("postings/tally.test.mjs", "an exclusion record without its screening date"),
+  },
 
   // Chapter 7: the client's consumer test calls every method the client has.
   {
@@ -649,5 +718,13 @@ export const MUTATIONS = [
     find: "  searchKb(query: string, limit = 5): Promise<KbArticle[]> {",
     replace: '  reopenTicket(id: number): Promise<Ticket> {\n    return this.#request("POST", `/tickets/${id}/reopen`);\n  }\n\n  searchKb(query: string, limit = 5): Promise<KbArticle[]> {',
     run: vitest("test/contract.test.ts", "calls every method the client has"),
+  },
+  // Chapter 7, after the 2026-09-30 review: the contract says what generated it.
+  {
+    guard: "contract: the contract says what made it",
+    file: "python/src/helpdesk/contract.py",
+    find: '    return {**doc, "info": {**doc["info"], "x-generated-by": GENERATED_BY}}',
+    replace: "    return doc",
+    run: pytest("tests/test_contract.py::test_the_contract_says_what_made_it_in_its_first_lines"),
   },
 ];

@@ -57,10 +57,10 @@ def test_a_low_turn_limit_stops_the_demo_and_says_why():
 def test_the_demo_says_who_the_assistant_acts_for_and_its_tools_act_for_them():
     sam = triage().stdout
     assert "Acting for: Sam Rivera (support)" in sam
-    assert "Ada Park's other tickets that Sam Rivera can see: #11 [open]" in sam
+    assert "The customer's other tickets that Sam Rivera can see: #11 [open]" in sam
     dana = triage("--as", "dana").stdout
     assert "Acting for: Dana Whitfield (lead)" in dana
-    assert "Ada Park's other tickets that Dana Whitfield can see: #4 [closed]" in dana
+    assert "The customer's other tickets that Dana Whitfield can see: #4 [closed]" in dana
 
 
 def test_an_unknown_person_is_refused_before_anything_runs():

@@ -63,7 +63,7 @@ def test_lists_and_counts_hold_only_what_the_person_can_see(conn):
 def test_the_customers_other_tickets_are_trimmed_too(conn):
     # Ada's ticket 4 is Dana's, so it's missing from what Sam is told about Ada, and present for Dana.
     assert run(conn, "sam", "get_ticket", ticket_id=1).content.endswith(
-        "Ada Park's other tickets that Sam Rivera can see: "
+        "The customer's other tickets that Sam Rivera can see: "
         '#11 [open] "Notifications too frequent" (2026-09-07).'
     )
     assert '#4 [closed] "App crashes on login"' in run(conn, "dana", "get_ticket", ticket_id=1).content

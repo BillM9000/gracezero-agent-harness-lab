@@ -326,6 +326,12 @@ def search_kb_tool(conn: sqlite3.Connection) -> Tool:
     return Tool(SEARCH_KB, search_kb)
 
 
+def author(reply: dict[str, Any]) -> str:
+    """Who wrote a reply, as the model reads it. A customer's name is text the customer chose, so it's
+    marked as a JSON string, like their words (chapter 20); a member of staff's is the helpdesk's."""
+    return quoted(reply["author_name"]) if reply["author_kind"] == "customer" else reply["author_name"]
+
+
 def proposal_line(proposal: dict[str, Any]) -> str:
     """One proposed change, as the assistant reads it back on its ticket (chapter 19)."""
     what = f"#{proposal['id']} {proposal['kind']}"
@@ -345,19 +351,20 @@ def triage_tools(conn: sqlite3.Connection, person: Person, exposure: Exposure | 
         ticket = tickets.ticket_in_context(conn, person, ticket_id)
         assigned = f"Assigned to {ticket['assignee_name']}." if ticket["assignee_name"] else "Unassigned."
         # Chapter 20: what the customer typed goes out as JSON strings, labeled, and the run notes it.
-        customer_wrote = [ticket["subject"], ticket["body"]]
+        # Their name is theirs too: a helpdesk that takes names from customers takes whatever they type.
+        customer_wrote = [ticket["customer_name"], ticket["subject"], ticket["body"]]
         customer_wrote += [r["body"] for r in ticket["replies"] if r["author_kind"] == "customer"]
         seen.read(f"ticket {ticket['id']}, written by the customer", *customer_wrote)
         state = f"[{ticket['status']}, {ticket['priority']} priority]"
         lines = [
             f"Ticket {ticket['id']} {state}: {quoted(ticket['subject'])}",
-            f"From {ticket['customer_name']}, opened {ticket['created_at'][:10]}. {assigned}",
+            f"From {quoted(ticket['customer_name'])}, opened {ticket['created_at'][:10]}. {assigned}",
             f"The customer wrote: {quoted(ticket['body'])}",
         ]
         if ticket["replies"]:
             lines.append("Replies, oldest first:")
             lines += [
-                f"  {r['author_name']} ({r['author_kind']}), {r['created_at'][:10]}: "
+                f"  {author(r)} ({r['author_kind']}), {r['created_at'][:10]}: "
                 + (quoted(r["body"]) if r["author_kind"] == "customer" else r["body"])
                 for r in ticket["replies"]
             ]
@@ -369,7 +376,7 @@ def triage_tools(conn: sqlite3.Connection, person: Person, exposure: Exposure | 
             f"#{t['id']} [{t['status']}] {quoted(t['subject'])} ({t['created_at'][:10]})"
             for t in ticket["other_tickets"]
         ]
-        whose = f"{ticket['customer_name']}'s other tickets that {person.name} can see"
+        whose = f"The customer's other tickets that {person.name} can see"
         lines.append(f"{whose}: {'; '.join(others) or 'none'}.")
         if ticket["proposals"]:
             # Chapter 19: what became of each change proposed here. A rejection's reason is the
@@ -393,10 +400,11 @@ def triage_tools(conn: sqlite3.Connection, person: Person, exposure: Exposure | 
             f"Page {found.page} of {found.pages}."
         ]
         for t in found.tickets:
-            seen.read(f"ticket {t['id']}, written by the customer", t["subject"])
+            seen.read(f"ticket {t['id']}, written by the customer", t["customer_name"], t["subject"])
             lines.append(
-                f"#{t['id']} [{t['status']}, {t['priority']}] {quoted(t['subject'])} ({t['customer_name']}; "
-                f"{t['assignee_name'] or 'unassigned'}; opened {t['created_at'][:10]})"
+                f"#{t['id']} [{t['status']}, {t['priority']}] {quoted(t['subject'])} "
+                f"({quoted(t['customer_name'])}; {t['assignee_name'] or 'unassigned'}; "
+                f"opened {t['created_at'][:10]})"
             )
         if found.page < found.pages:
             n = found.page + 1

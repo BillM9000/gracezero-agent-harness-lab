@@ -45,13 +45,13 @@ def test_get_ticket_reads_the_ticket_in_context(conn):
     assert not result.is_error
     assert result.content.splitlines() == [
         'Ticket 5 [closed, low priority]: "Can I downgrade mid-month?"',
-        "From Ben Okafor, opened 2026-08-12. Assigned to Sam Rivera.",
+        'From "Ben Okafor", opened 2026-08-12. Assigned to Sam Rivera.',
         'The customer wrote: "If I move from Pro to Free today, do I lose Pro straight away?"',
         "Replies, oldest first:",
         "  Sam Rivera (staff), 2026-08-12: No: plan changes take effect at the next billing date, and "
         "until then you keep Pro.",
-        '  Ben Okafor (customer), 2026-08-12: "Thanks, that\'s clear."',
-        'Ben Okafor\'s other tickets that Sam Rivera can see: #2 [open] "Invoice shows the wrong plan" '
+        '  "Ben Okafor" (customer), 2026-08-12: "Thanks, that\'s clear."',
+        'The customer\'s other tickets that Sam Rivera can see: #2 [open] "Invoice shows the wrong plan" '
         '(2026-09-02); #12 [open] "API token stopped working" (2026-09-08).',
     ]
 
@@ -80,7 +80,9 @@ def test_find_tickets_lists_in_the_order_to_handle_them(conn):
         "Tickets Sam Rivera can see (open or pending, any assignee): 8, highest priority first. Page 1 of 2."
     )
     assert [line.split()[0] for line in lines[1:6]] == ["#1", "#12", "#2", "#6", "#8"]
-    assert lines[1] == '#1 [open, high] "Cannot reset my password" (Ada Park; unassigned; opened 2026-09-01)'
+    assert lines[1] == (
+        '#1 [open, high] "Cannot reset my password" ("Ada Park"; unassigned; opened 2026-09-01)'
+    )
 
 
 def test_search_kb_returns_passages_each_with_an_id_to_cite(conn):

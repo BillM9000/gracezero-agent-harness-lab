@@ -3,6 +3,7 @@ result counted in code whatever the orchestrator's summary says."""
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 
@@ -83,7 +84,7 @@ def test_each_worker_starts_with_only_its_brief_and_only_reading_tools(conn):
         first = model.calls[0]
         assert [m.role for m in first.messages] == ["user"]
         assert first.messages[0].content.startswith(patterns.BRIEF)
-        assert f"all from {customer}." in first.messages[0].content
+        assert f"all from {json.dumps(customer)}." in first.messages[0].content
         assert patterns.BATCH_TASK not in first.messages[0].content
         assert [t.name for t in first.tools] == list(WORKER_TOOLS) == ["get_ticket", "search_kb"]
 
@@ -102,6 +103,13 @@ def test_a_customer_delegated_twice_is_refused_and_keeps_one_worker(conn):
     second = results_of(lead)[1]
     assert second[0] is True
     assert second[1].startswith("Ada Park was already delegated. One worker handles every ticket")
+
+
+def test_a_name_sent_with_the_quotes_find_tickets_shows_is_the_same_customer(conn):
+    # find_tickets shows each name as a JSON string (chapter 20), quotes and all.
+    result, _, made = run(conn, delegating('"Ada Park"', '"Ben Okafor"'))
+    assert list(made) == ["Ada Park", "Ben Okafor"]
+    assert result.accounting.drafted == ("Ada Park", "Ben Okafor")
 
 
 def test_an_unknown_customer_is_refused_with_how_to_name_one(conn):
@@ -301,7 +309,7 @@ def test_a_shared_name_delegates_one_customer_at_a_time_and_the_count_names_each
     workers = {first: patterns.worker_script("Ada Park")}
     result, lead, made = run(conn, delegating("Ada Park"), workers=workers)
     assert list(made) == [first]
-    assert "all from Ada Park." in made[first].calls[0].messages[0].content
+    assert 'all from "Ada Park".' in made[first].calls[0].messages[0].content
     is_error, content = results_of(lead)[0]
     assert not is_error
     assert content.endswith(
@@ -321,7 +329,7 @@ def test_a_shared_name_delegated_again_goes_to_the_other_customer(conn):
     }
     _, lead, made = run(conn, delegating("Ada Park", "Ada Park", "Ada Park"), workers=workers)
     assert list(made) == [first, other]
-    assert f"The tickets: #{second}, all from Ada Park." in made[other].calls[0].messages[0].content
+    assert f'The tickets: #{second}, all from "Ada Park".' in made[other].calls[0].messages[0].content
     third = results_of(lead)[2]
     assert third[0] is True and third[1].startswith("Ada Park was already delegated.")
 

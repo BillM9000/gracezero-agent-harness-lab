@@ -24,6 +24,7 @@ first of them not yet delegated.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -36,6 +37,7 @@ from helpdesk.services import citations, tickets
 from helpdesk.services.access import Person
 from helpdesk.services.citations import CitationReport
 from helpdesk.services.errors import Conflict, NotFound, ServiceError
+from helpdesk.services.untrusted import quoted
 
 # What a worker may use: reading only, and no delegate_customer, so a worker can't start workers.
 WORKER_TOOLS = ("get_ticket", "search_kb")
@@ -54,7 +56,8 @@ DELEGATE = ToolSpec(
             "customer_name": {
                 "type": "string",
                 "minLength": 1,
-                "description": "The customer's full name as find_tickets shows it, such as Ben Okafor.",
+                "description": "The customer's full name as find_tickets shows it, without the quotes, "
+                "such as Ben Okafor.",
             },
             "brief": {
                 "type": "string",
@@ -176,6 +179,19 @@ def numbers(ids: Collection[int]) -> str:
     return ", ".join(f"#{i}" for i in ids)
 
 
+def unquoted(name: str) -> str:
+    """A customer's name as delegate_customer was given it. find_tickets shows each name as a JSON
+    string (chapter 20), so a name that arrives with its quotes is read back to the name inside them."""
+    if len(name) >= 2 and name[0] == name[-1] == '"':
+        try:
+            value = json.loads(name)
+        except ValueError:
+            return name
+        if isinstance(value, str):
+            return value
+    return name
+
+
 def citing_nothing(count: int) -> str:
     """Sentences no citation vouches for, counted in plain words."""
     return "1 sentence cites nothing" if count == 1 else f"{count} sentences cite nothing"
@@ -212,6 +228,7 @@ class Team:
 
     def delegate(self, customer_name: str, brief: str) -> str:
         customers = self.customers()
+        customer_name = unquoted(customer_name)
         named = (
             [customer_name]
             if customer_name in customers
@@ -231,7 +248,8 @@ class Team:
         label = waiting[0]
         name, ids = customers[label]
         toolbox = triage_tools(self.conn, self.person).only(WORKER_TOOLS)
-        task = f"{brief}\nThe tickets: {numbers(ids)}, all from {name}."
+        # The name is the customer's own text, so the worker reads it as a JSON string (chapter 20).
+        task = f"{brief}\nThe tickets: {numbers(ids)}, all from {quoted(name)}."
         try:
             run = run_agent(
                 self.worker_model(label),

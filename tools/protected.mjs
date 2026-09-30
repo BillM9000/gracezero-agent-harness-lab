@@ -58,6 +58,7 @@ export const CHECK_FILES = {
     /^python\/src\/golden_path\//,
     /^python\/golden-path\//,
   ],
+  "Spec review (python -m helpdesk.spec_review check)": [/^python\/src\/helpdesk\/spec_review\.py$/, /^python\/spec-review\//],
   "API contract (python -m helpdesk.contract)": [/^python\/src\/helpdesk\/contract\.py$/],
   "Python tests (pytest)": [/^python\/tests\//, /^python\/pyproject\.toml$/],
   "TypeScript API types (npm run api-types)": [/^ts\/scripts\//, /^ts\/package\.json$/],

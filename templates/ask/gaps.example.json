@@ -1,11 +1,11 @@
 {
-  "about": "A filled example of templates/ask/gaps.json: the gaps the gap check found in templates/ask/intake-brief.example.md, each assigned and decided. The request is illustrative and the people are the lab's invented staff.",
+  "about": "A filled example of templates/ask/gaps.json: the gaps the gap check (python -m helpdesk.spec_review, on the mock) found in templates/ask/intake-brief.example.md, each assigned and decided. The request is illustrative and the people are the lab's invented staff.",
   "brief": "intake-brief.example.md",
   "gaps": [
     {
       "id": "G1",
       "question": "Who may approve closing a ticket: any member of staff, or only a lead?",
-      "found_by": ["spec review: reviewer-a", "spec review: reviewer-b"],
+      "found_by": ["spec-reviewer-a", "spec-reviewer-b"],
       "decides": "owner",
       "decision": "Only a lead may approve closing a ticket. Support staff may approve replies on tickets assigned to them.",
       "by": "Dana Whitfield",
@@ -14,7 +14,7 @@
     {
       "id": "G2",
       "question": "What happens to a proposal nobody decides?",
-      "found_by": ["spec review: reviewer-a"],
+      "found_by": ["spec-reviewer-a"],
       "decides": "owner",
       "decision": "It waits in the queue, and the assistant says it's waiting when it reads the ticket. Nothing expires.",
       "by": "Dana Whitfield",
@@ -23,7 +23,7 @@
     {
       "id": "G3",
       "question": "Does rejecting a proposal need a reason, and does the assistant see it?",
-      "found_by": ["spec review: reviewer-b"],
+      "found_by": ["spec-reviewer-b"],
       "decides": "owner",
       "decision": "A rejection needs a reason, and the assistant reads it word for word the next time it reads the ticket.",
       "by": "Dana Whitfield",
@@ -32,7 +32,7 @@
     {
       "id": "G4",
       "question": "What if two people decide the same proposal at once?",
-      "found_by": ["spec review: reviewer-a"],
+      "found_by": ["spec-reviewer-a"],
       "decides": "build",
       "decision": "The first decision wins. The second is refused in words, recorded, and changes nothing.",
       "by": "Sam Rivera",
@@ -41,7 +41,7 @@
     {
       "id": "G5",
       "question": "Where is it written whose approval each tool that changes something needs?",
-      "found_by": ["spec review: reviewer-b"],
+      "found_by": ["spec-reviewer-b"],
       "decides": "template",
       "decision": "The platform's policy (python/agents/policy.toml, [writes]) sets the least approval for each tool, and each agent's definition names its own, never less.",
       "by": "Alex Moreno",
@@ -50,7 +50,7 @@
     {
       "id": "G6",
       "question": "Should the assistant email a customer directly when a reply is urgent?",
-      "found_by": ["spec review: reviewer-a"],
+      "found_by": ["spec-reviewer-a"],
       "decides": "owner",
       "decision": "No. Nothing the assistant can reach sends anything outside the helpdesk; an urgent reply waits for approval like any other.",
       "by": "Dana Whitfield",

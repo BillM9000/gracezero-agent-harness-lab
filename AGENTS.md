@@ -46,7 +46,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (`python/.venv`, the pinned packages, `npm ci`)
-- Check: `node check.mjs` (all <!-- claim: checks -->26 checks; CI runs the same command). Model retirement dates are checked as of the latest `read` in `python/agents/models.toml`; `AGENT_POLICY_TODAY=YYYY-MM-DD` sets another.
+- Check: `node check.mjs` (all <!-- claim: checks -->27 checks; CI runs the same command). Model retirement dates are checked as of the latest `read` in `python/agents/models.toml`; `AGENT_POLICY_TODAY=YYYY-MM-DD` sets another.
 - Check quickly: `node check.mjs --fast` (no test suites; the full run counts)
 - After changing a pin: `node tools/lockfiles.mjs hashes`, `node setup.mjs`, then `node tools/install-paths.mjs`.
 - After changing a request or response model: `node tools/regenerate.mjs`, then fix what `node check.mjs` reports.
@@ -63,6 +63,7 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Golden sets, judges and the gate: `python -m helpdesk.evals`, `helpdesk.judge` and `helpdesk.gate`, each with `check`; `--help` lists the rest (`--real` is billed and needs `--max-usd`); `helpdesk.calls FILE` sums a `gate run --record FILE`
 - The gateway: `python -m helpdesk.gateway check`, `demo` and `report FILE`; real calls go in `records/gateway.jsonl`
 - Use cases: `python -m helpdesk.readiness check` (also `triage`, `fingerprint`); `python -m helpdesk.golden_path new NAME` starts one (also `check`, `report`)
+- The gap check: `python -m helpdesk.spec_review BRIEF --out GAPS.json` (also `check`)
 - Knowledge base: `python -m helpdesk.kb eval` (`--help` lists the rest)
 - Tools and patterns: `python -m helpdesk.tools` and `helpdesk.patterns` (`--help`)
 - Approvals: `python -m helpdesk.approvals list --as sam` (`--help`)
@@ -86,7 +87,7 @@ Scripts, from the root; each has a test beside it, for `node --test`.
 - `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it (`--list` lists them; `--only PREFIX` runs a group); when you add a guard, add its entry (chapter 24).
 - `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command, with limits (chapter 25).
 - The kit's checks: `node tools/kit.mjs`, `tools/features-lock.mjs` and `tools/claims.mjs`.
-- For readers, each described in its header and the README: `tools/harness-inventory.mjs`, `tools/rework.mjs`, `tools/measure.mjs`.
+- For readers (see the README): `tools/harness-inventory.mjs`, `tools/rework.mjs`, `tools/measure.mjs`.
 
 ## Rules
 

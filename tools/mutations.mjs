@@ -124,6 +124,9 @@ const FEATURES_LOCK = "tools/features-lock.mjs";
 const featuresLockTest = (name) => nodeTest("tools/features-lock.test.mjs", name);
 const CLAIMS = "tools/claims.mjs";
 const claimsTest = (name) => nodeTest("tools/claims.test.mjs", name);
+// The gap check, proved by python/tests/test_spec_review.py.
+const SPEC_REVIEW = "python/src/helpdesk/spec_review.py";
+const specTest = (name) => pytest(`tests/test_spec_review.py::${name}`);
 
 export const MUTATIONS = [
   // Chapter 3, after the 2026-09-30 review: an id too big for SQLite is one that doesn't exist.
@@ -4456,6 +4459,106 @@ export const MUTATIONS = [
     find: "        for name in names:\n",
     replace: "        for name in (p.name for p in source.iterdir()):\n",
     run: goldenTest("test_the_tests_that_count_the_lab_read_its_own_files_whatever_sits_beside_them"),
+  },
+
+  // The gap check (python -m helpdesk.spec_review, Appendix B's Ask stage).
+  {
+    guard: "spec review: the brief reaches a reviewer as a JSON string",
+    file: SPEC_REVIEW,
+    find: '        f"{quoted(brief)}\\n\\n"',
+    replace: '        f"{brief}\\n\\n"',
+    run: specTest("test_the_brief_reaches_a_reviewer_as_a_json_string_it_cant_break_out_of"),
+  },
+  {
+    guard: "spec review: an answer that can't be read stops the run",
+    file: SPEC_REVIEW,
+    find: "        raise ReviewFailed(f\"{definition['name']}'s answer can't be read: {error}\") from error",
+    replace: "        return []",
+    run: specTest("test_a_malformed_answer_a_refusal_or_a_cut_off_answer_stops_the_run_and_writes_nothing"),
+  },
+  {
+    guard: "spec review: a refusal or a cut-off answer is no answer",
+    file: SPEC_REVIEW,
+    find: "        text = final_text(response)",
+    replace: "        text = response.text  # HDK101: planted",
+    run: specTest("test_a_malformed_answer_a_refusal_or_a_cut_off_answer_stops_the_run_and_writes_nothing"),
+  },
+  {
+    guard: "spec review: nothing is written when a reviewer fails",
+    file: SPEC_REVIEW,
+    find: '        print(f"{failed}\\nNothing was written.")\n        return 1\n',
+    replace: '        print(f"{failed}\\nNothing was written.")\n        found, chosen = {}, []\n',
+    run: specTest("test_a_malformed_answer_a_refusal_or_a_cut_off_answer_stops_the_run_and_writes_nothing"),
+  },
+  {
+    guard: "spec review: an answer lists at most ten questions",
+    file: SPEC_REVIEW,
+    find: "    if len(gaps) > MAX_GAPS:",
+    replace: "    if False:",
+    run: specTest("test_every_malformed_answer_is_refused"),
+  },
+  {
+    guard: "spec review: each gap is a question",
+    file: SPEC_REVIEW,
+    find: '        if not question.strip().endswith("?"):',
+    replace: "        if False:",
+    run: specTest("test_every_malformed_answer_is_refused"),
+  },
+  {
+    guard: "spec review: a key given twice is refused",
+    file: SPEC_REVIEW,
+    find: "        if key in data:\n            raise Malformed(",
+    replace: "        if False:\n            raise Malformed(",
+    run: specTest("test_every_malformed_answer_is_refused"),
+  },
+  {
+    guard: "spec review: a question two reviewers ask is one gap, found by both",
+    file: SPEC_REVIEW,
+    find: "                if key not in merged:",
+    replace: "                if True:",
+    run: specTest("test_the_questions_merge_a_rank_at_a_time_and_a_question_asked_twice_is_one_gap"),
+  },
+  {
+    guard: "spec review: every rank of every answer is merged",
+    file: SPEC_REVIEW,
+    find: "    for rank in range(max((len(q) for q in found.values()), default=0)):",
+    replace: "    for rank in range(1):",
+    run: specTest("test_the_questions_merge_a_rank_at_a_time_and_a_question_asked_twice_is_one_gap"),
+  },
+  {
+    guard: "spec review: a second run keeps every decision",
+    file: SPEC_REVIEW,
+    find: "    if existing is not None:",
+    replace: "    if False:",
+    run: specTest("test_a_second_run_keeps_every_decision_and_adds_only_new_questions_with_new_ids"),
+  },
+  {
+    guard: "spec review: new gaps take new ids",
+    file: SPEC_REVIEW,
+    find: "    next_id = max(numbers, default=0) + 1",
+    replace: "    next_id = 1",
+    run: specTest("test_a_second_run_keeps_every_decision_and_adds_only_new_questions_with_new_ids"),
+  },
+  {
+    guard: "spec review: a reviewer has no tools",
+    file: SPEC_REVIEW,
+    find: '    if definition.get("tools"):',
+    replace: "    if False:",
+    run: specTest("test_a_reviewer_with_tools_or_more_than_one_turn_or_against_the_policy_is_refused"),
+  },
+  {
+    guard: "spec review: a reviewer must pass the platform's policy",
+    file: SPEC_REVIEW,
+    find: "    violations = check_policy(definition, load(POLICY), load(MODELS), today())",
+    replace: "    violations = []",
+    run: specTest("test_a_reviewer_with_tools_or_more_than_one_turn_or_against_the_policy_is_refused"),
+  },
+  {
+    guard: "spec review: the kit's example gap list is what the mock finds in the example brief",
+    file: SPEC_REVIEW,
+    find: "        if made != kept:",
+    replace: "        if False:",
+    run: specTest("test_the_check_passes_and_fails_when_the_example_drifts_from_the_mock"),
   },
 
   // The fix loop's protected list, derived from the checks (a review, 2026-09-26): each check's code

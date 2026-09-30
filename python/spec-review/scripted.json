@@ -1,0 +1,22 @@
+{
+  "about": "What the mock plays for each reviewer in python -m helpdesk.spec_review, which is how the gap check runs without --real: an answer for each brief it knows, by the brief's title, written the way a reviewer model must answer. For a brief it doesn't know, the mock answers with the brief's own gaps, a question for each section still a placeholder, empty, or not known yet. These answers were chosen for the lab, so a run on the mock tests the machinery, never a model. python -m helpdesk.spec_review check requires the answers for the example brief to give the kit's example gap list, templates/ask/gaps.example.json.",
+  "briefs": {
+    "let the triage assistant act on tickets": {
+      "spec-reviewer-a": {
+        "gaps": [
+          { "question": "Who may approve closing a ticket: any member of staff, or only a lead?" },
+          { "question": "What happens to a proposal nobody decides?" },
+          { "question": "What if two people decide the same proposal at once?" },
+          { "question": "Should the assistant email a customer directly when a reply is urgent?" }
+        ]
+      },
+      "spec-reviewer-b": {
+        "gaps": [
+          { "question": "Who may approve closing a ticket, any member of staff or only a lead?" },
+          { "question": "Does rejecting a proposal need a reason, and does the assistant see it?" },
+          { "question": "Where is it written whose approval each tool that changes something needs?" }
+        ]
+      }
+    }
+  }
+}

@@ -45,7 +45,7 @@ node tools/kit.mjs doc templates/ask/intake-brief.md YOUR-BRIEF.md -->
 
 ## Follow-up questions from the gap check
 
-<!-- The gap check reads this brief and lists what it leaves open.
+<!-- The gap check (python -m helpdesk.spec_review) reads this brief and lists what it leaves open.
 Copy its three most important questions here with their answers; the rest stay in the gap list. -->
 
 1. <A question the gap check asked> <Its answer, and who gave it.>

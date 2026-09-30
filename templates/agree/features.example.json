@@ -1,0 +1,49 @@
+{
+  "about": "A filled example of templates/agree/features.json: the locked spec for templates/agree/project-spec.example.md. The request is illustrative; the features are the lab's approval queue (chapter 19), and every proof is a real test in the lab. node tools/features-lock.mjs templates/agree/features.example.json checks it.",
+  "decisions": "../ask/gaps.example.json",
+  "states": "states.example.md",
+  "features": [
+    {
+      "id": "F1",
+      "description": "A proposed reply changes nothing until a person approves it, however long it waits.",
+      "status": "done",
+      "decision": "G2",
+      "proof": "python/tests/test_approvals.py::test_a_draft_reply_changes_nothing_until_a_person_approves_it"
+    },
+    {
+      "id": "F2",
+      "description": "Closing a ticket needs a lead's approval, and support staff are refused.",
+      "status": "done",
+      "decision": "G1",
+      "proof": "python/tests/test_approvals.py::test_closing_a_ticket_needs_a_lead_and_support_staff_are_refused"
+    },
+    {
+      "id": "F3",
+      "description": "A rejection needs a reason, and the assistant reads it on the ticket.",
+      "status": "done",
+      "decision": "G3",
+      "proof": "python/tests/test_approvals.py::test_a_rejection_needs_a_reason_and_the_assistant_reads_it_on_the_ticket"
+    },
+    {
+      "id": "F4",
+      "description": "A proposal is decided once, even when two people decide it at the same moment.",
+      "status": "done",
+      "decision": "G4",
+      "proof": "python/tests/test_approvals.py::test_a_decided_proposal_cannot_be_decided_again_even_by_two_at_once"
+    },
+    {
+      "id": "F5",
+      "description": "An agent given a tool that changes things must name whose approval it needs, and no less than the policy's.",
+      "status": "done",
+      "decision": "G5",
+      "proof": "python/tests/test_agent_policy.py::test_a_writer_left_out_of_approval_is_named_with_the_least_it_needs"
+    },
+    {
+      "id": "F6",
+      "description": "The assistant emails a customer directly when a reply is urgent.",
+      "status": "dropped",
+      "decision": "G6",
+      "proof": null
+    }
+  ]
+}

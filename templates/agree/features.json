@@ -1,0 +1,14 @@
+{
+  "about": "The locked spec (Agree): every feature to build, each with an id that never changes or gets reused, the decision it rests on (a gap's id in the decisions record) and the test that proves it (<test file>::<test name>, from the repository's root). node tools/features-lock.mjs checks it and writes the states document; a feature that won't be built is set to dropped, never deleted. Statuses: todo, in-progress, done, dropped.",
+  "decisions": "../ask/gaps.json",
+  "states": "states.md",
+  "features": [
+    {
+      "id": "F1",
+      "description": "<What the feature does, in one sentence a test could prove.>",
+      "status": "todo",
+      "decision": "G1",
+      "proof": "<test file>::<test name>"
+    }
+  ]
+}

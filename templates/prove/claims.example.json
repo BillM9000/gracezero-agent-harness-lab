@@ -1,0 +1,36 @@
+{
+  "about": "A filled example of templates/prove/claims.json: claims about this lab, each measured by one of its own commands in seconds. node tools/claims.mjs templates/prove/claims.example.json writes templates/prove/proof.example.md.",
+  "proof": "proof.example.md",
+  "claims": [
+    {
+      "id": "work-list",
+      "claim": "Every item the work list marks done names a test that exists.",
+      "command": "node tools/progress.mjs .",
+      "expect": { "exit": 0, "output": "No problems found." }
+    },
+    {
+      "id": "documents",
+      "claim": "Every path and marked number in README.md and AGENTS.md matches the repository.",
+      "command": "node tools/doc-claims.mjs .",
+      "expect": { "exit": 0, "output": "No problems found." }
+    },
+    {
+      "id": "instruction-files",
+      "claim": "What AGENTS.md and CLAUDE.md load at the start of a session fits in 200 lines and about 4,000 tokens.",
+      "command": "node tools/instruction-files.mjs . --max-tokens 4000",
+      "expect": { "exit": 0, "output": "No problems found." }
+    },
+    {
+      "id": "locked-spec",
+      "claim": "Every feature of the approval queue rests on a decision and has a test that exists.",
+      "command": "node tools/features-lock.mjs templates/agree/features.example.json",
+      "expect": { "exit": 0, "output": "No problems found." }
+    },
+    {
+      "id": "real-model",
+      "claim": "A real model passes the triage assistant's golden sets.",
+      "command": null,
+      "expect": { "exit": 0 }
+    }
+  ]
+}

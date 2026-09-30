@@ -1,0 +1,15 @@
+{
+  "about": "The gap list and decisions record (Ask): every question an intake brief leaves open, who decides it (template: the kit or the platform's defaults answer it; build: the builders decide while building; owner: the person who asked must), and the decision, by whom and when. The gap check writes the gaps with decides, decision, by and on as null; a person fills them in. node tools/kit.mjs decisions FILE checks it, and --decided fails while any gap is open.",
+  "brief": "<the intake brief this record is for, such as intake-brief.md>",
+  "gaps": [
+    {
+      "id": "G1",
+      "question": "<A question the brief leaves open.>",
+      "found_by": ["<who or what found it, such as spec review: reviewer-a>"],
+      "decides": "<template, build or owner>",
+      "decision": "<what was decided>",
+      "by": "<who decided it>",
+      "on": "<YYYY-MM-DD>"
+    }
+  ]
+}

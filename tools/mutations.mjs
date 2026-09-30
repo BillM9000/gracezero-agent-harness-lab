@@ -1,7 +1,7 @@
 // The guards this repository breaks on purpose, for tools/mutate.mjs (chapter 24). Each entry names
 // the guard, the file and the exact text to change, what to change it to, and the test command that
-// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14, 16 to 29 and 31
-// are here, Appendix B's templates, the script tests' git runner (tools/git-run.mjs), chapter 7's
+// must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14 and 16 to 31 are
+// here, Appendix B's templates, the script tests' git runner (tools/git-run.mjs), chapter 7's
 // consumer test and chapter 1's tally's check for missing fields; the guards from earlier chapters
 // were broken by hand when they were built (CHANGELOG.md records each time) and are the next
 // candidates to add.
@@ -88,7 +88,8 @@ const ROUTES_FITNESS = "python/tests/fitness/test_routes_declare_response_models
 const ROUTES_FITNESS_TEST = "tests/fitness/test_routes_declare_response_models.py";
 const FAKE_FITNESS = "python/tests/fitness/test_tests_fake_the_model_client.py";
 const FAKE_FITNESS_TEST = "tests/fitness/test_tests_fake_the_model_client.py";
-const PROGRESS = "tools/progress.mjs";
+// What progress.mjs and features-lock.mjs share: whether a proof names a test the runners collect.
+const PROOFS = "tools/proofs.mjs";
 const progressTest = (name) => nodeTest("tools/progress.test.mjs", name);
 const MEASURE = "tools/measure.mjs";
 const MEASURE_TESTS = "tools/measure.test.mjs";
@@ -116,6 +117,13 @@ const gitRunTest = (name) => nodeTest("tools/git-run.test.mjs", name);
 // check.mjs itself (chapters 5, 20 and 24), proved by tools/check.test.mjs.
 const POLICY_DATE = "tools/policy-date.mjs";
 const checkTest = (name) => nodeTest("tools/check.test.mjs", name);
+// Appendix B's kit: its checks, each with a test beside it.
+const KIT = "tools/kit.mjs";
+const kitTest = (name) => nodeTest("tools/kit.test.mjs", name);
+const FEATURES_LOCK = "tools/features-lock.mjs";
+const featuresLockTest = (name) => nodeTest("tools/features-lock.test.mjs", name);
+const CLAIMS = "tools/claims.mjs";
+const claimsTest = (name) => nodeTest("tools/claims.test.mjs", name);
 
 export const MUTATIONS = [
   // Chapter 3, after the 2026-09-30 review: an id too big for SQLite is one that doesn't exist.
@@ -4657,63 +4665,63 @@ export const MUTATIONS = [
   // collect, found in the code, not in a string or a comment.
   {
     guard: "progress: a Python proof must be a test_*.py file",
-    file: PROGRESS,
+    file: PROOFS,
     find: "    if (!PYTHON_TEST_FILE.test(file) || (under.length && !under.some((folder) => file.startsWith(folder)))) {",
     replace: "    if (false) {",
     run: progressTest("a proof that no test runner collects fails"),
   },
   {
     guard: "progress: a Python proof must be under pytest's testpaths",
-    file: PROGRESS,
+    file: PROOFS,
     find: "    if (!PYTHON_TEST_FILE.test(file) || (under.length && !under.some((folder) => file.startsWith(folder)))) {",
     replace: "    if (!PYTHON_TEST_FILE.test(file)) {",
     run: progressTest("real tests beside the decoys still pass"),
   },
   {
     guard: "progress: a Python proof's name starts with test",
-    file: PROGRESS,
+    file: PROOFS,
     find: "    if (!/^test\\w*$/.test(name)) return",
     replace: "    if (false) return",
     run: progressTest("a proof that no test runner collects fails"),
   },
   {
     guard: "progress: a def in a Python string or comment isn't a test",
-    file: PROGRESS,
+    file: PROOFS,
     find: "    const { code } = scan(text, true);",
     replace: "    const code = text;",
     run: progressTest("a proof that no test runner collects fails"),
   },
   {
     guard: "progress: a Python test is a def at the top of the file",
-    file: PROGRESS,
+    file: PROOFS,
     find: "new RegExp(`^(async\\\\s+)?def ${escape(name)}\\\\(`, \"m\")",
     replace: "new RegExp(`^\\\\s*(async\\\\s+)?def ${escape(name)}\\\\(`, \"m\")",
     run: progressTest("a proof that no test runner collects fails"),
   },
   {
     guard: "progress: a JavaScript or TypeScript proof must be a test file",
-    file: PROGRESS,
+    file: PROOFS,
     find: "  if (!SCRIPT_TEST_FILE.test(file)) {",
     replace: "  if (false) {",
     run: progressTest("a proof that no test runner collects fails"),
   },
   {
     guard: "progress: a JavaScript title in a comment isn't a test",
-    file: PROGRESS,
+    file: PROOFS,
     find: '    if (python ? c === "#" : text.startsWith("//", i)) {',
     replace: '    if (python ? c === "#" : false) {',
     run: progressTest("a proof that no test runner collects fails"),
   },
   {
     guard: "progress: a JavaScript title inside another string isn't a test",
-    file: PROGRESS,
+    file: PROOFS,
     find: "    } else if (c === '\"' || c === \"'\" || (!python && c === \"`\")) {",
     replace: "    } else if (c === '\"' || (!python && c === \"`\")) {",
     run: progressTest("a proof that no test runner collects fails"),
   },
   {
     guard: "progress: a JavaScript regular expression isn't a test",
-    file: PROGRESS,
+    file: PROOFS,
     find: '    } else if (!python && c === "/" && ',
     replace: '    } else if (false && c === "/" && ',
     run: progressTest("a proof that no test runner collects fails"),
@@ -4901,6 +4909,253 @@ export const MUTATIONS = [
     find: '"fail": "it states or promises',
     replace: '"fails": "it states or promises',
     run: templatesTest("the rubric template loads"),
+  },
+
+  // Appendix B's kit, after the 2026-09-30 review: the kit's own checks, each able to fail.
+  {
+    guard: "kit: a filled document keeps the template's sections in order",
+    file: KIT,
+    find: "    const hit = found.findIndex((h, j) => j >= at && h.m[1].length === w.level && title.test(h.m[2]));",
+    replace: "    const hit = found.findIndex((h) => h.m[1].length === w.level && title.test(h.m[2]));",
+    run: kitTest("doc: a missing, moved or empty section"),
+  },
+  {
+    guard: "kit: a filled document with a section missing fails",
+    file: KIT,
+    find: "      problems.push(`${fileName}: the section \"${\"#\".repeat(w.level)} ${w.title}\" is missing or out of order. Add it${after}, as the template has it.`);\n",
+    replace: "",
+    run: kitTest("doc: a missing, moved or empty section"),
+  },
+  {
+    guard: "kit: a section that says nothing fails",
+    file: KIT,
+    find: "    if (!said && !nested && !waiting(p.title)) {",
+    replace: "    if (false) {",
+    run: kitTest("doc: a missing, moved or empty section"),
+  },
+  {
+    guard: "kit: a placeholder left in a document fails",
+    file: KIT,
+    find: "    for (const p of placeholders(l.text)) {\n      problems.push(`${fileName}:${l.n}:",
+    replace: "    for (const p of []) {\n      problems.push(`${fileName}:${l.n}:",
+    run: kitTest("doc: a missing, moved or empty section"),
+  },
+  {
+    guard: "kit: a section marked for a later stage waits for it",
+    file: KIT,
+    find: "    return Boolean(from) && (reached < 0 || stages.indexOf(from) > reached);",
+    replace: "    return false;",
+    run: kitTest("doc: a section marked"),
+  },
+  {
+    guard: "kit: a section must be filled once its stage is reached",
+    file: KIT,
+    find: "    return Boolean(from) && (reached < 0 || stages.indexOf(from) > reached);",
+    replace: "    return Boolean(from) && (reached < 0 || stages.indexOf(from) >= reached);",
+    run: kitTest("doc: a section marked"),
+  },
+  {
+    guard: "kit: a decision says who made it",
+    file: KIT,
+    find: "      if (!text(gap.by)) problems.push(",
+    replace: "      if (false) problems.push(",
+    run: kitTest("decisions: each planted break"),
+  },
+  {
+    guard: "kit: who decides a gap is template, build or owner",
+    file: KIT,
+    find: "    if (gap.decides !== null && !DECIDERS.includes(gap.decides)) {",
+    replace: "    if (false) {",
+    run: kitTest("decisions: each planted break"),
+  },
+  {
+    guard: "kit: --decided fails while a gap is open",
+    file: KIT,
+    find: "  if (decided && open.length) {",
+    replace: "  if (false) {",
+    run: kitTest("decisions: a decided record passes"),
+  },
+  {
+    guard: "kit: a skill's name follows the Agent Skills rules",
+    file: KIT,
+    find: "  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name) || name.length > 64) {",
+    replace: "  if (name.length > 64) {",
+    run: kitTest("skill: each planted break"),
+  },
+  {
+    guard: "kit: a skill's name is its folder's",
+    file: KIT,
+    find: "  } else if (name !== folderName) {",
+    replace: "  } else if (false) {",
+    run: kitTest("skill: each planted break"),
+  },
+  {
+    guard: "kit: a skill's steps are a numbered list",
+    file: KIT,
+    find: "  if (sections.Steps && !sections.Steps.some((l) => /^\\d+\\. \\S/.test(l.text))) {",
+    replace: "  if (false) {",
+    run: kitTest("skill: each planted break"),
+  },
+  {
+    guard: "kit: every file a skill references is in its folder",
+    file: KIT,
+    find: "    } else if (!existsSync(join(folder, local)) || !statSync(join(folder, local)).isFile()) {",
+    replace: "    } else if (false) {",
+    run: kitTest("skill: each planted break"),
+  },
+  {
+    guard: "kit: changelog entries go newest first",
+    file: KIT,
+    find: "    if (before && dated[1] > before.day) {",
+    replace: "    if (false) {",
+    run: kitTest("changelog: an entry out of order"),
+  },
+  {
+    guard: "kit: every changelog entry has a bullet",
+    file: KIT,
+    find: "    if (e.bullets === 0) problems.push(",
+    replace: "    if (false) problems.push(",
+    run: kitTest("changelog: an entry out of order"),
+  },
+  {
+    guard: "features lock: a feature needs a proof test",
+    file: FEATURES_LOCK,
+    find: '    if (typeof f.proof !== "string" || !f.proof) {',
+    replace: "    if (false) {",
+    run: featuresLockTest("a feature with no proof test"),
+  },
+  {
+    guard: "features lock: a proof test must exist",
+    file: FEATURES_LOCK,
+    find: "      if (problem) problems.push(",
+    replace: "      if (false) problems.push(",
+    run: featuresLockTest("a feature with no proof test"),
+  },
+  {
+    guard: "features lock: a dropped feature needs no test",
+    file: FEATURES_LOCK,
+    find: '    if (f.status === "dropped") return;',
+    replace: "    if (false) return;",
+    run: featuresLockTest("a feature with no proof test"),
+  },
+  {
+    guard: "features lock: a feature's decision must be decided",
+    file: FEATURES_LOCK,
+    find: "    } else if (gap.decision === null || gap.decision === undefined) {",
+    replace: "    } else if (false) {",
+    run: featuresLockTest("a feature needs a decision"),
+  },
+  {
+    guard: "features lock: a locked id is never removed",
+    file: FEATURES_LOCK,
+    find: "    if (!ids.has(id)) {",
+    replace: "    if (false) {",
+    run: featuresLockTest("a locked id stays"),
+  },
+  {
+    guard: "features lock: a stale states document fails",
+    file: FEATURES_LOCK,
+    find: "  } else if (expected && states !== expected) {",
+    replace: "  } else if (false) {",
+    run: featuresLockTest("a changed spec makes the states document stale"),
+  },
+  {
+    guard: "features lock: the states document is written only for a spec that passes",
+    file: FEATURES_LOCK,
+    find: "  const expected = statesPath && problems.length === 0 ? statesDocument(spec, basename(specPath)) : null;",
+    replace: "  const expected = statesPath ? statesDocument(spec, basename(specPath)) : null;",
+    run: featuresLockTest("a feature with no proof test"),
+  },
+  {
+    guard: "claims: an unknown claim fails the run",
+    file: CLAIMS,
+    find: "  process.exit(held === measured.length ? 0 : 1);",
+    replace: '  process.exit(measured.some((m) => m.result === "fail") ? 1 : 0);',
+    run: claimsTest("nothing measured is unknown"),
+  },
+  {
+    guard: "claims: a claim with no command is unknown, not a pass",
+    file: CLAIMS,
+    find: '  if (claim.command === null) return { result: "unknown", why: "no command measures it yet", at, output: "" };',
+    replace: '  if (claim.command === null) return { result: "pass", why: "", at, output: "" };',
+    run: claimsTest("nothing measured is unknown"),
+  },
+  {
+    guard: "claims: a command out of time is unknown",
+    file: CLAIMS,
+    find: '  if (run.error?.code === "ETIMEDOUT" || (run.status === null && run.signal)) {',
+    replace: "  if (false) {",
+    run: claimsTest("nothing measured is unknown"),
+  },
+  {
+    guard: "claims: a program that isn't there is unknown",
+    file: CLAIMS,
+    find: "  if (notFound(run.status, output) && claim.expect.exit !== run.status) {",
+    replace: "  if (false) {",
+    run: claimsTest("nothing measured is unknown"),
+  },
+  {
+    guard: "claims: the output must contain what the claim expects",
+    file: CLAIMS,
+    find: "  if (claim.expect.output && !output.includes(claim.expect.output)) {",
+    replace: "  if (false) {",
+    run: claimsTest("a wrong exit or missing output"),
+  },
+  {
+    guard: "claims: a malformed claims file is refused before anything runs",
+    file: CLAIMS,
+    find: "  if (found.length) {\n    console.log(",
+    replace: "  if (false) {\n    console.log(",
+    run: claimsTest("a malformed claims file"),
+  },
+  {
+    guard: "templates: the settings template wires the lab's Stop hook",
+    file: "templates/ship/hooks/stop.json",
+    find: '"${CLAUDE_PROJECT_DIR}/tools/hooks/stop-check.mjs"',
+    replace: '"${CLAUDE_PROJECT_DIR}/tools/hooks/stop-checks.mjs"',
+    run: templatesTest("kit: the settings template"),
+  },
+  {
+    guard: "templates: the guard's rules template stays the lab's, trimmed",
+    file: "templates/ship/hooks/guard-rules.mjs",
+    find: 'export const ASK_MODES = new Set(["default", "acceptEdits", "plan", "auto"]);',
+    replace: 'export const ASK_MODES = new Set(["default", "acceptEdits", "plan", "auto", "bypassPermissions"]);',
+    run: templatesTest("kit: the guard's rules template"),
+  },
+  {
+    guard: "templates: the intake brief asks the intake rubric's questions",
+    file: "templates/ask/intake-brief.md",
+    find: "- Who reads what it writes before a person has checked it? <staff or customers>\n",
+    replace: "",
+    run: templatesTest("kit: the intake brief asks"),
+  },
+  {
+    guard: "templates: a filled example has every section of its skeleton",
+    file: "templates/ship/runbook.example.md",
+    find: "**Stage:** Beta\n",
+    replace: "**Stage:** Production\n",
+    run: templatesTest("kit: each document's filled example passes"),
+  },
+  {
+    guard: "templates: the proof page is what the claims script writes",
+    file: "templates/prove/proof.example.md",
+    find: "4 pass, 0 fail, 1 unknown.",
+    replace: "5 pass, 0 fail, 0 unknown.",
+    run: templatesTest("kit: the claims example"),
+  },
+  {
+    guard: "templates: the skill's reference quotes a real entry",
+    file: ".claude/skills/add-a-guard/references/mutation-entry.md",
+    find: '  replace: "process.exit(0);",',
+    replace: '  replace: "process.exit(2);",',
+    run: templatesTest("kit: the lab's own skill"),
+  },
+  {
+    guard: "templates: docs.yml runs the kit's tests on a change to Markdown alone",
+    file: ".github/workflows/docs.yml",
+    find: '      - run: node --test --test-name-pattern "^kit:" tools/templates.test.mjs\n',
+    replace: "",
+    run: templatesTest("kit: a change to Markdown alone"),
   },
 
   // Chapter 1: the tally counts only data it can trust.

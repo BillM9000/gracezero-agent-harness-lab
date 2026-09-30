@@ -28,11 +28,11 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | `boundaries/` | The helpdesk's layer rule in Go, Java and .NET (chapter 16). Only CI runs them. |
 | `postings/` | Chapter 1's job-postings sample, tally script and template. |
 | `tools/` | Scripts the chapters build; each that checks something has a test beside it. |
-| `templates/` | Appendix B's templates, proved by `tools/templates.test.mjs`. |
+| `templates/` | Appendix B's kit (`templates/README.md`), proved by `tools/templates.test.mjs`. |
 | `setup.mjs`, `check.mjs` | Set up everything, and run every check. |
 | `progress/` | The work list (`features.json`) and the session log (`log.md`); see below. |
 | `.github/workflows/` | CI: `ci.yml` (every check), `docs.yml` (Markdown-only changes), `nightly.yml` (mutations, chapter 24; retirement dates, 23). |
-| `.claude/settings.json` | Claude Code's settings: deny rules, a guard before shell commands and a Stop hook, both in `tools/hooks/` (chapters 19, 25). |
+| `.claude/settings.json` | Claude Code's settings: deny rules, a guard before shell commands and a Stop hook, both in `tools/hooks/` (chapters 19, 25); `.claude/skills/` holds the lab's skill. |
 
 ## Starting a session
 
@@ -59,14 +59,14 @@ Python, from `python/` (use `.venv/Scripts/` on Windows, `.venv/bin/` elsewhere)
 - Policies: `python -m agent_policy` for agents, as of today (`--today`: another day), `python -m mcp_governance` for MCP servers (also `allowlist`, `audit`); each rule's examples are in `tests/*_fixtures/`
 - Run: `uvicorn --factory helpdesk.main:create_default_app`
 - The triage assistant: `python -m helpdesk.triage` (the mock, scripted); `--real "..."` calls Anthropic's API
-- Red team: `python -m helpdesk.injections run`, and `flag "text"`
+- Red team: `python -m helpdesk.injections run` (also `flag`)
 - Golden sets, judges and the gate: `python -m helpdesk.evals`, `helpdesk.judge` and `helpdesk.gate`, each with `check`; `--help` lists the rest (`--real` is billed and needs `--max-usd`); `helpdesk.calls FILE` sums a `gate run --record FILE`
 - The gateway: `python -m helpdesk.gateway check`, `demo` and `report FILE`; real calls go in `records/gateway.jsonl`
-- Use cases: `python -m helpdesk.readiness check`, `triage FILE`, `fingerprint FILE`; `python -m helpdesk.golden_path new NAME` starts one (also `check`, `report`)
-- Knowledge base: `python -m helpdesk.kb eval`; also `query`, `cite`, `chunks`, `size`
-- Tools and patterns: `python -m helpdesk.tools` and `helpdesk.patterns` (see `--help`)
-- Approvals: `python -m helpdesk.approvals list --as sam`; also `show`, `approve`, `reject`, `log`
-- MCP: `python -m helpdesk.mcp_client --as sam tools` (also `call`, `read`, `prompt`); `python -m helpdesk.mcp_server --http`
+- Use cases: `python -m helpdesk.readiness check` (also `triage`, `fingerprint`); `python -m helpdesk.golden_path new NAME` starts one (also `check`, `report`)
+- Knowledge base: `python -m helpdesk.kb eval` (`--help` lists the rest)
+- Tools and patterns: `python -m helpdesk.tools` and `helpdesk.patterns` (`--help`)
+- Approvals: `python -m helpdesk.approvals list --as sam` (`--help`)
+- MCP: `python -m helpdesk.mcp_client --as sam tools`; `python -m helpdesk.mcp_server --http`
 
 TypeScript, from `ts/`:
 
@@ -75,16 +75,17 @@ TypeScript, from `ts/`:
 - Test: `npm test`
 - Try the CLI: `npm run cli -- tickets open`
 
-Scripts, from the repository root. Each has a test file beside it: run `node --test` on that file.
+Scripts, from the root; each has a test beside it, for `node --test`.
 
 - `node postings/tally.mjs postings/sample-2026-09-22.json` counts chapter 1's sample, a dated record: never edit its codes.
-- `node tools/install-paths.mjs` checks setup's Windows path limit against what's installed (chapter 5).
-- `node tools/lockfiles.mjs` checks every pin has its hashes and what's installed matches the locks (chapter 20).
+- `node tools/install-paths.mjs` checks setup's Windows path limit (chapter 5).
+- `node tools/lockfiles.mjs` checks the pins' hashes, and what's installed against the locks (chapter 20).
 - `node tools/instruction-files.mjs <path>` reports what each instruction file loads, and when (chapter 6).
 - `node tools/doc-claims.mjs [path]` checks the paths and marked numbers in these documents (chapter 8).
-- `node tools/progress.mjs [path]` shows the work list and the last log entry, and fails if a done item's test is missing (chapter 10).
+- `node tools/progress.mjs [path]` shows the work list and last log entry; fails if a done item's test is missing (chapter 10).
 - `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it (`--list` lists them; `--only PREFIX` runs a group); when you add a guard, add its entry (chapter 24).
 - `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command, with limits (chapter 25).
+- The kit's checks: `node tools/kit.mjs`, `tools/features-lock.mjs` and `tools/claims.mjs`.
 - For readers, each described in its header and the README: `tools/harness-inventory.mjs`, `tools/rework.mjs`, `tools/measure.mjs`.
 
 ## Rules

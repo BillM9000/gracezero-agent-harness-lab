@@ -9,7 +9,7 @@
 // Run: node --test tools/templates.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -258,4 +258,238 @@ test("a rubric with a misspelled field is refused by the same loader", () => {
   const { status, output } = python(["-c", LOAD_RUBRIC, join(root, "rubric.json")]);
   assert.equal(status, 1, output);
   assert.match(output, /unknown field\(s\) fails; missing fail/);
+});
+
+// --- The Zero to Prod kit: Ask, Agree, Ship, Prove ---------------------------------------------
+// Every test below starts "kit: " and needs only Node, so .github/workflows/docs.yml runs them when
+// a change touches nothing but Markdown, the kit's own documents included.
+
+const KIT = (...args) => node("tools/kit.mjs", ...args);
+const LOCK = (...args) => node("tools/features-lock.mjs", ...args);
+const PLACEHOLDER_PROBLEM = /is still a placeholder\. Replace it/;
+const problemsIn = (output) => lines(output).filter((line) => line.startsWith("- "));
+
+// A skeleton, checked as it stands, fails for its placeholders and nothing else.
+function onlyPlaceholders({ status, output }) {
+  assert.equal(status, 1, output);
+  const problems = problemsIn(output);
+  assert.ok(problems.length > 0, output);
+  const other = problems.filter((p) => !PLACEHOLDER_PROBLEM.test(p));
+  assert.deepEqual(other, [], "a skeleton should fail only for its placeholders");
+}
+
+const DOCS = [
+  ["ask", "intake-brief"],
+  ["agree", "project-spec"],
+  ["ship", "handoff"],
+  ["ship", "change-record"],
+  ["ship", "release-card"],
+  ["ship", "runbook"],
+];
+
+test("kit: each document's filled example passes against its skeleton, and the skeleton fails only for its placeholders", () => {
+  for (const [stage, name] of DOCS) {
+    const skeleton = `templates/${stage}/${name}.md`;
+    const example = KIT("doc", skeleton, `templates/${stage}/${name}.example.md`);
+    assert.equal(example.status, 0, `${name}: ${example.output}`);
+    assert.match(example.output, /No problems found\./);
+    onlyPlaceholders(KIT("doc", skeleton, skeleton));
+  }
+});
+
+test("kit: a filled document with a section missing, emptied or left a placeholder fails", () => {
+  const skeleton = "templates/ship/change-record.md";
+  const example = read(join(TEMPLATES, "ship", "change-record.example.md"));
+  const cases = [
+    [example.replace(/## Rollback\n\n[^\n]+\n\n/, ""), /the section "## Rollback" is missing or out of order/],
+    [example.replace(/## Dry run\n\n[^\n]+\n/, "## Dry run\n\n<!-- to do -->\n"), /"## Dry run" says nothing/],
+    [example.replace("Revert the commit.", "<the steps that undo it>"), /"<the steps that undo it>" is still a placeholder/],
+  ];
+  for (const [text, message] of cases) {
+    const root = folder({ "record.md": text });
+    const run = KIT("doc", skeleton, join(root, "record.md"));
+    assert.equal(run.status, 1, run.output);
+    assert.match(run.output, message);
+  }
+});
+
+test("kit: the intake brief asks chapter 28's intake questions, and has room for three from the gap check", () => {
+  const brief = read(join(TEMPLATES, "ask", "intake-brief.md"));
+  const rubric = read(join(PYTHON_DIR, "usecases", "rubric.toml"));
+  const asks = [...rubric.matchAll(/^ask = "(.+)"$/gm)].map((m) => m[1]);
+  assert.equal(asks.length, 3, rubric);
+  for (const ask of asks) assert.ok(brief.includes(`- ${ask} <`), `the brief doesn't ask "${ask}"`);
+  const followUps = brief.split("## Follow-up questions from the gap check")[1] ?? "";
+  assert.equal([...followUps.matchAll(/^\d\. </gm)].length, 3);
+});
+
+test("kit: the runbook's later sections wait for their stage, and a runbook moved on must fill them", () => {
+  const example = read(join(TEMPLATES, "ship", "runbook.example.md"));
+  assert.match(example, /^\*\*Stage:\*\* Beta$/m);
+  const moved = folder({ "runbook.md": example.replace("**Stage:** Beta", "**Stage:** Production") });
+  const run = KIT("doc", "templates/ship/runbook.md", join(moved, "runbook.md"));
+  assert.equal(run.status, 1, run.output);
+  assert.equal(problemsIn(run.output).length, 3, run.output);
+  assert.ok(problemsIn(run.output).every((p) => PLACEHOLDER_PROBLEM.test(p)), run.output);
+});
+
+test("kit: the gap list's example is decided throughout, and its skeleton fails only for its placeholders", () => {
+  const example = KIT("decisions", "templates/ask/gaps.example.json", "--decided");
+  assert.equal(example.status, 0, example.output);
+  assert.match(example.output, /6 gap\(s\): 6 decided, 0 open\./);
+  onlyPlaceholders(KIT("decisions", "templates/ask/gaps.json"));
+  const record = JSON.parse(read(join(TEMPLATES, "ask", "gaps.example.json")));
+  Object.assign(record.gaps[0], { decision: null, by: null, on: null });
+  const root = folder({ "gaps.json": JSON.stringify(record) });
+  const open = KIT("decisions", join(root, "gaps.json"), "--decided");
+  assert.equal(open.status, 1, open.output);
+  assert.match(open.output, /1 gap\(s\) still open \(G1\)/);
+});
+
+test("kit: the locked spec's example passes its lock, with its states document up to date, and its skeleton fails only for its placeholders", () => {
+  const example = LOCK("templates/agree/features.example.json");
+  assert.equal(example.status, 0, example.output);
+  assert.match(example.output, /Done 5, in progress 0, to do 0, dropped 1\./);
+  onlyPlaceholders(LOCK("templates/agree/features.json"));
+  // Every decision the example rests on is the example gap list's, decided.
+  const spec = JSON.parse(read(join(TEMPLATES, "agree", "features.example.json")));
+  const gaps = new Map(JSON.parse(read(join(TEMPLATES, "ask", "gaps.example.json"))).gaps.map((g) => [g.id, g]));
+  for (const f of spec.features) assert.ok(gaps.get(f.decision)?.decision, f.id);
+});
+
+test("kit: a feature with no test fails the lock", () => {
+  const root = join(base, `case-${++n}`);
+  cpSync(TEMPLATES, join(root, "templates"), { recursive: true });
+  const path = join(root, "templates", "agree", "features.example.json");
+  const spec = JSON.parse(read(path));
+  spec.features[0].proof = null;
+  writeFileSync(path, JSON.stringify(spec));
+  const run = node("tools/features-lock.mjs", path, "--root", ROOT);
+  assert.equal(run.status, 1, run.output);
+  assert.match(run.output, /F1: has no proof test/);
+});
+
+test("kit: the lab's own skill is the skill template filled in, and loads", () => {
+  const lab = KIT("skill", ".claude/skills/add-a-guard");
+  assert.equal(lab.status, 0, lab.output);
+  onlyPlaceholders(KIT("skill", "templates/ship/skills/your-skill-name"));
+  // The reference quotes an entry from the lab's list, so it can't describe one that isn't there.
+  const reference = read(join(ROOT, ".claude", "skills", "add-a-guard", "references", "mutation-entry.md"));
+  const quoted = /```js\n([\s\S]*?)```/.exec(reference)[1].trim();
+  const indented = quoted.split("\n").map((line) => `  ${line}`).join("\n");
+  assert.ok(read(join(ROOT, "tools", "mutations.mjs")).includes(indented), "the reference's entry isn't in tools/mutations.mjs");
+});
+
+const HOOKS = join(TEMPLATES, "ship", "hooks");
+const json = (path) => JSON.parse(read(path));
+
+test("kit: the settings template is the guard's piece and the Stop hook's piece together, and the lab's own settings", () => {
+  const guard = json(join(HOOKS, "guard.json"));
+  const stop = json(join(HOOKS, "stop.json"));
+  const merged = { permissions: guard.permissions, hooks: { ...guard.hooks, ...stop.hooks } };
+  assert.deepEqual(json(join(HOOKS, "settings.json")), merged);
+  assert.deepEqual(json(join(ROOT, ".claude", "settings.json")), merged);
+  // Every script the settings run exists where they say.
+  for (const entries of Object.values(merged.hooks)) {
+    for (const hook of entries.flatMap((e) => e.hooks)) {
+      assert.equal(hook.command, "node");
+      const script = hook.args[0].replace("${CLAUDE_PROJECT_DIR}", ROOT);
+      assert.ok(existsSync(script), script);
+    }
+  }
+});
+
+// Runs a hook the way its piece of the settings says, with CLAUDE_PROJECT_DIR the lab's root.
+function wired(piece, event, input, env = {}) {
+  const hook = json(join(HOOKS, piece)).hooks[event][0].hooks[0];
+  const args = hook.args.map((a) => a.replace("${CLAUDE_PROJECT_DIR}", ROOT));
+  const run = spawnSync(hook.command, args, { input: JSON.stringify(input), encoding: "utf8", env: { ...ENV, CLAUDE_PROJECT_DIR: ROOT, ...env } });
+  return { status: run.status, stdout: run.stdout, stderr: run.stderr };
+}
+const pre = (permission_mode, command) => ({ hook_event_name: "PreToolUse", permission_mode, tool_name: "Bash", tool_input: { command } });
+const decision = (run) => (run.stdout ? JSON.parse(run.stdout).hookSpecificOutput.permissionDecision : "none");
+
+test("kit: the guard's wiring runs the lab's guard, which denies, asks and lets through by the rules", () => {
+  const deny = wired("guard.json", "PreToolUse", pre("bypassPermissions", "git reset --hard HEAD~1"));
+  assert.equal(deny.status, 0);
+  assert.equal(decision(deny), "deny");
+  assert.equal(decision(wired("guard.json", "PreToolUse", pre("default", "rm -rf build"))), "ask");
+  assert.equal(decision(wired("guard.json", "PreToolUse", pre("bypassPermissions", "git status"))), "none");
+});
+
+test("kit: the guard's rules template is the lab's rules file, trimmed, and works in the lab's guard", () => {
+  const template = read(join(HOOKS, "guard-rules.mjs"));
+  const real = lines(read(join(ROOT, "tools", "hooks", "guard-rules.mjs")));
+  let at = 0;
+  for (const line of lines(template).filter((l) => l.trim() && !l.trim().startsWith("//"))) {
+    const found = real.indexOf(line, at);
+    assert.ok(found >= 0, `templates/ship/hooks/guard-rules.mjs: "${line.trim()}" isn't in tools/hooks/guard-rules.mjs after line ${at}.`);
+    at = found + 1;
+  }
+  // The lab's guard, beside the template's rules, as a reader would put them.
+  const root = folder({ "guard-rules.mjs": template });
+  copyFileSync(join(ROOT, "tools", "hooks", "destructive-guard.mjs"), join(root, "destructive-guard.mjs"));
+  const guard = (input) =>
+    decision(spawnSync(process.execPath, [join(root, "destructive-guard.mjs")], { input: JSON.stringify(input), encoding: "utf8" }));
+  assert.equal(guard(pre("bypassPermissions", "rm -rf build")), "deny");
+  assert.equal(guard(pre("dontAsk", "git push --force origin main")), "deny");
+  assert.equal(guard(pre("default", "git reset --hard")), "ask");
+  assert.equal(guard(pre("bypassPermissions", "bash -c 'rm -rf build'")), "deny");
+  assert.equal(guard(pre("bypassPermissions", "git status")), "none");
+  // A rules file that won't load denies, as the lab's does.
+  writeFileSync(join(root, "guard-rules.mjs"), `${template}\nthis is not JavaScript\n`);
+  assert.equal(guard(pre("default", "git status")), "deny");
+});
+
+test("kit: the Stop hook's wiring runs the lab's hook, which sends a failing check back", () => {
+  const project = folder({
+    "check.mjs": 'console.log("FAIL  Stub tests (0.2s)\\n      expected 2, got 3\\n\\n1 of 1 checks failed.");\nprocess.exit(1);\n',
+  });
+  const state = folder({ ".keep": "" });
+  const input = { session_id: "kit", hook_event_name: "Stop", stop_hook_active: false, cwd: project };
+  const run = wired("stop.json", "Stop", input, { LAB_HOOK_STATE_DIR: state });
+  assert.equal(run.status, 2, run.stderr);
+  assert.match(run.stderr, /^The fast checks failed, so the work isn't finished \(round 1 of 3\)\./);
+});
+
+test("kit: the changelog convention is what the check holds the lab's own changelog to", () => {
+  const convention = read(join(TEMPLATES, "ship", "CHANGELOG-convention.md"));
+  for (const rule of ["`# Changelog`", "`## YYYY-MM-DD, what changed`, newest first", "at least one bullet"]) {
+    assert.ok(convention.includes(rule), rule);
+  }
+  const lab = KIT("changelog", "CHANGELOG.md");
+  assert.equal(lab.status, 0, lab.output);
+});
+
+test("kit: the claims example is measured as its proof page says, and its skeleton is refused for its placeholders", () => {
+  const out = join(base, `proof-${++n}.md`);
+  const run = node("tools/claims.mjs", "templates/prove/claims.example.json", "--out", out);
+  // The example keeps one claim nothing measures yet, and an unknown fails the run.
+  assert.equal(run.status, 1, run.output);
+  assert.match(run.output, /4 of 5 claim\(s\) hold\./);
+  assert.match(run.output, /^UNKNOWN {2}real-model: no command measures it yet$/m);
+  // The committed page is what the script writes, apart from when and at which commit.
+  const when = (text) =>
+    text.replace(/^Measured .*?, at .*?\. (\d+ claim)/m, "Measured WHEN, at COMMIT. $1").replace(/\| \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC \|/g, "| WHEN |");
+  assert.equal(when(read(out)), when(read(join(TEMPLATES, "prove", "proof.example.md"))));
+  onlyPlaceholders(node("tools/claims.mjs", "templates/prove/claims.json", "--out", join(base, "never.md")));
+  assert.equal(existsSync(join(base, "never.md")), false);
+});
+
+test("kit: every file the kit's README names is in the repository", () => {
+  const readme = read(join(TEMPLATES, "README.md"));
+  const named = [...readme.matchAll(/`((?:templates|tools|python|progress|\.claude|\.github)\/[^`\s]+|AGENTS\.md|CLAUDE\.md|CHANGELOG\.md|LICENSE)`/g)].map((m) => m[1]);
+  assert.ok(named.length > 30, named.join("\n"));
+  for (const path of named) assert.ok(existsSync(join(ROOT, path)), path);
+  assert.match(readme, /MIT-licensed, like the rest of this repository/);
+});
+
+test("kit: a change to Markdown alone still runs the kit's tests, in docs.yml", () => {
+  const docs = read(join(ROOT, ".github", "workflows", "docs.yml"));
+  assert.match(docs, /^ {6}- run: node --test --test-name-pattern "\^kit:" tools\/templates\.test\.mjs$/m);
+  // Every test that line runs needs only Node: none of them may start Python.
+  const source = read(fileURLToPath(import.meta.url));
+  for (const [, name, body] of source.matchAll(/^test\("(kit: [^"]+)", (?:async )?\(\) => \{\n([\s\S]*?)^\}\);$/gm)) {
+    assert.doesNotMatch(body, /\bpython\(/, `${name} starts Python, which docs.yml doesn't install`);
+  }
 });

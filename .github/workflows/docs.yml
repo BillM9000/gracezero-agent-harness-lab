@@ -35,3 +35,6 @@ jobs:
       - run: node tools/instruction-files.mjs . --max-tokens 4000
       - run: node tools/doc-claims.mjs .
       - run: node tools/progress.mjs .
+      # Appendix B's kit is mostly Markdown, so its tests run here too. Those named "kit: " need
+      # nothing installed.
+      - run: node --test --test-name-pattern "^kit:" tools/templates.test.mjs

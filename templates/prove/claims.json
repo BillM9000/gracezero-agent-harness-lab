@@ -1,0 +1,13 @@
+{
+  "about": "The claims file (Prove): each sentence someone might repeat about the project, the command that measures it, and what the command must do for the claim to hold (exit with a code and, optionally, print some text). node tools/claims.mjs runs every command from the repository's root and writes the proof page: pass, fail or unknown, and when each was measured. A claim no command can measure yet has command null, and stays unknown.",
+  "proof": "proof.md",
+  "claims": [
+    {
+      "id": "<a-short-id>",
+      "claim": "<The sentence, as someone would say it.>",
+      "command": "<the command that measures it>",
+      "expect": { "exit": 0, "output": "<text the output must contain, or leave this field out>" },
+      "timeout_seconds": 300
+    }
+  ]
+}

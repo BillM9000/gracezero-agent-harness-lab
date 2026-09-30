@@ -35,7 +35,7 @@ from helpdesk.mcp_server import (
 )
 from helpdesk.services.access import Person
 from mcp_governance import SERVERS, load
-from mcp_governance.audit import AuditLog, read
+from mcp_governance.audit import ATTEMPT, NO_OUTCOME, AuditLog, read, records
 from mcp_governance.catalog import entry
 from mcp_governance.resource_server import ResourceServer
 from mcp_governance.tokens import ISSUER, LabIssuer, Verifier
@@ -316,6 +316,65 @@ def test_every_request_is_audited_and_the_token_never_is(served, issuer):
     assert [r["status"] for r in records] == [401, 200, 200, 403, 400]
     assert all(r["time"] and r["token"] for r in records)
     assert sams not in log.read_text(encoding="utf-8")
+
+
+def test_a_request_passed_to_the_server_is_recorded_before_it_runs_then_its_outcome(served, issuer):
+    client, log = served
+    call(client, "get_ticket", {"ticket_id": 2}, token=token(issuer, SAM, "tickets:read"))
+    call(client, "get_ticket", {"ticket_id": 2}, token=None)
+    attempt, outcome, refusal = records(log)
+    who = ("test-client", "Sam Rivera (support)", "tools/call", "get_ticket", {"ticket_id": 2})
+    for r in (attempt, outcome):
+        assert (r["client"], r["person"], r["method"], r["name"], r["arguments"]) == who
+    assert (attempt["status"], attempt["outcome"]) == (None, ATTEMPT)
+    assert (outcome["status"], outcome["outcome"]) == (200, "ok")
+    assert attempt["request"] == outcome["request"] != refusal["request"]
+    assert (refusal["status"], refusal["outcome"]) == (401, "refused 401: no token")
+    # Read back a request at a time: the outcome in its attempt's place.
+    assert [(r["request"], r["outcome"]) for r in read(log)] == [
+        (outcome["request"], "ok"),
+        (refusal["request"], "refused 401: no token"),
+    ]
+
+
+def test_a_request_whose_handling_fails_is_still_on_record(issuer, tmp_path):
+    # Chapter 13: a record written only after the answer left nothing when the server raised.
+    async def broken(scope, receive, send):
+        raise RuntimeError("the server broke")
+
+    audit = AuditLog(tmp_path / "audit.jsonl")
+    app = ResourceServer(
+        resource=RESOURCE,
+        verifier=Verifier(issuer.public_key(), issuer=ISSUER, audience=RESOURCE),
+        authorization_servers=[ISSUER],
+        scopes_supported=[],
+        required_scopes=lambda method, name: (),
+        for_subject=lambda subject: ("someone", broken),
+        audit=audit,
+    )
+    with TestClient(app, base_url="http://127.0.0.1:8765") as client, pytest.raises(RuntimeError):
+        post(client, "tools/list", token=token(issuer, SAM))
+    audit.close()
+    written = [(r["person"], r["method"], r["status"], r["outcome"]) for r in records(audit.path)]
+    assert written == [
+        ("someone", "tools/list", None, ATTEMPT),
+        ("someone", "tools/list", 500, "failed: RuntimeError"),
+    ]
+    assert [r["outcome"] for r in read(audit.path)] == ["failed: RuntimeError"]
+
+
+def test_an_attempt_with_no_outcome_after_it_says_so(tmp_path):
+    # A server stopped mid-request writes the attempt and nothing more.
+    audit = AuditLog(tmp_path / "audit.jsonl")
+    audit.record(request="a", client="c", person="p", method="tools/call", status=None, outcome=ATTEMPT)
+    audit.record(
+        request="b", client="-", person="-", method="tools/list", status=401, outcome="refused 401: no token"
+    )
+    audit.close()
+    assert [(r["request"], r["outcome"]) for r in read(audit.path)] == [
+        ("a", NO_OUTCOME),
+        ("b", "refused 401: no token"),
+    ]
 
 
 def test_a_line_break_python_knows_in_the_arguments_doesnt_break_the_log(served, issuer):

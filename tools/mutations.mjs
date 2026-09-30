@@ -1249,9 +1249,46 @@ export const MUTATIONS = [
   {
     guard: "front door: the token never reaches the MCP server",
     file: FRONT_DOOR,
-    find: "await self.forward(app, without_authorization(scope), replay(body, receive), send)",
-    replace: "await self.forward(app, scope, replay(body, receive), send)",
+    find: "                app, without_authorization(scope), replay(body, receive), send\n",
+    replace: "                app, scope, replay(body, receive), send\n",
     run: pytest(`${HTTP_TESTS}::test_the_token_never_reaches_the_mcp_server`),
+  },
+  // Chapter 13, after the 2026-09-30 review: the attempt is recorded before the server acts, then
+  // the outcome, so a request that fails on the way still leaves a record.
+  {
+    guard: "front door: a request passed to the server is recorded before it runs",
+    file: FRONT_DOOR,
+    find: "        self.audit.record(**record, status=None, outcome=ATTEMPT)\n",
+    replace: "",
+    run: pytest(`${HTTP_TESTS}::test_a_request_whose_handling_fails_is_still_on_record`),
+  },
+  {
+    guard: "front door: a request whose handling fails is recorded with how it failed",
+    file: FRONT_DOOR,
+    find: '            self.audit.record(**record, status=500, outcome=f"failed: {type(error).__name__}")\n',
+    replace: "",
+    run: pytest(`${HTTP_TESTS}::test_a_request_whose_handling_fails_is_still_on_record`),
+  },
+  {
+    guard: "front door: a request's attempt and outcome share its id",
+    file: FRONT_DOOR,
+    find: '            "request": uuid.uuid4().hex,\n',
+    replace: "",
+    run: pytest(`${HTTP_TESTS}::test_a_request_passed_to_the_server_is_recorded_before_it_runs_then_its_outcome`),
+  },
+  {
+    guard: "audit: an attempt and its outcome read back as one request",
+    file: "python/src/mcp_governance/audit.py",
+    find: "        if key is not None and key in by_id:",
+    replace: "        if False:",
+    run: pytest(`${HTTP_TESTS}::test_a_request_passed_to_the_server_is_recorded_before_it_runs_then_its_outcome`),
+  },
+  {
+    guard: "audit: an attempt with no outcome after it says so",
+    file: "python/src/mcp_governance/audit.py",
+    find: '        entry = {**r, "outcome": NO_OUTCOME} if r.get("outcome") == ATTEMPT else dict(r)',
+    replace: "        entry = dict(r)",
+    run: pytest(`${HTTP_TESTS}::test_an_attempt_with_no_outcome_after_it_says_so`),
   },
   {
     guard: "front door: a request without a token is audited too",

@@ -14,18 +14,21 @@ Before a request reaches the server, it:
 3. removes the Authorization header, so nothing behind it can pass the token on to another service;
 4. hands the request to the MCP server built for the person the token names;
 
-and it writes one audit record for every request, whatever the answer. It also serves the
-Protected Resource Metadata (RFC 9728) that tells a client where tokens for this server come from.
+and it writes an audit record for every request, whatever the answer: a refusal's before the refusal
+goes out, and for a request it passes on, the attempt before the server acts on it and the outcome
+after. It also serves the Protected Resource Metadata (RFC 9728) that tells a client where tokens for
+this server come from.
 """
 
 from __future__ import annotations
 
 import json
+import uuid
 from collections.abc import Awaitable, Callable, MutableMapping, Sequence
 from typing import Any
 from urllib.parse import urlsplit
 
-from mcp_governance.audit import UNKNOWN, AuditLog
+from mcp_governance.audit import ATTEMPT, UNKNOWN, AuditLog
 from mcp_governance.tokens import TokenRefused, Verifier, canonical
 
 Scope = MutableMapping[str, Any]
@@ -105,6 +108,7 @@ class ResourceServer:
         method, name, arguments = operation(body)
         needed = self.required_scopes(method, name) if method else ()
         record: dict[str, Any] = {
+            "request": uuid.uuid4().hex,
             "client": UNKNOWN,
             "subject": UNKNOWN,
             "person": UNKNOWN,
@@ -158,7 +162,16 @@ class ResourceServer:
             await self.refuse(send, 403, "insufficient_scope", description, needed)
             return
 
-        status, outcome = await self.forward(app, without_authorization(scope), replay(body, receive), send)
+        # The attempt is recorded before the server acts on it, and the outcome after, so a request
+        # whose handling fails on the way, or that a stopped server never finished, is still on record.
+        self.audit.record(**record, status=None, outcome=ATTEMPT)
+        try:
+            status, outcome = await self.forward(
+                app, without_authorization(scope), replay(body, receive), send
+            )
+        except BaseException as error:
+            self.audit.record(**record, status=500, outcome=f"failed: {type(error).__name__}")
+            raise
         self.audit.record(**record, status=status, outcome=outcome)
 
     async def forward(self, app: ASGIApp, scope: Scope, receive: Receive, send: Send) -> tuple[int, str]:

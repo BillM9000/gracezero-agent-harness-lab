@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SAMPLE = join(here, "sample-2026-09-22.json");
+const TEMPLATE = join(here, "my-postings.template.json");
 const MAP = join(here, "skills-map.json");
 const work = mkdtempSync(join(tmpdir(), "skills-"));
 after(() => rmSync(work, { recursive: true, force: true }));

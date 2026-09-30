@@ -4652,6 +4652,13 @@ export const MUTATIONS = [
     run: nodeTest(SKILLS_TESTS, "a signal added to the codebook"),
   },
   {
+    guard: "skills: the codebook's bookkeeping fields aren't skills",
+    file: SKILLS,
+    find: ".filter((key) => !NOT_SIGNALS.includes(key));",
+    replace: '.filter((key) => key !== "type" && key !== "languages");',
+    run: nodeTest(SKILLS_TESTS, "the codebook's fields that record how a posting was coded"),
+  },
+  {
     guard: "skills: a skill can't be both built and excused",
     file: SKILLS,
     find: "if (built && excused) problems.push",

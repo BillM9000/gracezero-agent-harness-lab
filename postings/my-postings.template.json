@@ -23,7 +23,12 @@
     "security": "Security or compliance named as a responsibility or requirement.",
     "servingOrTraining": "Model serving or inference infrastructure, training, fine-tuning or GPU capacity, as required or preferred.",
     "kubernetes": "Kubernetes named (EKS counts).",
-    "languages": "Named as required or preferred. typescriptOrJavascript includes Node.js and React."
+    "languages": "Named as required or preferred. typescriptOrJavascript includes Node.js and React.",
+    "gateway": "An LLM gateway that centralizes model access, keys, limits and cost, or routing between models by cost and capability.",
+    "gatewayBasis": "Optional: where a posting's gateway code came from, when you add the signal after the posting was first coded. text (its full text when first read), reread (its full text read again later), note (its note, when the text can no longer be reached).",
+    "readOn": "The day you read the posting in full and coded it, as YYYY-MM-DD. The template's date is a placeholder: replace it.",
+    "publicWorkAsked": "Postings with \"architect\" in the title only: whether the posting asks, in so many words, for a public body of work (a public repository, published writing or talks, a governance framework or an architecture decision record). required (an application must include it), asked (the application asks for a link), preferred (desired, a plus, or one accepted form of evidence), none, or not re-read (the text could not be reached to check).",
+    "screenedOn": "On exclusion records: the day you screened the posting out, as YYYY-MM-DD."
   },
   "postings": [
     {
@@ -35,6 +40,7 @@
       "employment": "unknown",
       "pay": null,
       "posted": null,
+      "readOn": "2026-09-30",
       "url": "https://example.com/replace-with-the-posting-link",
       "source": "Replace with where you found it",
       "type": "enablement",
@@ -51,6 +57,7 @@
       "security": false,
       "servingOrTraining": false,
       "kubernetes": false,
+      "gateway": false,
       "python": false,
       "typescriptOrJavascript": false,
       "java": false,
@@ -67,7 +74,8 @@
       "company": "Replace or delete",
       "title": "A posting you read and left out",
       "url": "https://example.com/replace-me",
-      "reason": "Which exclusion rule it met."
+      "reason": "Which exclusion rule it met.",
+      "screenedOn": "2026-09-30"
     }
   ]
 }

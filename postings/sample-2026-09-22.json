@@ -1,7 +1,7 @@
 {
   "sample": {
     "pulled": "2026-09-22",
-    "source": "Indeed job search API through the connected job-search tool (P02 to P12); public company job boards on Greenhouse, Lever and Ashby read through their own APIs (P13 to P21); Indeed read in a logged-in browser, covering the fifteen candidates the rate limit had blocked plus two enterprise-targeted searches (P22 to P33); and one posting supplied as text (P01)",
+    "source": "Indeed job search API through the connected job-search tool (P02 to P12); public company job boards on Greenhouse, Lever and Ashby read through their own APIs (P13 to P21); Indeed read in a signed-in browser, covering the fifteen candidates the rate limit had blocked plus two enterprise-targeted searches (P22 to P33); and one posting read from a copy of its text (P01)",
     "searches": [
       "AI Platform Engineer: remote, Chicago IL, New York NY, San Francisco CA, Seattle WA, Austin TX, Boston MA, Atlanta GA, Dallas TX; remote contract",
       "LLM Platform Engineer: remote",
@@ -18,8 +18,21 @@
     ],
     "inclusion": "The role's core work is building or running shared AI or agent infrastructure, tooling, guardrails or platforms that other teams, products or agents use. A title alone does not qualify.",
     "exclusion": "Forward-deployed and solutions or sales roles, AI trainer and data annotation gigs, general software roles whose AI content is incidental, management and delivery-director roles.",
-    "limits": "United States only, search terms chosen by the author, one day; Indeed results are relevance-ranked. Staffing firms sometimes repost a client's description. This is a sample, not a survey. The Indeed tool rate-limited the session after 12 postings, so the rest came from company job boards on Greenhouse, Lever and Ashby. Those systems are used mostly by technology companies, which tilts P13 to P21 toward tech employers and away from banks, insurers and government, whose postings usually sit elsewhere. Job-board postings were read as raw text from each board's API, by a script kept with the research rather than in this repository, not through a summarizer. The two enterprise-targeted browser searches were not neutral either: they looked for evaluation, MCP and Copilot-enablement work at employers outside tech. Indeed pages in the browser carried personalization for the logged-in account; only posting text was recorded.",
-    "anonymized": "Employers are described rather than named, and posting links are withheld (url is null). The codes are as recorded on 2026-09-22."
+    "limits": "United States only, search terms chosen by the author, one day; Indeed results are relevance-ranked. Staffing firms sometimes repost a client's description. This is a sample, not a survey. The Indeed tool rate-limited the session after 12 postings, so the rest came from company job boards on Greenhouse, Lever and Ashby. Those systems are used mostly by technology companies, which tilts P13 to P21 toward tech employers and away from banks, insurers and government, whose postings usually sit elsewhere. Job-board postings were read as raw text from each board's API by a script, not through a summarizer. The two enterprise-targeted browser searches were not neutral either: they looked for evaluation, MCP and Copilot-enablement work at employers outside tech. Indeed pages in the browser carried personalization for the logged-in account; only posting text was recorded.",
+    "anonymized": "Employers are described rather than named, and posting links are withheld (url is null): P01 since 2026-09-25, every other posting and exclusion since 2026-09-26. The codes are unchanged.",
+    "extended": {
+      "on": "2026-09-30",
+      "why": "The 2026-09-22 searches never used architect titles, yet three architect-titled postings surfaced (P23, P28, P29) and were coded into the same kinds with the same signals. This step adds architect-titled postings found with architect search terms, screened and coded by the same rules, adds the gateway signal the 2026-09-22 report proposed, and records the date each posting was read.",
+      "source": "Six Indeed postings read in full earlier on 2026-09-30 through the connected job-search tool and re-read by job id through the same tool (P34 to P38, and P28 still open); Indeed searches through the same tool until it rate-limited (P39); web searches restricted to the Greenhouse, Lever and Ashby job-board domains; live scans of company boards, by a script that read each board's public API, with a new mode that keeps solutions-architect titles for the screen to decide. Job-board postings were read as raw text from each board's API by a script, P40 to P45.",
+      "searches": [
+        "Indeed job-search tool, country US: \"AI Architect\" in remote; New York, NY; San Francisco, CA; Chicago, IL. The tool then rate-limited the session (a retry minutes later was refused again), so \"AI Solutions Architect\", \"Enterprise AI Architect\", \"Agentic AI Architect\", \"AI Platform Architect\", \"GenAI Architect\" and \"LLM Architect\" were not run on Indeed.",
+        "Web searches restricted to job-boards.greenhouse.io, boards.greenhouse.io, jobs.lever.co and jobs.ashbyhq.com, exactly as typed: \"AI Architect\" job United States; \"AI Platform Architect\" OR \"Agentic AI Architect\" OR \"Enterprise AI Architect\" job; \"GenAI Architect\" OR \"LLM Architect\" OR \"Generative AI Architect\" job US; \"AI Solutions Architect\" internal platform job remote United States; \"Agentic AI Architect\" job; \"AI Platform Architect\" job; \"Enterprise AI Architect\" job",
+        "Live board scans, by a script that read each board's public API: 55 boards in its default mode, then 73 boards in a mode that keeps solutions-architect titles; the board list is kept with the research record"
+      ],
+      "screen": "Unchanged: the core work is building or running shared AI or agent infrastructure, tooling, guardrails or platforms that other teams, products or agents use. A title alone never qualifies, in either direction. Architect titles were screened on the same rule as engineer titles.",
+      "anonymized": "New postings and exclusions follow the 2026-09-26 convention: employers are described, not named, and url is null. The names and links are kept with the research record, not in this file.",
+      "fileName": "The file keeps its 2026-09-22 name because the lab and the chapters reference it; each posting's readOn and each exclusion's screenedOn give the date."
+    }
   },
   "codebook": {
     "type": "Primary kind of job: infrastructure (running, serving or training AI at scale), enablement (shared AI capabilities, standards and governance for many internal teams), product-agents (agents or LLM features inside a customer-facing product), coding-agents (coding agents and AI developer tooling in engineering workflows), applied (a domain-specific AI system). alsoType records a clear second kind.",
@@ -35,7 +48,12 @@
     "security": "Security or compliance named as a responsibility or requirement.",
     "servingOrTraining": "Model serving or inference infrastructure, training, fine-tuning or GPU capacity, as required or preferred.",
     "kubernetes": "Kubernetes named (EKS counts).",
-    "languages": "Named as required or preferred. typescriptOrJavascript includes Node.js and React."
+    "languages": "Named as required or preferred. typescriptOrJavascript includes Node.js and React.",
+    "gateway": "An LLM gateway that centralizes model access, keys, limits and cost, or routing between models by cost and capability. Added 2026-09-30, as the 2026-09-22 report proposed.",
+    "gatewayBasis": "Where the gateway code came from: text (coded from the full posting text when it was first read, 2026-09-30), reread (a 2026-09-22 posting whose full text was read again on 2026-09-30 to code gateway), note (a 2026-09-22 posting whose text could not be reached on 2026-09-30; coded from its note, conservatively).",
+    "readOn": "The date the posting was read in full and coded. The first 33 were read on 2026-09-22.",
+    "publicWorkAsked": "Architect-titled postings only (added 2026-09-30): whether the posting asks, in so many words, for a public body of work (a public repository, published writing or talks, a governance framework or an architecture decision record). required (an application must include it), asked (the application asks for a link), preferred (desired, a plus, or one accepted form of evidence), none, or not re-read (the text could not be reached on 2026-09-30).",
+    "screenedOn": "On exclusion records: the date the screen was applied."
   },
   "postings": [
     {
@@ -77,7 +95,10 @@
       ],
       "yearsRequired": 5,
       "degreeRequired": true,
-      "note": "Harnesses, guardrails (dependency rules, custom linters, structural tests), context files and CI feedback loops for coding agents in enterprise codebases."
+      "note": "Harnesses, guardrails (dependency rules, custom linters, structural tests), context files and CI feedback loops for coding agents in enterprise codebases.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "id": "P02",
@@ -112,7 +133,10 @@
       "codingAgentsNamed": [],
       "yearsRequired": 8,
       "degreeRequired": true,
-      "note": "Foundational AI platform services behind the company's AI products; reliability and scale. Almost nothing AI-specific in the requirements."
+      "note": "Foundational AI platform services behind the company's AI products; reliability and scale. Almost nothing AI-specific in the requirements.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "id": "P03",
@@ -147,7 +171,10 @@
       "codingAgentsNamed": [],
       "yearsRequired": null,
       "degreeRequired": null,
-      "note": "Reusable AI components, guardrails, evaluation frameworks and governance for many product teams; intelligent document processing preferred."
+      "note": "Reusable AI components, guardrails, evaluation frameworks and governance for many product teams; intelligent document processing preferred.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "id": "P04",
@@ -182,7 +209,10 @@
       "codingAgentsNamed": [],
       "yearsRequired": null,
       "degreeRequired": null,
-      "note": "Background agents inside a legal product: review queues, approval gates, evaluations as a CI promotion gate, an MCP server, per-tenant cost accounting. Requires 1 year of legal software experience."
+      "note": "Background agents inside a legal product: review queues, approval gates, evaluations as a CI promotion gate, an MCP server, per-tenant cost accounting. Requires 1 year of legal software experience.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "id": "P05",
@@ -217,7 +247,10 @@
       "codingAgentsNamed": [],
       "yearsRequired": 15,
       "degreeRequired": null,
-      "note": "Leads an LLM-powered code security scanner: React front end, Python orchestration, agent-based workflows. Its 'verification workflows' for scanner findings are arguably evaluation of AI output; coded no, conservatively."
+      "note": "Leads an LLM-powered code security scanner: React front end, Python orchestration, agent-based workflows. Its 'verification workflows' for scanner findings are arguably evaluation of AI output; coded no, conservatively.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "id": "P06",
@@ -252,7 +285,10 @@
       "codingAgentsNamed": [],
       "yearsRequired": 3,
       "degreeRequired": null,
-      "note": "Backend platform for ML: experiment tracking, artifact management, automated training and evaluation pipelines, observability."
+      "note": "Backend platform for ML: experiment tracking, artifact management, automated training and evaluation pipelines, observability.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "id": "P07",
@@ -287,7 +323,10 @@
       "codingAgentsNamed": [],
       "yearsRequired": 10,
       "degreeRequired": null,
-      "note": "Multi-tenant AI platform customers run models and agents on: serving, MCP tooling, RAG, evaluation as a release gate in CI, prompt-injection and tool-abuse defenses, per-tenant cost. Also asks for judgment reviewing AI-generated code (not coded as codingAgents)."
+      "note": "Multi-tenant AI platform customers run models and agents on: serving, MCP tooling, RAG, evaluation as a release gate in CI, prompt-injection and tool-abuse defenses, per-tenant cost. Also asks for judgment reviewing AI-generated code (not coded as codingAgents).",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "id": "P08",
@@ -322,7 +361,10 @@
       "codingAgentsNamed": [],
       "yearsRequired": 5,
       "degreeRequired": true,
-      "note": "MLOps: production ML systems, training and real-time inference workflows, model monitoring, Kubernetes. LLM experience a plus."
+      "note": "MLOps: production ML systems, training and real-time inference workflows, model monitoring, Kubernetes. LLM experience a plus.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "id": "P09",
@@ -360,7 +402,10 @@
       ],
       "yearsRequired": 5,
       "degreeRequired": null,
-      "note": "Internal AI paved path: developer harnesses for autonomous agents, MCP and agent-to-agent standards, an LLM gateway with guardrails, spend limits and PII controls, policy as code, runbooks; operates Claude, Gemini, Devin, Glean and Portkey. Four or more office days a week."
+      "note": "Internal AI paved path: developer harnesses for autonomous agents, MCP and agent-to-agent standards, an LLM gateway with guardrails, spend limits and PII controls, policy as code, runbooks; operates Claude, Gemini, Devin, Glean and Portkey. Four or more office days a week.",
+      "gateway": true,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "id": "P10",
@@ -395,7 +440,10 @@
       "codingAgentsNamed": [],
       "yearsRequired": 5,
       "degreeRequired": true,
-      "note": "APIs that expose AI models to other teams, Kubernetes deployment, multi-cloud, monitoring, security compliance. Counted once although posted for two cities."
+      "note": "APIs that expose AI models to other teams, Kubernetes deployment, multi-cloud, monitoring, security compliance. Counted once although posted for two cities.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "id": "P11",
@@ -433,7 +481,10 @@
       ],
       "yearsRequired": null,
       "degreeRequired": null,
-      "note": "Platform for the company's internal agents on AWS: agent registry, tool catalog, agents inheriting the invoking human's permissions, MCP governance hooks, templates and SDKs, cost tracking. Daily use of Cursor and Claude Code expected."
+      "note": "Platform for the company's internal agents on AWS: agent registry, tool catalog, agents inheriting the invoking human's permissions, MCP governance hooks, templates and SDKs, cost tracking. Daily use of Cursor and Claude Code expected.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "id": "P12",
@@ -472,7 +523,10 @@
       ],
       "yearsRequired": 3,
       "degreeRequired": null,
-      "note": "LLMs and agents in engineering workflows, spec-driven development with Claude Code, internal developer platforms on AWS, training teams in AI-assisted development. Appears to be a staffing firm's repost of a client description."
+      "note": "LLMs and agents in engineering workflows, spec-driven development with Claude Code, internal developer platforms on AWS, training teams in AI-assisted development. Appears to be a staffing firm's repost of a client description.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -507,7 +561,10 @@
       "source": "Greenhouse",
       "type": "product-agents",
       "alsoType": "enablement",
-      "note": "Platform for the company's AI features: evals for design generation, agentic search, its MCP server, sandboxes and harnesses for the agents behind its prompt-to-app tool and its design agent. It builds for an agent that writes code for users, not coded as codingAgents; sandboxes are not coded as guardrails. First published 2025-11-01 and still open."
+      "note": "Platform for the company's AI features: evals for design generation, agentic search, its MCP server, sandboxes and harnesses for the agents behind its prompt-to-app tool and its design agent. It builds for an agent that writes code for users, not coded as codingAgents; sandboxes are not coded as guardrails. First published 2025-11-01 and still open.",
+      "gateway": false,
+      "gatewayBasis": "reread",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -542,7 +599,10 @@
       "source": "Greenhouse",
       "type": "enablement",
       "alsoType": null,
-      "note": "One of the first hires for a company-wide AI platform: model access, MCP and tool-use connectors, custom AI apps for business workflows, provider selection, AI training for every team. Requires production use of AI development tools (none named). US citizenship and a Top Secret clearance required. Pay not captured."
+      "note": "One of the first hires for a company-wide AI platform: model access, MCP and tool-use connectors, custom AI apps for business workflows, provider selection, AI training for every team. Requires production use of AI development tools (none named). US citizenship and a Top Secret clearance required. Pay not captured.",
+      "gateway": false,
+      "gatewayBasis": "reread",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -582,7 +642,10 @@
       "source": "Lever",
       "type": "enablement",
       "alsoType": "coding-agents",
-      "note": "AI Technical Strike Team: internal tooling, agents and workflows; integrating and extending coding assistants; structured pilots of new tools; observability of AI tool usage, cost and quality; guardrails with Security and Legal; adoption through docs and office hours. The location field says Toronto; included because it states a US salary range."
+      "note": "AI Technical Strike Team: internal tooling, agents and workflows; integrating and extending coding assistants; structured pilots of new tools; observability of AI tool usage, cost and quality; guardrails with Security and Legal; adoption through docs and office hours. The location field says Toronto; included because it states a US salary range.",
+      "gateway": false,
+      "gatewayBasis": "reread",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -622,7 +685,10 @@
       "source": "Greenhouse",
       "type": "coding-agents",
       "alsoType": null,
-      "note": "Owns the AI-assisted development experience: cloud dev environments where agents run the full test suite, MCP integrations to CI, Slack, Datadog and GitHub, the repo-wide agents.md and a library of agent skills, and fixing the root causes where agents struggle. The interview loop includes a 60-minute AI Skills Interview."
+      "note": "Owns the AI-assisted development experience: cloud dev environments where agents run the full test suite, MCP integrations to CI, Slack, Datadog and GitHub, the repo-wide agents.md and a library of agent skills, and fixing the root causes where agents struggle. The interview loop includes a 60-minute AI Skills Interview.",
+      "gateway": false,
+      "gatewayBasis": "reread",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -661,7 +727,10 @@
       "source": "Greenhouse",
       "type": "enablement",
       "alsoType": "infrastructure",
-      "note": "GenAI Platform team serving the company and two delivery businesses it owns. The focus is a company-wide evaluation platform (eval SDKs, trace and score ingestion, LLM-as-judge, agent simulation, LLM observability), plus an LLM gateway, an agent gateway, open-weights serving, guardrails and cost attribution. Requires AI coding tools across the development lifecycle. A senior posting for the same team is not counted separately."
+      "note": "GenAI Platform team serving the company and two delivery businesses it owns. The focus is a company-wide evaluation platform (eval SDKs, trace and score ingestion, LLM-as-judge, agent simulation, LLM observability), plus an LLM gateway, an agent gateway, open-weights serving, guardrails and cost attribution. Requires AI coding tools across the development lifecycle. A senior posting for the same team is not counted separately.",
+      "gateway": true,
+      "gatewayBasis": "reread",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -700,7 +769,10 @@
       "source": "Ashby",
       "type": "coding-agents",
       "alsoType": null,
-      "note": "Internal AI developer platform: CLAUDE.md and AGENTS.md conventions with tooling to keep them accurate, internal MCP servers with scoped access, shared skills, subagents and hooks, sandboxes, a golden path, a gateway with cost controls and audit logs, eval harnesses on real tasks, and measuring AI's effect on cycle time, review latency and change failure rate. The company sells inference; this role is internal."
+      "note": "Internal AI developer platform: CLAUDE.md and AGENTS.md conventions with tooling to keep them accurate, internal MCP servers with scoped access, shared skills, subagents and hooks, sandboxes, a golden path, a gateway with cost controls and audit logs, eval harnesses on real tasks, and measuring AI's effect on cycle time, review latency and change failure rate. The company sells inference; this role is internal.",
+      "gateway": true,
+      "gatewayBasis": "reread",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -735,7 +807,10 @@
       "source": "Ashby",
       "type": "product-agents",
       "alsoType": "coding-agents",
-      "note": "Infrastructure for agents that generate customer interfaces, agents that contribute to the company's own codebase, and internal agents for non-engineering teams: long-running execution, memory, isolated environments, tracing, evaluation. Isolation is not coded as guardrails; no languages named."
+      "note": "Infrastructure for agents that generate customer interfaces, agents that contribute to the company's own codebase, and internal agents for non-engineering teams: long-running execution, memory, isolated environments, tracing, evaluation. Isolation is not coded as guardrails; no languages named.",
+      "gateway": false,
+      "gatewayBasis": "reread",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -770,7 +845,10 @@
       "source": "Greenhouse",
       "type": "enablement",
       "alsoType": "infrastructure",
-      "note": "GenAI platform for every team at the company: an LLM gateway with rate and token limits and failover, enterprise RAG, agentic workflow and tool-use patterns, LLMOps standards including evaluation, governance and observability for GenAI systems."
+      "note": "GenAI platform for every team at the company: an LLM gateway with rate and token limits and failover, enterprise RAG, agentic workflow and tool-use patterns, LLMOps standards including evaluation, governance and observability for GenAI systems.",
+      "gateway": true,
+      "gatewayBasis": "reread",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -805,7 +883,10 @@
       "source": "Greenhouse",
       "type": "enablement",
       "alsoType": null,
-      "note": "Paved path for employee-facing AI apps, bots and agents: shared hosting and agent execution, model routing by cost, capability and policy with an audit trail, telemetry and per-team cost attribution, Okta-connected identity, guardrails for sensitive data. A different team and org from P13, so counted separately."
+      "note": "Paved path for employee-facing AI apps, bots and agents: shared hosting and agent execution, model routing by cost, capability and policy with an audit trail, telemetry and per-team cost attribution, Okta-connected identity, guardrails for sensitive data. A different team and org from P13, so counted separately.",
+      "gateway": true,
+      "gatewayBasis": "reread",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -840,7 +921,10 @@
       "url": null,
       "type": "product-agents",
       "alsoType": "infrastructure",
-      "note": "Platform for agentic workloads behind the company's AI assistant for tax and accounting: backend services that power generative AI agents, golden-path CI/CD (GitHub Actions, Playwright, Snyk), Go tooling, LLM observability, and tracking DORA metrics (deployment frequency, change failure rate). LLM evaluation tools and vector databases preferred. 'Cost-effective' infrastructure is generic, so cost control is not coded."
+      "note": "Platform for agentic workloads behind the company's AI assistant for tax and accounting: backend services that power generative AI agents, golden-path CI/CD (GitHub Actions, Playwright, Snyk), Go tooling, LLM observability, and tracking DORA metrics (deployment frequency, change failure rate). LLM evaluation tools and vector databases preferred. 'Cost-effective' infrastructure is generic, so cost control is not coded.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -875,7 +959,11 @@
       "url": null,
       "type": "applied",
       "alsoType": null,
-      "note": "Consulting delivery at a client site five days a week, the same model as P01: migrating an enterprise knowledge-search RAG platform from Microsoft Semantic Kernel to Microsoft Agent Framework while preserving APIs, RBAC, retrieval quality and citations; MCP tool integrations; OpenTelemetry and Arize Phoenix observability; RAG and agent regression evaluation. Guardrails coded for preserving permissions in the AI system. OpenShift runs on Kubernetes, but Kubernetes is not named, so it is not coded."
+      "note": "Consulting delivery at a client site five days a week, the same model as P01: migrating an enterprise knowledge-search RAG platform from Microsoft Semantic Kernel to Microsoft Agent Framework while preserving APIs, RBAC, retrieval quality and citations; MCP tool integrations; OpenTelemetry and Arize Phoenix observability; RAG and agent regression evaluation. Guardrails coded for preserving permissions in the AI system. OpenShift runs on Kubernetes, but Kubernetes is not named, so it is not coded.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22",
+      "publicWorkAsked": "not re-read"
     },
     {
       "agents": true,
@@ -910,7 +998,10 @@
       "url": null,
       "type": "enablement",
       "alsoType": "infrastructure",
-      "note": "Enterprise IT: builds ML and GenAI solutions and the LLMOps pipelines, standards, playbooks and guardrails for operating them, working with named AI Enablement and AI Platform Operations teams. Microsoft stack first (Azure AI Foundry, Copilot Studio), plus Claude, Vertex AI and Snowflake Cortex; MCP servers; prompt-injection controls. Lists Cursor among acceptable 'platforms'; not coded as codingAgents, conservatively."
+      "note": "Enterprise IT: builds ML and GenAI solutions and the LLMOps pipelines, standards, playbooks and guardrails for operating them, working with named AI Enablement and AI Platform Operations teams. Microsoft stack first (Azure AI Foundry, Copilot Studio), plus Claude, Vertex AI and Snowflake Cortex; MCP servers; prompt-injection controls. Lists Cursor among acceptable 'platforms'; not coded as codingAgents, conservatively.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -945,7 +1036,10 @@
       "url": null,
       "type": "coding-agents",
       "alsoType": null,
-      "note": "Engineering Platform for 300+ engineers, with a mission 'expanded' by agentic development: abstractions, orchestration, fast feedback loops and strong guardrails so engineers and AI agents can plan, test, review and ship changes in a large Python monolith. No coding agent named."
+      "note": "Engineering Platform for 300+ engineers, with a mission 'expanded' by agentic development: abstractions, orchestration, fast feedback loops and strong guardrails so engineers and AI agents can plan, test, review and ship changes in a large Python monolith. No coding agent named.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -984,7 +1078,10 @@
       "url": null,
       "type": "coding-agents",
       "alsoType": null,
-      "note": "Builds the system in which AI agents (Claude Code) generate, run and iterate on Playwright tests, with feedback loops from local runs through CI into merge requests so agents can interpret failures, fix and resubmit; quality gates on every merge request. Tracks the share of AI-generated tests that are correct on the first pass (not coded as evaluation, conservatively). Says agentic-tool experience 'is not optional.'"
+      "note": "Builds the system in which AI agents (Claude Code) generate, run and iterate on Playwright tests, with feedback loops from local runs through CI into merge requests so agents can interpret failures, fix and resubmit; quality gates on every merge request. Tracks the share of AI-generated tests that are correct on the first pass (not coded as evaluation, conservatively). Says agentic-tool experience 'is not optional.'",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -1022,7 +1119,10 @@
       "url": null,
       "type": "applied",
       "alsoType": null,
-      "note": "Production agents, skills and automation pipelines for documentation and localization operations, integrated through MCPs and REST APIs; shared automation frameworks across teams; responsible-AI practices (security, privacy, bias, traceability). Observability and cost tracking for AI automation are preferred skills. Requires AI-assisted engineering tools."
+      "note": "Production agents, skills and automation pipelines for documentation and localization operations, integrated through MCPs and REST APIs; shared automation frameworks across teams; responsible-AI practices (security, privacy, bias, traceability). Observability and cost tracking for AI automation are preferred skills. Requires AI-assisted engineering tools.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -1057,7 +1157,11 @@
       "url": null,
       "type": "enablement",
       "alsoType": "product-agents",
-      "note": "Builds an AI platform 'from scratch' for healthcare product teams: model routing by latency, cost and capability tier, enterprise RAG, MCP and agent-to-agent protocols, agent context management, agent tracing with token usage, LLM-as-judge evaluation, fine-tuning and distillation, platform-wide guardrails and prompt-injection defenses, HIPAA."
+      "note": "Builds an AI platform 'from scratch' for healthcare product teams: model routing by latency, cost and capability tier, enterprise RAG, MCP and agent-to-agent protocols, agent context management, agent tracing with token usage, LLM-as-judge evaluation, fine-tuning and distillation, platform-wide guardrails and prompt-injection defenses, HIPAA.",
+      "gateway": true,
+      "gatewayBasis": "reread",
+      "readOn": "2026-09-22",
+      "publicWorkAsked": "none"
     },
     {
       "agents": true,
@@ -1092,7 +1196,11 @@
       "url": null,
       "type": "enablement",
       "alsoType": null,
-      "note": "A bank's enterprise agentic AI platform on AWS: multi-agent orchestration, memory architectures, RAG and knowledge graphs, evaluation frameworks, and, with Security and Risk, prompt-injection detection, data-leakage prevention, AI governance controls and human-in-the-loop approvals; prompt and model registries and approval workflows preferred. Two experience figures appear (7 and 10 years); 10 is recorded. SageMaker is named, but serving is not coded."
+      "note": "A bank's enterprise agentic AI platform on AWS: multi-agent orchestration, memory architectures, RAG and knowledge graphs, evaluation frameworks, and, with Security and Risk, prompt-injection detection, data-leakage prevention, AI governance controls and human-in-the-loop approvals; prompt and model registries and approval workflows preferred. Two experience figures appear (7 and 10 years); 10 is recorded. SageMaker is named, but serving is not coded.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22",
+      "publicWorkAsked": "not re-read"
     },
     {
       "agents": true,
@@ -1127,7 +1235,10 @@
       "url": null,
       "type": "enablement",
       "alsoType": null,
-      "note": "Owns the enterprise agentic AI platform (lakehouse, knowledge graph, retrieval, natural-language interfaces) shared through APIs and MCPs; evaluation and observability as disciplines, with regression suites, accuracy thresholds, release gates and tracing of latency, cost, hallucination rate and relevance; answers traceable to source evidence with provenance and access control."
+      "note": "Owns the enterprise agentic AI platform (lakehouse, knowledge graph, retrieval, natural-language interfaces) shared through APIs and MCPs; evaluation and observability as disciplines, with regression suites, accuracy thresholds, release gates and tracing of latency, cost, hallucination rate and relevance; answers traceable to source evidence with provenance and access control.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -1162,7 +1273,10 @@
       "url": null,
       "type": "enablement",
       "alsoType": null,
-      "note": "Central AI team at an insurer: a reusable AI capability and pattern library for federated teams, design reviews with technical sign-off at 'AI readiness gates,' standards for evaluation, groundedness, guardrails, observability, security and cost, a shared evaluation harness, and a Community of Practice with office hours. AWS Bedrock, AgentCore, MCP."
+      "note": "Central AI team at an insurer: a reusable AI capability and pattern library for federated teams, design reviews with technical sign-off at 'AI readiness gates,' standards for evaluation, groundedness, guardrails, observability, security and cost, a shared evaluation harness, and a Community of Practice with office hours. AWS Bedrock, AgentCore, MCP.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "agents": false,
@@ -1197,7 +1311,10 @@
       "url": null,
       "type": "enablement",
       "alsoType": "infrastructure",
-      "note": "A team whose models and platforms serve teams across the bank: foundation model training, LLM inference, similarity search, guardrails (NeMo Guardrails), model evaluation, governance and observability, LLM optimization for cost and latency. MCP appears in the title only. Agents are not described in the body, so not coded. Found through an enterprise-targeted search."
+      "note": "A team whose models and platforms serve teams across the bank: foundation model training, LLM inference, similarity search, guardrails (NeMo Guardrails), model evaluation, governance and observability, LLM optimization for cost and latency. MCP appears in the title only. Agents are not described in the body, so not coded. Found through an enterprise-targeted search.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
     },
     {
       "agents": true,
@@ -1234,7 +1351,482 @@
       "url": null,
       "type": "enablement",
       "alsoType": "coding-agents",
-      "note": "IT-based AI enablement at a mid-size manufacturer, Microsoft first: Copilot Studio agents, Power Platform, GitHub Copilot; AI use-case intake and triage; coaching 'citizen builders'; adoption and impact metrics; standards so AI-built software meets operability and security expectations; reusable templates, agents and prompt libraries; champions and playbooks. Requires Copilot Studio and M365 administration."
+      "note": "IT-based AI enablement at a mid-size manufacturer, Microsoft first: Copilot Studio agents, Power Platform, GitHub Copilot; AI use-case intake and triage; coaching 'citizen builders'; adoption and impact metrics; standards so AI-built software meets operability and security expectations; reusable templates, agents and prompt libraries; champions and playbooks. Requires Copilot Studio and M365 administration.",
+      "gateway": false,
+      "gatewayBasis": "note",
+      "readOn": "2026-09-22"
+    },
+    {
+      "id": "P34",
+      "agents": false,
+      "codingAgents": false,
+      "mcp": false,
+      "retrieval": true,
+      "evaluation": true,
+      "guardrails": true,
+      "aiObservability": true,
+      "costControl": false,
+      "humanApproval": true,
+      "security": true,
+      "servingOrTraining": true,
+      "kubernetes": true,
+      "python": true,
+      "typescriptOrJavascript": false,
+      "java": false,
+      "dotnet": false,
+      "go": false,
+      "codingAgentsNamed": [],
+      "company": "A federal healthcare IT consultancy",
+      "title": "AI Solutions Architect",
+      "location": "Remote",
+      "arrangement": "remote",
+      "employment": "full-time",
+      "pay": "From $150,000 a year",
+      "posted": "2026-09-25",
+      "source": "Indeed",
+      "type": "applied",
+      "alsoType": null,
+      "yearsRequired": 5,
+      "degreeRequired": true,
+      "publicWorkAsked": "asked",
+      "note": "Architecture for a federal health agency's prioritized AI use cases, from concept to operational pilot in government clouds: secure and compliant solution patterns, an evaluation strategy per use case (groundedness, hallucination rate, shadow-mode validation), drift monitoring, model lifecycle and registry patterns, human-in-the-loop safeguards in proportion to risk, and architecture decision records as formal deliverables. The most borderline inclusion of the extension: the use cases are applications, and it passes the screen on the shared patterns and lifecycle work across them, so it is coded applied. Designing evaluations for 'agentic approaches' is not coded as agents, conservatively. Its application questions ask for a GitHub account link.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
+    },
+    {
+      "id": "P35",
+      "agents": true,
+      "codingAgents": false,
+      "mcp": true,
+      "retrieval": true,
+      "evaluation": true,
+      "guardrails": true,
+      "aiObservability": true,
+      "costControl": false,
+      "humanApproval": false,
+      "security": false,
+      "servingOrTraining": false,
+      "kubernetes": false,
+      "python": false,
+      "typescriptOrJavascript": false,
+      "java": false,
+      "dotnet": false,
+      "go": false,
+      "codingAgentsNamed": [],
+      "company": "A software development consultancy",
+      "title": "Senior AI Architect / Enterprise AI Strategist",
+      "location": "Remote",
+      "arrangement": "remote",
+      "employment": "contract",
+      "pay": "$130,000 - $160,000 a year",
+      "posted": "2026-09-08",
+      "source": "Indeed",
+      "type": "enablement",
+      "alsoType": null,
+      "yearsRequired": 12,
+      "degreeRequired": null,
+      "publicWorkAsked": "none",
+      "note": "Enterprise AI architecture across products and business units: scalable AI platform architectures, reusable patterns for LLMs, agentic AI, RAG, MCP and vector databases, and enterprise AI governance, model lifecycle, prompt management, evaluation frameworks and observability. Asks for experience designing enterprise-scale AI platforms rather than individual AI applications. 'Secure' appears only as an adjective, so security is not coded. A consultancy's contract role; the client is not named. Experience stated as 12 to 15+ years; 12 is recorded.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
+    },
+    {
+      "id": "P36",
+      "agents": true,
+      "codingAgents": true,
+      "mcp": false,
+      "retrieval": true,
+      "evaluation": false,
+      "guardrails": true,
+      "aiObservability": false,
+      "costControl": false,
+      "humanApproval": false,
+      "security": true,
+      "servingOrTraining": false,
+      "kubernetes": false,
+      "python": false,
+      "typescriptOrJavascript": false,
+      "java": false,
+      "dotnet": false,
+      "go": false,
+      "codingAgentsNamed": [],
+      "company": "A technology and change-management consultancy serving state government",
+      "title": "AI Strategy and Solution Architect - Remote",
+      "location": "Olympia WA (remote)",
+      "arrangement": "remote",
+      "employment": "full-time",
+      "pay": "$165,000 - $215,000 a year",
+      "posted": "2026-05-13",
+      "source": "Indeed",
+      "type": "enablement",
+      "alsoType": null,
+      "yearsRequired": 7,
+      "degreeRequired": null,
+      "publicWorkAsked": "required",
+      "note": "AI roadmaps, governance structures, guardrails, access controls and governance policies for government and enterprise clients, with hands-on prototyping in agentic IDEs and coaching of client staff. Advisory consulting, borderline on the screen; included on the guardrails and governance it designs for client organizations, as consulting delivery was included for P01 and P23. Agentic IDEs are required, so codingAgents is coded (none named). An application must include two pieces of public-facing AI work: published writing, a recorded talk, a public GitHub repository, or a sample roadmap, governance framework or architecture decision document. A degree is desired, not required.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
+    },
+    {
+      "id": "P37",
+      "agents": true,
+      "codingAgents": true,
+      "mcp": true,
+      "retrieval": true,
+      "evaluation": true,
+      "guardrails": true,
+      "aiObservability": false,
+      "costControl": false,
+      "humanApproval": false,
+      "security": true,
+      "servingOrTraining": false,
+      "kubernetes": true,
+      "python": true,
+      "typescriptOrJavascript": false,
+      "java": false,
+      "dotnet": false,
+      "go": false,
+      "codingAgentsNamed": [],
+      "company": "An online vehicle auction marketplace",
+      "title": "AI Application Security Architect",
+      "location": "Buffalo NY",
+      "arrangement": "unknown",
+      "employment": "full-time",
+      "pay": "$200,000 - $250,000 a year",
+      "posted": "2026-08-13",
+      "source": "Indeed",
+      "type": "enablement",
+      "alsoType": null,
+      "yearsRequired": 12,
+      "degreeRequired": null,
+      "publicWorkAsked": "preferred",
+      "note": "Company-wide security architect for AI: reference architectures and secure-by-default standards for LLM features, retrieval pipelines and agentic workflows (prompt-injection defense, output handling, tool and agent permissioning), the security architecture for coding assistants, MCP servers and autonomous agents, and an AI security testing capability with red-teaming, evaluation harnesses and runtime guardrails. Coding-agent work is one responsibility among several, so no second type is recorded. Familiarity with inference infrastructure is a plus in a security context; serving is not coded, conservatively, as for P29. A verifiable body of AI security work (published research or tooling, open-source contributions) is accepted as evidence and said to weigh more than any certification.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
+    },
+    {
+      "id": "P38",
+      "agents": true,
+      "codingAgents": false,
+      "mcp": false,
+      "retrieval": true,
+      "evaluation": false,
+      "guardrails": false,
+      "aiObservability": true,
+      "costControl": true,
+      "humanApproval": false,
+      "security": true,
+      "servingOrTraining": true,
+      "kubernetes": true,
+      "python": true,
+      "typescriptOrJavascript": true,
+      "java": true,
+      "dotnet": false,
+      "go": true,
+      "codingAgentsNamed": [],
+      "company": "A staffing firm",
+      "title": "Principal-level AI software Architect",
+      "location": "Remote",
+      "arrangement": "remote",
+      "employment": "contract",
+      "pay": "$65 - $85 an hour",
+      "posted": "2026-09-28",
+      "source": "Indeed",
+      "type": "enablement",
+      "alsoType": "product-agents",
+      "yearsRequired": 12,
+      "degreeRequired": true,
+      "publicWorkAsked": "none",
+      "note": "AI architecture and technical vision across a client company's products: RAG and agent workflows, multi-tenant high-availability systems with observability, and AI cost management, monitoring and security standards across the company. Borderline on the screen: it passes on the cross-product standards, and the application work is recorded as the second type. No governance or policy is described, so guardrails is not coded; fine-tuning is preferred, so servingOrTraining is coded. A staffing firm's posting; the client is not named and it may repost the client's description, as P12 appears to.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
+    },
+    {
+      "id": "P39",
+      "agents": true,
+      "codingAgents": true,
+      "mcp": true,
+      "retrieval": true,
+      "evaluation": true,
+      "guardrails": true,
+      "aiObservability": true,
+      "costControl": false,
+      "humanApproval": false,
+      "security": true,
+      "servingOrTraining": true,
+      "kubernetes": false,
+      "python": false,
+      "typescriptOrJavascript": true,
+      "java": false,
+      "dotnet": true,
+      "go": false,
+      "codingAgentsNamed": [
+        "Claude Code",
+        "GitHub Copilot",
+        "Codex"
+      ],
+      "company": "A business-aviation maintenance services company",
+      "title": "AI Solution Architect",
+      "location": "Chicago IL",
+      "arrangement": "hybrid",
+      "employment": "full-time",
+      "pay": "$160,000 - $200,000 a year",
+      "posted": "2026-09-21",
+      "source": "Indeed",
+      "type": "coding-agents",
+      "alsoType": "enablement",
+      "yearsRequired": 6,
+      "degreeRequired": null,
+      "publicWorkAsked": "none",
+      "note": "AI-first software delivery across the company's engineering teams: spec-driven development in which coding agents implement structured specifications (a stated target of all code generated by AI), MCP servers that expose enterprise systems as tools, with criteria for vetting third-party MCP integrations, standards for guardrails, evaluation frameworks and agent behavior boundaries, and frameworks for fine-tuning, inference, observability and model governance; also agent-based enterprise automation. Cost appears only as one dimension an evaluation framework measures, so cost control is not coded. A director posting for the same architecture team is excluded as a management role.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
+    },
+    {
+      "id": "P40",
+      "agents": true,
+      "codingAgents": false,
+      "mcp": false,
+      "retrieval": true,
+      "evaluation": true,
+      "guardrails": true,
+      "aiObservability": true,
+      "costControl": false,
+      "humanApproval": false,
+      "security": true,
+      "servingOrTraining": false,
+      "kubernetes": true,
+      "python": true,
+      "typescriptOrJavascript": false,
+      "java": false,
+      "dotnet": false,
+      "go": false,
+      "codingAgentsNamed": [],
+      "company": "A federal IT contractor",
+      "title": "Lead AI Architect/Strategist",
+      "location": "Remote (US)",
+      "arrangement": "remote",
+      "employment": "unknown",
+      "pay": null,
+      "posted": "2026-07-29",
+      "source": "Greenhouse",
+      "type": "enablement",
+      "alsoType": null,
+      "yearsRequired": 10,
+      "degreeRequired": true,
+      "publicWorkAsked": "none",
+      "note": "Enterprise AI architecture and strategy for federal missions: scalable AI platforms, architecture patterns and best practices for LLM applications, agentic workflows and knowledge retrieval, RAG design, and AI governance practices for security, compliance and responsible AI. Evaluation and AI observability each rest on one requirement line (understanding of LLMOps monitoring and evaluation). Public Trust clearance. The posting says the company shares salary ranges but states none.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
+    },
+    {
+      "id": "P41",
+      "agents": true,
+      "codingAgents": false,
+      "mcp": true,
+      "retrieval": true,
+      "evaluation": true,
+      "guardrails": true,
+      "aiObservability": true,
+      "costControl": false,
+      "humanApproval": false,
+      "security": false,
+      "servingOrTraining": true,
+      "kubernetes": false,
+      "python": false,
+      "typescriptOrJavascript": false,
+      "java": false,
+      "dotnet": false,
+      "go": false,
+      "codingAgentsNamed": [],
+      "company": "A cloud communications platform company",
+      "title": "Sr AI Architect - Conversational AI",
+      "location": "Remote - US",
+      "arrangement": "remote",
+      "employment": "unknown",
+      "pay": "$275,840 - $405,600 a year by location",
+      "posted": "2026-07-24",
+      "source": "Greenhouse",
+      "type": "product-agents",
+      "alsoType": "infrastructure",
+      "yearsRequired": 15,
+      "degreeRequired": true,
+      "publicWorkAsked": "preferred",
+      "note": "Architecture for the platform's customer-facing AI capabilities (conversational memory, enterprise knowledge) and the roadmap for the company-wide ML and LLM Ops platform: architectural guardrails and responsible AI, RAG, MCP and tooling frameworks, agentic orchestration and context engineering, rigorous evaluation, monitoring of non-deterministic features, inference optimization and retraining loops. 'Cost-effective' and 'compliant' are generic, so cost control and security are not coded. A master's or PhD is required. Desires publications at top ML conferences or significant open-source contributions.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
+    },
+    {
+      "id": "P42",
+      "agents": true,
+      "codingAgents": false,
+      "mcp": true,
+      "retrieval": true,
+      "evaluation": true,
+      "guardrails": true,
+      "aiObservability": true,
+      "costControl": false,
+      "humanApproval": true,
+      "security": true,
+      "servingOrTraining": false,
+      "kubernetes": false,
+      "python": false,
+      "typescriptOrJavascript": false,
+      "java": false,
+      "dotnet": false,
+      "go": false,
+      "codingAgentsNamed": [],
+      "company": "A payroll and HR software company",
+      "title": "Agentic Operations Architect",
+      "location": "Denver CO, New York NY, San Francisco CA or Scottsdale AZ",
+      "arrangement": "hybrid",
+      "employment": "unknown",
+      "pay": "$168,420 - $247,369 a year by location",
+      "posted": "2026-05-07",
+      "source": "Greenhouse",
+      "type": "enablement",
+      "alsoType": null,
+      "yearsRequired": 8,
+      "degreeRequired": null,
+      "publicWorkAsked": "none",
+      "note": "The reusable patterns, primitives, standards and tooling that builders across the company's service organization use for agentic service workflows: orchestration, human-in-the-loop protocols, override and escalation logic, quality safeguards, one way of measuring workflow performance for every builder, and carrying legal, security and compliance requirements into the patterns rather than into each workflow. It owns no single workflow. 'MCP-style integrations' is coded as MCP. The same company's AI tools manager role was excluded on 2026-09-22.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
+    },
+    {
+      "id": "P43",
+      "agents": true,
+      "codingAgents": false,
+      "mcp": false,
+      "retrieval": true,
+      "evaluation": false,
+      "guardrails": true,
+      "aiObservability": false,
+      "costControl": false,
+      "humanApproval": false,
+      "security": true,
+      "servingOrTraining": true,
+      "kubernetes": false,
+      "python": false,
+      "typescriptOrJavascript": false,
+      "java": false,
+      "dotnet": false,
+      "go": false,
+      "codingAgentsNamed": [],
+      "company": "An energy and data-center developer owned by a large technology company",
+      "title": "AI Solutions Architect",
+      "location": "United States (remote, near a company hub)",
+      "arrangement": "remote",
+      "employment": "full-time",
+      "pay": "$188,000 - $195,000 a year (total compensation)",
+      "posted": "2026-05-14",
+      "source": "Lever",
+      "type": "enablement",
+      "alsoType": null,
+      "yearsRequired": 5,
+      "degreeRequired": null,
+      "publicWorkAsked": "none",
+      "note": "Internal enterprise AI architecture and governance: AI solutions on a major cloud's AI platform (agent frameworks, vector search, custom fine-tuning pipelines), responsible AI policies, prompting standards, model lifecycle management and security controls, and company-wide AI enablement, training and change management. Evaluating vendors and technologies is not coded as evaluation. The company builds no AI products. Experience stated as 5 to 7 years; 5 is recorded.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
+    },
+    {
+      "id": "P44",
+      "agents": true,
+      "codingAgents": false,
+      "mcp": true,
+      "retrieval": true,
+      "evaluation": true,
+      "guardrails": true,
+      "aiObservability": true,
+      "costControl": false,
+      "humanApproval": true,
+      "security": false,
+      "servingOrTraining": false,
+      "kubernetes": false,
+      "python": true,
+      "typescriptOrJavascript": true,
+      "java": false,
+      "dotnet": false,
+      "go": false,
+      "codingAgentsNamed": [],
+      "company": "An industrial IoT software company",
+      "title": "AI Architect - GTM Systems",
+      "location": "Remote - US",
+      "arrangement": "remote",
+      "employment": "full-time",
+      "pay": "$131,197.50 - $176,400 a year (base)",
+      "posted": "2026-02-05",
+      "source": "Greenhouse",
+      "type": "enablement",
+      "alsoType": null,
+      "yearsRequired": 10,
+      "degreeRequired": null,
+      "publicWorkAsked": "none",
+      "note": "Architecture for the go-to-market systems organization: the reference architectures, design patterns and decision frameworks the whole GTM engineering team builds against (low-code or custom agents, human-in-the-loop or fully automated), governance for non-engineer builders, evaluation frameworks, RAG and MCP-enabled agent pipelines, and architecture reviews; it also writes internal white papers and architecture decision records. LiteLLM is named as preferred experience but no gateway is described, so gateway is not coded, conservatively. Compliance appears only as a risk to avoid, so security is not coded. Also posted for Canada; counted once.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
+    },
+    {
+      "id": "P45",
+      "agents": true,
+      "codingAgents": false,
+      "mcp": false,
+      "retrieval": true,
+      "evaluation": false,
+      "guardrails": false,
+      "aiObservability": true,
+      "costControl": false,
+      "humanApproval": false,
+      "security": false,
+      "servingOrTraining": false,
+      "kubernetes": true,
+      "python": true,
+      "typescriptOrJavascript": false,
+      "java": false,
+      "dotnet": false,
+      "go": false,
+      "codingAgentsNamed": [],
+      "company": "A financial services consultancy",
+      "title": "AI Technical Architect",
+      "location": "New York NY (also posted for Charlotte NC and Orlando FL)",
+      "arrangement": "hybrid",
+      "employment": "full-time",
+      "pay": "$146,000 - $183,000 a year",
+      "posted": "2026-06-29",
+      "source": "Greenhouse",
+      "type": "enablement",
+      "alsoType": null,
+      "yearsRequired": 10,
+      "degreeRequired": true,
+      "publicWorkAsked": "preferred",
+      "note": "Enterprise-wide architecture for generative and agentic AI at financial institutions, delivered as consulting: modular solution patterns, foundation-model integration, agentic orchestration, and cloud-native infrastructure with MLOps pipelines for deployment, monitoring and lifecycle. Consulting delivery like P01 and P23, and the text is short. 'Secure' appears only as an adjective and no governance is described, so security and guardrails are not coded; MLOps deployment pipelines are not coded as serving, conservatively. Experience contributing to external thought leadership is a bonus. Posted for three cities; counted once.",
+      "url": null,
+      "gateway": false,
+      "gatewayBasis": "text",
+      "readOn": "2026-09-30"
     }
   ],
   "excluded": [
@@ -1243,112 +1835,304 @@
       "title": "Senior Software Engineer, Enterprise AI Platform",
       "url": null,
       "reason": "Enterprise SaaS features (workspaces, RBAC, SSO, billing) for an AI product, not AI platform work.",
-      "notable": "Requires a strong AI-assisted coding practice with Claude Code, Codex or Cursor, and opinions about what makes them work well."
+      "notable": "Requires a strong AI-assisted coding practice with Claude Code, Codex or Cursor, and opinions about what makes them work well.",
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "A consumer financial technology company",
       "title": "Senior Platform Engineer (AI Focused)",
       "url": null,
       "reason": "Outside the US (Bengaluru, India).",
-      "notable": "MCP servers exposing platform capabilities as scoped tools, an LLM gateway, agentic workflows for platform operations, AI-assisted code review with Claude and Cursor behind human-in-the-loop gates, evaluation harnesses, FinOps for AI spend."
+      "notable": "MCP servers exposing platform capabilities as scoped tools, an LLM gateway, agentic workflows for platform operations, AI-assisted code review with Claude and Cursor behind human-in-the-loop gates, evaluation harnesses, FinOps for AI spend.",
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "An online wholesale marketplace",
       "title": "Staff Software Engineer - Code Authoring",
       "url": null,
       "reason": "Outside the US (Kitchener-Waterloo and Toronto, Canada).",
-      "notable": "The clearest coding-agent platform role seen: code-authoring harnesses, cloud environments for agents on Claude and Cursor, validation of agent-written code (CI, pre-push, automated review), a service that turns tickets into pull requests, agent memory and context, model selection and LLM cost per pull request, tracing and cost for every agent run."
+      "notable": "The clearest coding-agent platform role seen: code-authoring harnesses, cloud environments for agents on Claude and Cursor, validation of agent-written code (CI, pre-push, automated review), a service that turns tickets into pull requests, agent memory and context, model selection and LLM cost per pull request, tracing and cost for every agent run.",
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "An IT solutions provider",
       "title": "AI Platform Engineer",
       "url": null,
       "reason": "Outside the US (India).",
-      "notable": "Pure infrastructure: Kubernetes for ML, GPU scheduling, the NVIDIA stack, MLOps."
+      "notable": "Pure infrastructure: Kubernetes for ML, GPU scheduling, the NVIDIA stack, MLOps.",
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "A customer data software company",
       "title": "Software Engineer, AI Agents",
       "url": null,
       "reason": "Builds agent features in the product rather than shared agent infrastructure.",
-      "notable": "A 75-minute Agent Building Systems Interview; says no prior LLM experience is required."
+      "notable": "A 75-minute Agent Building Systems Interview; says no prior LLM experience is required.",
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "(seven postings)",
       "title": "Closed before they could be read",
       "url": null,
       "reason": "The board's own API answered HTTP 404: a trading API company, Senior AI Platform Engineer; an AI customer-service company, Staff Agentic AI Engineer; an AI research lab, Software Engineer, Developer Productivity, AI Tools; the social media company of P20, Staff Systems Engineer, AI Enablement and Productivity Engineering, and Senior Software Engineer, GenAI Platform; a healthcare software company, Principal GenAI Platform Engineer; a business phone software company, AI Productivity Engineer.",
-      "notable": null
+      "notable": null,
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "(screened out without reading)",
       "title": "By the exclusion rules",
       "url": null,
       "reason": "AI vendors' roles building their own agent products (agent infrastructure at two AI model companies, and the coding agent at one of them; agent roles at an enterprise AI search company); aggregator reposts whose employer cannot be verified (Jobgether); management roles (a payroll and HR software company, Manager, Developer Productivity, AI Tools; the design software company of P13 and P21, Manager, DevEx AI Tools and Manager, AI Observability); forward-deployed roles (a primary-care company).",
-      "notable": "The primary-care company's forward-deployed engineers sit on an internal AI Enablement team that embeds with engineering teams to drive Claude Code adoption."
+      "notable": "The primary-care company's forward-deployed engineers sit on an internal AI Enablement team that embeds with engineering teams to drive Claude Code adoption.",
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "(same team already counted)",
       "title": "Duplicate postings",
       "url": null,
       "reason": "The delivery company of P17, Senior Software Engineer, ML Infrastructure - Generative AI; the customer data software company of P16, Software Engineer - AI Productivity; the space and defense technology company of P14, Platform Engineer, AI and Senior Platform Engineer, AI.",
-      "notable": null
+      "notable": null,
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "A healthcare communications company",
       "title": "AI Platform Engineer",
       "url": null,
       "reason": "Full description not reachable: the Indeed summary points to a 'Click here' link that is plain text.",
-      "notable": "Here the title seems to mean an engineer who builds with agentic AI coding tools, not one who builds AI infrastructure."
+      "notable": "Here the title seems to mean an engineer who builds with agentic AI coding tools, not one who builds AI infrastructure.",
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "A career network company",
       "title": "Software Engineer, Enterprise AI",
       "url": null,
       "reason": "Product engineering for AI applications deployed at customers, not shared AI infrastructure.",
-      "notable": null
+      "notable": null,
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "A defense technology company",
       "title": "AI Assisted Software Engineer",
       "url": null,
       "reason": "Builds an ERP and internal apps with AI coding tools; AI is how the work is done, not what is built.",
-      "notable": "Asks the engineer to review and validate AI-generated code for quality, maintainability and security."
+      "notable": "Asks the engineer to review and validate AI-generated code for quality, maintainability and security.",
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "A regional bank",
       "title": "Lead AI Engineer",
       "url": null,
       "reason": "Builds contact-center voice bots and IVR (AI applications), not shared infrastructure.",
-      "notable": "Lists 'agentic vibe coding' with AI-assisted coding tools as a preferred skill."
+      "notable": "Lists 'agentic vibe coding' with AI-assisted coding tools as a preferred skill.",
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "A brokerage firm",
       "title": "AI Engineer, AI.x",
       "url": null,
       "reason": "Builds GenAI applications on the central AI team; the platform work belongs to others on the team.",
-      "notable": null
+      "notable": null,
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "A government IT contractor (through a subsidiary)",
       "title": "Principal Agentic AI Full Stack Software Engineer",
       "url": null,
       "reason": "Builds AI-enabled analytics applications for a government customer.",
-      "notable": "Wants AI workflows with validation, error handling, retries, logging and fallback strategies. TS/SCI clearance required."
+      "notable": "Wants AI workflows with validation, error handling, retries, logging and fallback strategies. TS/SCI clearance required.",
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "A manufacturer",
       "title": "IT - Lead Platform Engineer",
       "url": null,
       "reason": "A general Azure platform engineering role in which AI is one section.",
-      "notable": "A traditional platform role at a manufacturer now includes evaluating and enabling AI-assisted development (GitHub Copilot, MCP workflows) with governed adoption."
+      "notable": "A traditional platform role at a manufacturer now includes evaluating and enabling AI-assisted development (GitHub Copilot, MCP workflows) with governed adoption.",
+      "screenedOn": "2026-09-22"
     },
     {
       "company": "An insurer",
       "title": "Development Enablement Specialist",
       "url": null,
       "reason": "A development-governance and training role in which AI is one driver among several (low-code, automation).",
-      "notable": "Tiered builder training with an AI/LLM module, risk overlays, solution intake and classification, access gated on training, and catalogs of permitted tools and integrations: guardrails for AI-era citizen builders at an insurer."
+      "notable": "Tiered builder training with an AI/LLM module, risk overlays, solution intake and classification, access gated on training, and catalogs of permitted tools and integrations: guardrails for AI-era citizen builders at an insurer.",
+      "screenedOn": "2026-09-22"
+    },
+    {
+      "company": "A family law firm",
+      "title": "AI Workflow Engineer/Automation Architect",
+      "url": null,
+      "reason": "Builds the firm's own AI-enabled workflow automations and integrations for its legal and operational processes (AI applications), not a platform other teams build on.",
+      "notable": "Retrieval, prompt orchestration and workflow execution for AI agents, with LLM observability tools required; engineer and architect in one title.",
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A management consultancy",
+      "title": "AI Solution Architect-Research Office Managed Services",
+      "url": null,
+      "reason": "Designs AI solutions across client projects; shared patterns and reusable components are a contribution, not the core. The posting's level is Manager.",
+      "notable": "Names MCP among the orchestration standards to work with.",
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A data and analytics consultancy",
+      "title": "Principal Solution Architect - Microsoft Fabric & AI",
+      "url": null,
+      "reason": "A data-platform consulting role (Microsoft Fabric, Power BI) in which AI is incidental.",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A staffing firm",
+      "title": "Senior Gen AI Architect-6",
+      "url": null,
+      "reason": "Designs and develops GenAI and agentic applications and data pipelines, not shared platforms.",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "The business-aviation maintenance services company of P39",
+      "title": "Director, AI First Enterprise Architecture",
+      "url": null,
+      "reason": "A management role that directly leads two AI Solution Architects, the team already counted in P39.",
+      "notable": "Chairs an Architecture Review Board, publishes reference architectures and architecture decision records, acts as the architectural intake gate for new initiatives, and sets governance for AI-first development (approved model usage, human-in-the-loop accountability).",
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A large cloud and software vendor",
+      "title": "Principal Cloud Solution Architect, Cloud and Agentic AI Solutions - New York",
+      "url": null,
+      "reason": "A customer-facing solutions role at an AI and cloud vendor that generates cloud pipeline from each engagement.",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "An integration software vendor",
+      "title": "Applied AI Architect",
+      "url": null,
+      "reason": "A fractional go-to-market contract taking the vendor's own agent product to customers (solutions and sales, up to 50% travel).",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A conversational AI vendor",
+      "title": "Senior Agent Architect",
+      "url": null,
+      "reason": "A customer-facing solution architect for deployments of the vendor's agent platform, paid as on-target earnings.",
+      "notable": "The vendor titles this customer-facing role Agent Architect.",
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A graph database vendor",
+      "title": "Sr. AI Solutions Architect",
+      "url": null,
+      "reason": "A customer-facing solutions role at a database vendor (up to 50% travel, on-target earnings).",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "An enterprise AI consultancy and software company",
+      "title": "Enterprise Data Architect & AI Solutions Leader",
+      "url": null,
+      "reason": "Consulting delivery centered on client data platforms (lakehouses, pipelines, BI), with AI solutions built for clients; leads technical teams.",
+      "notable": "Lists published thought leadership, conference speaking or open-source contributions among what makes a candidate stand out.",
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "An observability software vendor",
+      "title": "Distinguished Architect, AI; Senior Product Solutions Architect - AI Agent",
+      "url": null,
+      "reason": "Customer-facing technical solutions roles supporting pre- and post-sales, with 40 to 50% travel.",
+      "notable": "The second role is the in-house expert for the vendor's AI agent observability product.",
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A search software vendor",
+      "title": "Principal AI Ecosystem Architect - OpenAI/Anthropic",
+      "url": null,
+      "reason": "A partner and go-to-market role at a vendor (a technical presales background, co-branded content, 30% travel). Posted for two locations.",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A network and cloud services vendor",
+      "title": "Solutions Architect, AI/[the vendor's] Developer Platform",
+      "url": null,
+      "reason": "Part of the sales team: customer discovery, proofs of concept and pipeline for the vendor's AI and developer platform.",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A data and AI platform vendor",
+      "title": "Specialist Solutions Architect - AI/ML",
+      "url": null,
+      "reason": "Technical pre-sales for the vendor's platform (account consumption growth, competitive wins).",
+      "notable": "Its architecture discussions list RAG, tool calling, multi-agent orchestration, guardrails, AI evaluation and observability, the same list the platform roles ask for.",
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "The delivery company of P17",
+      "title": "Senior Associate, AI Solutions Architect, Marketing Technology",
+      "url": null,
+      "reason": "Builds AI-powered tools and automations for marketing teams (applications); contributing to an AI Center of Excellence is secondary.",
+      "notable": "Prompt and template libraries, AI training materials and workshops; MCPs named as experience.",
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A marketing automation software company",
+      "title": "Sr. Lead MarTech & AI Solutions Architect",
+      "url": null,
+      "reason": "A marketing-systems architecture role in which AI features are one part.",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A marketing automation software company",
+      "title": "Sr. AI Systems & Solutions Architect, Customer Success; the same role for Global Services (each posted for three cities)",
+      "url": null,
+      "reason": "Builds AI prototypes and workflows for one business organization and enables its teams; the company's shared AI platform belongs to a centralized AI engineering team. Excluded conservatively.",
+      "notable": "The closest exclusion to an included enablement role (compare P33): reusable skills, prompts, agents and retrieval workflows, MCPs, documentation and office hours.",
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "A data consultancy",
+      "title": "AI Architect",
+      "url": null,
+      "reason": "Designs and builds AI applications on a cloud platform for clients, not a shared platform. Open to Latin America and the US.",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "An IT staffing and services firm",
+      "title": "AI/ML Solution Architect",
+      "url": null,
+      "reason": "Outside the US (Remote - India).",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "(nineteen postings)",
+      "title": "Closed before they could be read",
+      "url": null,
+      "reason": "Found by web search; the board's own API answered HTTP 404, or the posting was not on the public board: a data consultancy, AI Architect (an earlier posting); an IT solutions provider, Managed Services AI Platform Architect; a digital experience software company, Enterprise AI Architect; an employer the board name did not identify, Agentic Platform Architect / Systems Administrator; a software consultancy, GenAI Architect; the graph database vendor, Senior AI Solutions Architect (an earlier posting); a salon and spa software company, Architect - Agentic AI; a cloud security vendor, Security Architect, Agentic AI; an AI consultancy, AI Architect (Applied AI Engineer); the P45 consultancy, AI Technical Architect (an earlier posting); a digital consultancy, Solution Architect, Agentic Engineering; a healthcare AI company, AI Platform Architect and Associate AI Platform Architect; an enterprise AI software company, Platform Architect; a brewer, AI/ML Senior Architect; an AI chip company, AI Performance Simulation Architect; an automotive retail software company, Enterprise AI Architect; a warehouse robotics company, Technical Director, AI Enterprise Architect and Director, AI Enterprise Architect.",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "(screened out without reading)",
+      "title": "By the exclusion rules",
+      "url": null,
+      "reason": "An AI-trainer gig (a data-annotation company's Security Architect - AI Trainer, returned twice); forward-deployed roles (an IT contractor's Forward Deployed Engineer; a startup's Deployment Architect / Forward Deployed Engineer; an AI consultancy's twelve forward-deployed architect and engineer postings, four of them in the US); AI vendors' presales architects (five Applied AI Architect postings at an AI model company, one of them a manager); aggregator reposts (Jobgether, 16 architect titles); management (the network vendor's Senior Manager, Solutions Architecture); a payments company's Partner Solutions Architect, AI Partnerships; outside the US (the P45 consultancy's AI Architect in Slovakia, Germany, the Czech Republic and India; a ride-share company's AI Business Solutions Architect in Toronto; the payments company's AI-native Solutions Architect in London; the data and AI platform vendor's solutions and enablement architects in the UK, Brazil, India and Australia); a building-design architect at a design firm.",
+      "notable": null,
+      "screenedOn": "2026-09-30"
+    },
+    {
+      "company": "(same role already counted)",
+      "title": "Duplicate postings",
+      "url": null,
+      "reason": "The P44 company's AI Architect - GTM Systems for Remote - Canada; the P45 consultancy's AI Technical Architect for Charlotte and Orlando.",
+      "notable": null,
+      "screenedOn": "2026-09-30"
     }
   ]
 }

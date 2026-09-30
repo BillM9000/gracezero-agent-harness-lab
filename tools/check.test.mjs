@@ -65,6 +65,49 @@ test("every check runs as of the models file's read day, unless the caller sets 
   assert.doesNotMatch(chosen.output, /2031-01-02/);
 });
 
+// Chapter 35's second guardrail: the cheap checks in one command, and all of them in CI.
+const SUITES = ["Python tests (pytest)", "TypeScript tests", "Script tests"];
+
+test("a failing check fails the run, and --fast leaves out the three test suites and nothing else", () => {
+  const root = plant();
+  const listed = check(root, ["--list"]);
+  assert.equal(listed.status, 0, listed.output);
+  const labels = listed.output.trim().split(/\r?\n/);
+  assert.ok(SUITES.every((suite) => labels.includes(suite)), listed.output);
+  const ran = (output) => [...output.matchAll(/^(?:PASS|FAIL) {2}(.+) \(\d+\.\d+s\)$/gm)].map((m) => m[1]);
+  const fast = check(root, ["--fast"]);
+  assert.equal(fast.status, 1, fast.output);
+  assert.deepEqual(ran(fast.output), labels.filter((label) => !SUITES.includes(label)));
+  const cheap = labels.length - SUITES.length;
+  assert.match(fast.output, new RegExp(`^${cheap} of ${cheap} checks failed \\(--fast: 3 test suites not run`, "m"));
+  const full = check(root, []);
+  assert.equal(full.status, 1, full.output);
+  assert.deepEqual(ran(full.output), labels);
+  assert.match(full.output, new RegExp(`^${labels.length} of ${labels.length} checks failed\\.$`, "m"));
+});
+
+test("CI runs the full set of checks, the same two commands a reader runs, on every change to code", () => {
+  const text = readFileSync(join(ROOT, ".github", "workflows", "ci.yml"), "utf8").replaceAll("\r\n", "\n");
+  const jobs = (text.split(/^jobs:\n/m)[1] ?? "").split(/^(?= {2}[\w-]+:\n)/m);
+  const job = jobs.find((j) => /^ {6}- run: node check\.mjs/m.test(j));
+  assert.ok(job, "no job in ci.yml runs node check.mjs");
+  const runs = [...job.matchAll(/^ {6}- run: (.+)$/gm)].map((m) => m[1]);
+  assert.deepEqual(runs, ["node setup.mjs", "node check.mjs"], "CI's check job must run setup, then every check");
+  assert.match(job, /^ {4}runs-on: \$\{\{ matrix\.os \}\}$/m);
+  // Readers' three systems, with the Python the lab is tested with (chapter 5).
+  assert.match(job, /^ {8}os: \[ubuntu-latest, windows-latest, macos-latest\]$/m, "the check job must run on Linux, Windows and macOS");
+  assert.match(job, /^ {10}python-version: \$\{\{ matrix\.python \}\}$/m, "setup-python must take the matrix's Python");
+  // And the oldest Python the package declares, so the declaration is tested, not only written.
+  const pyproject = readFileSync(join(ROOT, "python", "pyproject.toml"), "utf8");
+  const oldest = /^requires-python = ">=(\d+\.\d+)"$/m.exec(pyproject)?.[1];
+  assert.ok(oldest, "python/pyproject.toml declares no requires-python");
+  assert.match(job, new RegExp(`^ {10}- os: ubuntu-latest\\n {12}python: "${oldest.replace(".", "\\.")}"$`, "m"), `no leg runs Python ${oldest}, the package's declared minimum`);
+  // Every push to main and every pull request, skipping only a change to Markdown alone, which
+  // docs.yml checks instead (tools/templates.test.mjs holds the two to the same paths).
+  assert.match(text, /^ {2}push:\n {4}branches: \[main\]\n {4}paths-ignore: \["\*\*\.md"\]$/m);
+  assert.match(text, /^ {2}pull_request:\n {4}paths-ignore: \["\*\*\.md"\]$/m);
+});
+
 test("a day that isn't YYYY-MM-DD, or a models file with no read day, stops the run before any check", () => {
   const wrong = check(plant(), ["--fast"], "tomorrow");
   assert.equal(wrong.status, 1, wrong.output);

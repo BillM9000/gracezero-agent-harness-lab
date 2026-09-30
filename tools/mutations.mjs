@@ -604,6 +604,65 @@ export const MUTATIONS = [
     run: { node: ["--test", "tools/mutate.test.mjs"] },
   },
 
+  // Chapter 35's second guardrail, after the 2026-09-30 review: the cheap checks in one command, and
+  // all of them in CI.
+  {
+    guard: "check: a failing check fails the run",
+    file: "check.mjs",
+    find: "process.exit(failed ? 1 : 0);",
+    replace: "process.exit(0);",
+    run: checkTest("a failing check fails the run"),
+  },
+  {
+    guard: "check: --fast leaves out the test suites",
+    file: "check.mjs",
+    find: "const selected = CHECKS.filter(([, , , , kind]) => !(fast && kind === SUITE));",
+    replace: "const selected = CHECKS;",
+    run: checkTest("a failing check fails the run"),
+  },
+  {
+    guard: "check: --fast leaves out nothing but the test suites",
+    file: "check.mjs",
+    find: "const selected = CHECKS.filter(([, , , , kind]) => !(fast && kind === SUITE));",
+    replace: "const selected = CHECKS.filter(([, , , , kind]) => !fast || kind === SUITE);",
+    run: checkTest("a failing check fails the run"),
+  },
+  {
+    guard: "check: CI runs the full set, not the fast tier",
+    file: ".github/workflows/ci.yml",
+    find: "      - run: node check.mjs\n",
+    replace: "      - run: node check.mjs --fast\n",
+    run: checkTest("CI runs the full set of checks"),
+  },
+  {
+    guard: "check: CI runs on macOS too",
+    file: ".github/workflows/ci.yml",
+    find: "        os: [ubuntu-latest, windows-latest, macos-latest]\n",
+    replace: "        os: [ubuntu-latest, windows-latest]\n",
+    run: checkTest("CI runs the full set of checks"),
+  },
+  {
+    guard: "check: CI tests the oldest Python the package declares",
+    file: ".github/workflows/ci.yml",
+    find: '          - os: ubuntu-latest\n            python: "3.12"\n',
+    replace: '          - os: ubuntu-latest\n            python: "3.13"\n',
+    run: checkTest("CI runs the full set of checks"),
+  },
+  {
+    guard: "check: CI sets up the matrix's Python",
+    file: ".github/workflows/ci.yml",
+    find: "          python-version: ${{ matrix.python }}\n",
+    replace: '          python-version: "3.14"\n',
+    run: checkTest("CI runs the full set of checks"),
+  },
+  {
+    guard: "check: CI runs on every pull request that changes code",
+    file: ".github/workflows/ci.yml",
+    find: '  pull_request:\n    paths-ignore: ["**.md"]\n',
+    replace: '  pull_request:\n    paths-ignore: ["**.md", "python/**"]\n',
+    run: checkTest("CI runs the full set of checks"),
+  },
+
   // Chapter 20: the day check.mjs judges retirement dates as of, and the nightly job that uses today.
   {
     guard: "check: the checks run as of the models file's read day",

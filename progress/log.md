@@ -9,6 +9,13 @@ What each working session did, newest first. Add an entry at the end of every se
 - Not run: `--real`, for any command; no key was set, and nothing called a provider. The full `node tools/mutate.mjs`; the nightly job runs it.
 - Next: the history rebuild places each change before its chapter's tag; chapters 15, 16, 18, 20, 22, 27 and 30 and Appendix B quote files these changes touched (`CHANGELOG.md` names them).
 
+## 2026-09-30: the 45-posting sample, and the skills map on the new numbering
+
+- `postings/sample-2026-09-22.json` is the book's extended research copy, byte for byte: 45 postings, 38 exclusion records, the gateway signal and the fields that date each posting. `postings/tally.mjs` checks the new fields and prints the research tally's sections; `postings/skills.mjs` names the codebook entries that aren't signals; the template passes; the skills map has `gateway` at chapters 18 and 27, the capstone at 30, and chapters 31 to 36.
+- Checked with: `cmp` on the two copies of the sample; `diff` on the two tallies' outputs for the same file; `node --test postings/tally.test.mjs postings/skills.test.mjs`, 37 of 37; `node tools/mutate.mjs --only "tally:"` and `--only "skills:"` on a committed copy, 27 of 27 caught; `node check.mjs`, all 27 checks.
+- Not run: `--real`, for any command, and the full `node tools/mutate.mjs`; the nightly job runs it.
+- Next: the tag rebuild moves the README, `AGENTS.md`, the work list, the tags and the remaining comments to the new numbering (chapter 30 the capstone, 31 to 36 after it).
+
 ## 2026-09-30: the review's lab work, the kit and the gap check
 
 - `node check.mjs` checks retirement dates as of `read` in `python/agents/models.toml` (`AGENT_POLICY_TODAY` overrides); the nightly retirement job still uses the real day. Seven defects from the review fixed, each with planted breaks (the MCP audit's order, the quoted customer name, the golden-path tests, ids too big for SQLite, chapter 35's second guardrail, the contract's generated marker, `mutate.mjs --list`). CI adds macOS and Python 3.12; the nightly workflow is enabled on GitHub. `templates/` became the Zero to Prod kit, with `tools/kit.mjs`, `tools/features-lock.mjs` and `tools/claims.mjs`. `python -m helpdesk.spec_review` is the gap check, and its `check` the 27th check. The README, `CONTRIBUTING.md` and `SECURITY.md` are written for a stranger; P01 is described like the other postings.

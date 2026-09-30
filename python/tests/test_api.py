@@ -27,6 +27,19 @@ def test_unknown_ticket_is_404_with_a_readable_error(client):
     assert response.json() == {"error": "ticket 999 does not exist"}
 
 
+def test_an_id_too_big_for_sqlite_is_one_that_does_not_exist(client):
+    # SQLite stores an integer in at most 8 bytes; a larger id used to end in a 500 (chapter 3).
+    huge = 10**20
+    response = client.get(f"/tickets/{huge}")
+    assert (response.status_code, response.json()) == (404, {"error": f"ticket {huge} does not exist"})
+    new = {"customer_id": huge, "subject": "Hello", "body": "Hi.", "priority": "normal"}
+    response = client.post("/tickets", json=new)
+    assert (response.status_code, response.json()) == (422, {"error": f"customer {huge} does not exist"})
+    response = client.post("/tickets/1/close", json={"staff_id": huge})
+    assert response.status_code == 422
+    assert client.get("/tickets/1").json()["status"] == "open"
+
+
 def test_reply_to_closed_ticket_is_409(client):
     response = client.post("/tickets/4/replies", json={"author_kind": "customer", "body": "Hello?"})
     assert response.status_code == 409

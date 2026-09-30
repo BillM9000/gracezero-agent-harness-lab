@@ -7,16 +7,26 @@ from typing import Any
 
 Row = dict[str, Any]
 
+# The ids SQLite can store: it keeps an integer in at most 8 bytes, and Python's sqlite3 raises
+# OverflowError for any larger one it's asked to look up, such as a 20-digit ticket number a model or a
+# caller sends (chapter 3). No row has such an id, so a lookup by one finds nothing, as any other
+# missing id does.
+IDS = range(-(2**63), 2**63)
+
 
 def _row(r: sqlite3.Row | None) -> Row | None:
     return dict(r) if r is not None else None
 
 
 def customer_exists(conn: sqlite3.Connection, customer_id: int) -> bool:
+    if customer_id not in IDS:
+        return False
     return conn.execute("SELECT 1 FROM customers WHERE id = ?", (customer_id,)).fetchone() is not None
 
 
 def staff_exists(conn: sqlite3.Connection, staff_id: int) -> bool:
+    if staff_id not in IDS:
+        return False
     return conn.execute("SELECT 1 FROM staff WHERE id = ?", (staff_id,)).fetchone() is not None
 
 
@@ -32,6 +42,8 @@ def insert_ticket(
 
 
 def get_ticket(conn: sqlite3.Connection, ticket_id: int) -> Row | None:
+    if ticket_id not in IDS:
+        return None
     return _row(conn.execute("SELECT * FROM tickets WHERE id = ?", (ticket_id,)).fetchone())
 
 

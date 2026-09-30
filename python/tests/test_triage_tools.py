@@ -20,6 +20,16 @@ def test_a_missing_ticket_is_an_error_the_model_can_read(conn):
     assert result.content == "ticket 999 does not exist"
 
 
+def test_a_ticket_number_too_big_for_sqlite_is_a_ticket_that_doesnt_exist(conn):
+    # Chapter 3: the schema allows any integer from 1, and SQLite stores at most 8 bytes, so a 20-digit
+    # number used to stop the run with an OverflowError. It's a missing ticket, and says so.
+    for ticket_id in (2**63, 10**19, 10**40):
+        result = call(conn, "get_ticket", ticket_id=ticket_id)
+        assert result.is_error
+        assert result.content == f"ticket {ticket_id} does not exist"
+    assert not call(conn, "get_ticket", ticket_id=1).is_error
+
+
 def test_search_kb_finds_an_article(conn):
     result = call(conn, "search_kb", query="password")
     assert not result.is_error

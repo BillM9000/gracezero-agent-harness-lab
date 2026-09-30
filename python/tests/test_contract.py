@@ -27,6 +27,25 @@ def test_the_contract_describes_every_route_and_both_ticket_shapes() -> None:
     assert "replies" not in schemas["TicketSummary"]["properties"]
 
 
+def test_the_contract_says_what_made_it_in_its_first_lines(tmp_path: Path, capsys) -> None:
+    # Chapter 7: every generated file names its source and its generator, contracts/openapi.json too.
+    target = tmp_path / "openapi.json"
+    assert contract.main(["write", str(target)]) == 0
+    first = target.read_text(encoding="utf-8").splitlines()[:8]
+    [line] = [line for line in first if '"x-generated-by": ' in line]
+    assert "python -m helpdesk.contract write" in line and "by hand" in line
+    committed = json.loads(
+        (Path(__file__).parents[2] / "contracts" / "openapi.json").read_text(encoding="utf-8")
+    )
+    assert committed["info"]["x-generated-by"] == contract.GENERATED_BY
+    # A contract without the line no longer matches the code, and check says where.
+    doc = json.loads(target.read_text(encoding="utf-8"))
+    del doc["info"]["x-generated-by"]
+    target.write_text(contract.render(doc), encoding="utf-8")
+    assert contract.main(["check", str(target)]) == 1
+    assert "  changed: info" in capsys.readouterr().err
+
+
 def test_a_freshly_written_contract_passes_the_check(tmp_path: Path) -> None:
     target = tmp_path / "openapi.json"
     assert contract.main(["write", str(target)]) == 0

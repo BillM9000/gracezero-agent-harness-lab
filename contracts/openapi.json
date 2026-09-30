@@ -2,7 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Helpdesk",
-    "version": "0.1.0"
+    "version": "0.1.0",
+    "x-generated-by": "python -m helpdesk.contract write, from the FastAPI app in python/src/helpdesk. Don't edit this file by hand: change the Python models, then run node tools/regenerate.mjs."
   },
   "paths": {
     "/health": {

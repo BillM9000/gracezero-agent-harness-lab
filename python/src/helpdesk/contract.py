@@ -20,14 +20,24 @@ from helpdesk.main import build_app
 
 HTTP_METHODS = ("get", "put", "post", "delete", "patch", "head", "options", "trace")
 
+# What the contract says made it, in its first lines, as every generated file in the lab does
+# (chapter 7). OpenAPI allows fields of your own that start with x-; check compares the whole file,
+# this one included, with what write produces.
+GENERATED_BY = (
+    "python -m helpdesk.contract write, from the FastAPI app in python/src/helpdesk. Don't edit this "
+    "file by hand: change the Python models, then run node tools/regenerate.mjs."
+)
+
 
 def document() -> dict[str, Any]:
-    """The OpenAPI document for the helpdesk, from an app built on an empty in-memory database."""
+    """The OpenAPI document for the helpdesk, from an app built on an empty in-memory database, with
+    the line that says what generated it."""
     app = build_app(":memory:", with_sample_data=False)
     try:
-        return app.openapi()
+        doc = app.openapi()
     finally:
         app.state.conn.close()
+    return {**doc, "info": {**doc["info"], "x-generated-by": GENERATED_BY}}
 
 
 def render(doc: dict[str, Any]) -> str:

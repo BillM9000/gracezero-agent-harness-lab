@@ -13,6 +13,7 @@
 ## 2026-09-30, defects from the review of 2026-09-30, each with a planted break
 
 - **A ticket, customer or staff id too big for SQLite is one that doesn't exist** (chapter 3, `python/src/helpdesk/data/repository.py`). A 20-digit ticket number passed `get_ticket`'s schema, then Python's sqlite3 raised `OverflowError`: the triage tool reported a fault in the tool, and `GET /tickets/100000000000000000000` was a 500. The three lookups by id now find nothing for an id outside SQLite's 8 bytes (`IDS`), so the tool says the ticket doesn't exist and the API answers 404 (422 for a customer or member of staff that doesn't exist). 2 new tests (`test_triage_tools.py`, `test_api.py`); 4 new entries, a new group, `data:`. The fix is at the `ch03` tag; the proposal lookup's guard follows at `ch19`.
+- **`contracts/openapi.json` says what made it**, in `info.x-generated-by`, in its first lines (chapter 7, `python/src/helpdesk/contract.py`, `GENERATED_BY`): the command, the code it comes from, and that the file isn't edited by hand. `python -m helpdesk.contract check` compares the whole file, so a contract without it fails ("changed: info"). Regenerated with `node tools/regenerate.mjs`; `ts/src/api-types.ts` is unchanged. `python/tests/test_contract.py`: 1 new test (8); 1 new entry (`contract:`). The fix belongs at the `ch07` tag.
 
 ## 2026-09-27, CI on request
 

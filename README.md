@@ -15,7 +15,7 @@ node setup.mjs
 node check.mjs
 ```
 
-`node setup.mjs` creates `python/.venv` and installs the pinned Python packages, every download checked against its hash, and the TypeScript packages; it takes about a minute. `node check.mjs` runs every check, one line each, and takes a few minutes: about 2 on GitHub's Linux and macOS runners, and 4 to 6 on Windows. `node check.mjs --fast` leaves out the three test suites and takes seconds. CI runs the same two commands. `AGENTS.md` has every individual command and the rules for changing the code.
+`node setup.mjs` creates `python/.venv` and installs the pinned Python packages, every download checked against its hash, and the TypeScript packages; it takes about a minute. `node check.mjs` runs every check, one line each, and takes a few minutes: about 2 on GitHub's Linux and macOS runners, and 4 to 7 on Windows. `node check.mjs --fast` leaves out the three test suites and takes seconds. CI runs the same two commands. `AGENTS.md` has every individual command and the rules for changing the code.
 
 Or open it in a codespace: on the repository's GitHub page, choose Code, then Codespaces, then Create codespace. `.devcontainer/devcontainer.json` gives it Python 3.14 and Node 24 and runs `node setup.mjs` once it starts, so `node check.mjs` is ready to run. The codespace's own time counts against your GitHub account's Codespaces allowance.
 

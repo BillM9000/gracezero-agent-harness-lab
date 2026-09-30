@@ -603,6 +603,50 @@ export const MUTATIONS = [
     replace: "if (false) {",
     run: { node: ["--test", "tools/mutate.test.mjs"] },
   },
+  // Chapter 24: --only, which runs one guard's entries.
+  {
+    guard: "mutate: --only runs only the entries it names",
+    file: "tools/mutate.mjs",
+    find: "only.some((prefix) => m.guard.startsWith(prefix))) : ALL;",
+    replace: "true) : ALL;",
+    run: { node: ["--test", "tools/mutate.test.mjs"] },
+  },
+  {
+    guard: "mutate: an --only that selects nothing refuses the run",
+    file: "tools/mutate.mjs",
+    find: "const empty = only.filter((prefix) => !ALL.some((m) => m.guard.startsWith(prefix)));",
+    replace: "const empty = [];",
+    run: { node: ["--test", "tools/mutate.test.mjs"] },
+  },
+  {
+    guard: "mutate: one --only that selects nothing is enough to refuse",
+    file: "tools/mutate.mjs",
+    find: "!ALL.some((m) => m.guard.startsWith(prefix))",
+    replace: "!ALL.some((m) => only.some((p) => m.guard.startsWith(p)))",
+    run: { node: ["--test", "tools/mutate.test.mjs"] },
+  },
+  // Chapter 24, after the 2026-09-30 review: --list, which runs nothing.
+  {
+    guard: "mutate: --list lists the entries and runs none of them",
+    file: "tools/mutate.mjs",
+    find: "if (list) {\n  for (const m of MUTATIONS) console.log(",
+    replace: "if (false) {\n  for (const m of MUTATIONS) console.log(",
+    run: nodeTest("tools/mutate.test.mjs", "--list prints every entry"),
+  },
+  {
+    guard: "mutate: --list needs no clean tree",
+    file: "tools/mutate.mjs",
+    find: 'const dirty = list ? "" : changedFiles();',
+    replace: "const dirty = changedFiles();",
+    run: nodeTest("tools/mutate.test.mjs", "--list prints every entry"),
+  },
+  {
+    guard: "mutate: --list counts each group's entries",
+    file: "tools/mutate.mjs",
+    find: "    counts.set(group, (counts.get(group) ?? 0) + 1);",
+    replace: "    counts.set(group, 1);",
+    run: nodeTest("tools/mutate.test.mjs", "--list prints every entry"),
+  },
 
   // Chapter 35's second guardrail, after the 2026-09-30 review: the cheap checks in one command, and
   // all of them in CI.

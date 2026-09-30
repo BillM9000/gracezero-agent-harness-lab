@@ -1,4 +1,5 @@
 // Break each guard on purpose and require a test to fail: node tools/mutate.mjs [root]
+// [--only PREFIX]... [--list]
 //
 // Every chapter from 16 on checked its guards this way by hand before it was written: change one
 // line so a guard stops guarding, run the test that should notice, and put the line back. This
@@ -15,14 +16,45 @@
 // It refuses to start unless the tracked files are unchanged, puts back every file it touches
 // even when a command throws, and checks the tree is unchanged again at the end.
 //
-// Exit codes: 0 every mutation caught, 1 something above went wrong, 2 refused (uncommitted
-// changes), 3 a file was not put back.
+// --only PREFIX runs only the entries whose name starts with PREFIX, such as "guard:" for the
+// destructive-command guard (chapter 35 names one or two for each of its ten guardrails). It can be
+// given more than once. A prefix that selects no entry refuses the run before anything changes: a
+// mistyped prefix would otherwise check nothing and report every mutation caught (chapter 16).
+//
+// --list prints the entries, each with the file it breaks, then the groups, each with how many
+// entries it has, and runs and changes nothing, so it works on a tree with uncommitted changes too.
+// With --only it lists what that run would run.
+//
+// Exit codes: 0 every mutation caught (or listed), 1 something above went wrong, or an --only that
+// selects nothing, 2 refused (uncommitted changes), 3 a file was not put back.
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const ROOT = resolve(process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), ".."));
+// The arguments: an optional root, any number of --only PREFIX, and --list.
+const only = [];
+let rootArg;
+let list = false;
+for (let i = 2; i < process.argv.length; i++) {
+  const arg = process.argv[i];
+  if (arg === "--only") {
+    const prefix = process.argv[++i];
+    if (!prefix) {
+      console.error("mutate: --only needs the start of an entry's name, such as --only \"guard:\".");
+      process.exit(1);
+    }
+    only.push(prefix);
+  } else if (arg === "--list") {
+    list = true;
+  } else if (arg.startsWith("--")) {
+    console.error(`mutate: ${arg} isn't an option. Usage: node tools/mutate.mjs [root] [--only PREFIX]... [--list]`);
+    process.exit(1);
+  } else {
+    rootArg = arg;
+  }
+}
+const ROOT = resolve(rootArg ?? join(dirname(fileURLToPath(import.meta.url)), ".."));
 const WINDOWS = process.platform === "win32";
 
 // Node's test runner sets NODE_TEST_CONTEXT for the processes it starts, and a `node --test` that
@@ -59,13 +91,51 @@ function run(spec) {
   return result.error || result.status === null ? "error" : result.status === 0 ? "pass" : "fail";
 }
 
-const dirty = changedFiles();
+// Listing changes nothing, so it needs no clean tree.
+const dirty = list ? "" : changedFiles();
 if (dirty) {
   console.error(`mutate: refusing to start with uncommitted changes, because it rewrites files:\n${dirty}`);
   process.exit(2);
 }
 
-const { MUTATIONS } = await import(pathToFileURL(join(ROOT, "tools", "mutations.mjs")).href);
+const { MUTATIONS: ALL } = await import(pathToFileURL(join(ROOT, "tools", "mutations.mjs")).href);
+// Every prefix must select something, or the run would check less than it was asked to.
+const empty = only.filter((prefix) => !ALL.some((m) => m.guard.startsWith(prefix)));
+if (empty.length) {
+  const groups = [...new Set(ALL.map((m) => m.guard.split(":")[0]))].sort((a, b) => a.localeCompare(b));
+  console.error(
+    `mutate: --only ${empty.map((p) => JSON.stringify(p)).join(", ")} selects none of the ${ALL.length} ` +
+      "entries in tools/mutations.mjs, so nothing would be checked. Nothing ran.\n" +
+      `Each entry's name starts with its group and a colon. The groups: ${groups.join(", ")}.`,
+  );
+  process.exit(1);
+}
+const MUTATIONS = only.length ? ALL.filter((m) => only.some((prefix) => m.guard.startsWith(prefix))) : ALL;
+const selected = only.length
+  ? ` (--only ${only.map((p) => JSON.stringify(p)).join(", ")}: ${MUTATIONS.length} of the ${ALL.length} entries)`
+  : "";
+
+if (list) {
+  for (const m of MUTATIONS) console.log(`${m.guard}  (${m.file})`);
+  const counts = new Map();
+  for (const m of MUTATIONS) {
+    const group = m.guard.split(":")[0];
+    counts.set(group, (counts.get(group) ?? 0) + 1);
+  }
+  const groups = [...counts].sort(([a], [b]) => a.localeCompare(b));
+  const width = Math.max(...groups.map(([group]) => group.length));
+  console.log(`\nThe groups, and their entries; --only "GROUP:" runs one:`);
+  for (const [group, n] of groups) console.log(`  ${group.padEnd(width)}  ${n}`);
+  const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const listed = `${count(MUTATIONS.length, "entry", "entries")} in ${count(groups.length, "group", "groups")}`;
+  console.log(`\nmutate --list: ${listed}${selected}. Nothing was run or changed.`);
+  // Node writes to a pipe asynchronously on Linux and macOS, and process.exit() before a write
+  // completes drops what's left (Node's documentation of process.stdout), which cut a long list
+  // short on CI's Linux runner once. So wait until it has all gone.
+  await new Promise((resolve) => process.stdout.write("", resolve));
+  process.exit(0);
+}
+
 const started = Date.now();
 const controls = new Map();
 const failures = [];
@@ -101,7 +171,7 @@ for (const m of MUTATIONS) {
   }
 }
 const minutes = ((Date.now() - started) / 60000).toFixed(1);
-console.log(`\nmutate: ${MUTATIONS.length - failures.length} of ${MUTATIONS.length} mutations caught in ${minutes} min.`);
+console.log(`\nmutate: ${MUTATIONS.length - failures.length} of ${MUTATIONS.length} mutations caught in ${minutes} min${selected}.`);
 
 const left = changedFiles();
 if (left) {

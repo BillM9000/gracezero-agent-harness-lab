@@ -80,7 +80,7 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 - `node tools/instruction-files.mjs <path>` reports what each instruction file loads, and when (chapter 6).
 - `node tools/doc-claims.mjs [path]` checks the paths and marked numbers in these documents (chapter 8).
 - `node tools/progress.mjs [path]` shows the work list and the last log entry, and fails if a done item's test doesn't exist (chapter 10).
-- `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it; when you add a guard, add its entry (chapter 24).
+- `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it (`--list` lists them; `--only PREFIX` runs a group); when you add a guard, add its entry (chapter 24).
 - `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command, with limits (chapter 25).
 - For readers, each described in its header and the README: `tools/harness-inventory.mjs`, `tools/rework.mjs`.
 

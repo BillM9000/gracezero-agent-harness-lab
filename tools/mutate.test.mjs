@@ -41,8 +41,8 @@ function repository(mutations) {
   return root;
 }
 
-function mutate(root) {
-  const result = spawnSync(process.execPath, [RUNNER, root], { encoding: "utf8" });
+function mutate(root, ...args) {
+  const result = spawnSync(process.execPath, [RUNNER, root, ...args], { encoding: "utf8" });
   return { code: result.status, output: result.stdout + result.stderr };
 }
 
@@ -107,6 +107,97 @@ test("every entry in the repository's own list changes text that is in its file 
     return text.split(m.find).length !== 2;
   }).map((m) => `${m.guard} (${m.file})`);
   assert.deepEqual(stale, []);
+});
+
+// --only (chapter 24): one guard's entries, by the start of their names.
+const TWO = [
+  { guard: "evenness: two is even", file: "guard.mjs", find: "n % 2 === 0", replace: "true", run: RUN_TEST },
+  { guard: "comment: says what passes", file: "guard.mjs", find: "Only even numbers pass.", replace: "Anything.", run: RUN_TEST },
+];
+
+test("--only runs just the entries whose name starts with it, and says how many of all it ran", () => {
+  const root = repository(TWO);
+  const { code, output } = mutate(root, "--only", "evenness:");
+  assert.equal(code, 0, output);
+  assert.match(output, /caught {4}evenness: two is even/);
+  assert.doesNotMatch(output, /comment/);
+  assert.match(output, /1 of 1 mutations caught in [\d.]+ min \(--only "evenness:": 1 of the 2 entries\)\./);
+  assert.ok(clean(root));
+});
+
+test("--only can be given more than once, and the root can come after it", () => {
+  const root = repository(TWO);
+  const result = spawnSync(process.execPath, [RUNNER, "--only", "evenness:", "--only", "comment:", root], { encoding: "utf8" });
+  const output = result.stdout + result.stderr;
+  assert.equal(result.status, 1, output);
+  assert.match(output, /caught {4}evenness/);
+  assert.match(output, /SURVIVED {2}comment: says what passes/);
+  assert.match(output, /1 of 2 mutations caught .*: 2 of the 2 entries\)/);
+});
+
+test("an --only that selects nothing refuses before anything runs, and lists the groups", () => {
+  const root = repository(TWO);
+  const { code, output } = mutate(root, "--only", "evennes:");
+  assert.equal(code, 1);
+  assert.match(output, /--only "evennes:" selects none of the 2 entries/);
+  assert.match(output, /The groups: comment, evenness\./);
+  assert.doesNotMatch(output, /caught|SURVIVED|CONTROL/);
+  assert.equal(readFileSync(join(root, "guard.mjs"), "utf8"), GUARD);
+});
+
+test("one --only that selects nothing refuses the run, though another selects something", () => {
+  const root = repository(TWO);
+  const { code, output } = mutate(root, "--only", "evenness:", "--only", "coment:");
+  assert.equal(code, 1);
+  assert.match(output, /--only "coment:" selects none/);
+  assert.doesNotMatch(output, /caught/);
+});
+
+test("--only without a prefix, or an option it doesn't know, is refused", () => {
+  const root = repository(TWO);
+  assert.match(mutate(root, "--only").output, /--only needs the start of an entry's name/);
+  const unknown = mutate(root, "--all");
+  assert.equal(unknown.code, 1);
+  assert.match(unknown.output, /--all isn't an option/);
+});
+
+// --list (chapter 24): the entries and their groups, with nothing run or changed.
+test("--list prints every entry and every group, runs nothing, and needs no clean tree", () => {
+  const odd = { guard: "evenness: three is odd", file: "guard.mjs", find: "=== 0", replace: "!== 1", run: RUN_TEST };
+  const root = repository([...TWO, odd]);
+  const edited = GUARD.replace("Only even numbers pass.", "Work in progress.");
+  writeFileSync(join(root, "guard.mjs"), edited);
+  const { code, output } = mutate(root, "--list");
+  assert.equal(code, 0, output);
+  assert.deepEqual(output.trim().split("\n"), [
+    "evenness: two is even  (guard.mjs)",
+    "comment: says what passes  (guard.mjs)",
+    "evenness: three is odd  (guard.mjs)",
+    "",
+    'The groups, and their entries; --only "GROUP:" runs one:',
+    "  comment   1",
+    "  evenness  2",
+    "",
+    "mutate --list: 3 entries in 2 groups. Nothing was run or changed.",
+  ]);
+  assert.equal(readFileSync(join(root, "guard.mjs"), "utf8"), edited);
+  const one = mutate(root, "--list", "--only", "comment:");
+  assert.equal(one.code, 0, one.output);
+  assert.match(one.output, /^comment: says what passes {2}\(guard\.mjs\)$/m);
+  assert.doesNotMatch(one.output, /evenness/);
+  assert.match(one.output, /1 entry in 1 group \(--only "comment:": 1 of the 3 entries\)\. Nothing was run/);
+  assert.match(mutate(root, "--list", "--only", "coment:").output, /--only "coment:" selects none of the 3 entries/);
+});
+
+test("--list on the lab's own list prints one line an entry", async () => {
+  const root = join(dirname(RUNNER), "..");
+  const { MUTATIONS } = await import(pathToFileURL(join(root, "tools", "mutations.mjs")).href);
+  const { code, output } = mutate(root, "--list");
+  assert.equal(code, 0, output);
+  const entries = output.split("\n\n")[0].split("\n");
+  assert.deepEqual(entries, MUTATIONS.map((m) => `${m.guard}  (${m.file})`));
+  const groups = new Set(MUTATIONS.map((m) => m.guard.split(":")[0]));
+  assert.match(output, new RegExp(`mutate --list: ${MUTATIONS.length} entries in ${groups.size} groups\\.`));
 });
 
 test("it refuses to start with uncommitted changes, and leaves them alone", () => {

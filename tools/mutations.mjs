@@ -2,9 +2,11 @@
 // names the guard, the file and the exact text to change, what to change it to, and the test
 // command that must then fail. Add entries when a chapter adds a guard. Chapters 9, 11 to 14 and 16
 // to 36 are here, Appendix B's templates, the drawing of a run (tools/draw-run.mjs), the script
-// tests' git runner (tools/git-run.mjs), chapter 7's consumer test and chapter 1's tally's check for
-// missing fields; the guards from earlier chapters were broken by hand when they were built
-// (CHANGELOG.md records each time) and are the next candidates to add.
+// tests' git runner (tools/git-run.mjs), chapter 7's consumer test and generated marker, chapter 1's
+// tally's check for missing fields, chapter 3's ids too big for SQLite, and check.mjs itself (its
+// exit code, --fast, CI's run of it and the day it checks retirement dates as of); the guards from
+// earlier chapters were broken by hand when they were built (CHANGELOG.md records each time) and
+// are the next candidates to add. node tools/mutate.mjs --list prints the entries and their groups.
 
 const pytest = (...tests) => ({ cwd: "python", python: ["-m", "pytest", "-q", "-p", "no:cacheprovider", ...tests] });
 const vitest = (file, name) => ({ cwd: "ts", vitest: [file, "-t", name] });

@@ -9,6 +9,18 @@ What each working session did, newest first. Add an entry at the end of every se
 - Not run: `--real`, for any command; no key was set, and nothing called a provider. The full `node tools/mutate.mjs`; the nightly job runs it.
 - Next: the history rebuild places each change before its chapter's tag; chapters 15, 16, 18, 20, 22, 27 and 30 and Appendix B quote files these changes touched (`CHANGELOG.md` names them).
 
+## 2026-09-30: the book's numbering, text for a public repository, and four units of the book's lab work
+
+- The book's chapter numbers in every file (`c6278bc`): what the lab called chapters 30 to 35 is now 31 to 36, after the book gained chapter 30, the Zero to Prod capstone; the tags `ch31` to `ch36` keep their names until the history is rebuilt. Text for a public repository (`628947e`, `02425f0`): docstrings, a workflow comment and older changelog entries describe the lab itself. The skills map's likely question for chapter 7 asks about the API contract (`3395804`).
+- The kit's user-level instruction file (`2afcae8`): `templates/ship/user-CLAUDE.md` and a filled example, held to the skeleton by `node tools/kit.mjs doc` and to 200 lines and 4,000 estimated tokens by `tools/instruction-files.mjs`; 2 new `kit:` tests and 2 planted breaks, the second added with the timeout.
+- The nightly job's timeout (`2b886a7`): 100 minutes, not 90, because the list passed 728 entries, the most 90 minutes allows by `tools/mutate.test.mjs`'s allowance; 100 holds 814.
+- `tools/weekly.mjs` (`017ba8f`, chapter 31): CI's failure rate by week from `gh run list`'s JSON, with 9 tests and 5 planted breaks.
+- A golden task built on a false premise (`1caaf96`, chapter 34): the `never` list fails a run that repeats the premise; the gate re-promoted on the mock.
+- The README and the work list credit `mutate --only` and `--list` to chapter 24, which teaches them; chapter 35 uses them.
+- Checked with: `git show --stat` of `c6278bc` (20 files), `628947e` (8) and `02425f0` (1); `git grep` for the sentence about the machine that the public-repository change removed, nothing left; `node postings/skills.mjs postings/sample-2026-09-22.json --type KIND --questions` for each of the five kinds, the chapter 7 question under four of them; `node check.mjs` before each commit, all 27 checks passed each time; `node tools/mutate.mjs --only` on a committed copy of each change, every entry caught: `templates:` 35 of 35, `nightly:` 3 of 3, `weekly:` 5 of 5, and `golden sets:` with `evals:`, `gate:`, `gate check:`, `gate rules:` and `readiness:`, 104 of 104; `python -m helpdesk.evals check` and `python -m helpdesk.gate check`, from `python/`; `node tools/mutate.mjs --list`, 737 entries in 88 groups; `node tools/progress.mjs .`, 43 done.
+- Not run: `--real`, for any command, and the full `node tools/mutate.mjs`; the nightly job runs it.
+- Next: the tag rebuild gives the tags the book's numbering and places each change at its chapter's tag.
+
 ## 2026-09-30: the 45-posting sample, and the skills map on the new numbering
 
 - `postings/sample-2026-09-22.json` is the book's extended research copy, byte for byte: 45 postings, 38 exclusion records, the gateway signal and the fields that date each posting. `postings/tally.mjs` checks the new fields and prints the research tally's sections; `postings/skills.mjs` names the codebook entries that aren't signals; the template passes; the skills map has `gateway` at chapters 18 and 27, the capstone at 30, and chapters 31 to 36.

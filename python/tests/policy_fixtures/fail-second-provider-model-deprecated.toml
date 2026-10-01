@@ -1,0 +1,12 @@
+# expect: fail
+# reasons: model
+# A model its provider deprecated: OpenAI's deprecations page (read 2026-10-01) shuts gpt-5-2025-08-07
+# down on 2026-12-11 and recommends gpt-5.6-sol. The policy says so, with that page and that day,
+# besides saying it isn't approved.
+name = "triage"
+owner = "support-tools"
+model = "gpt-5-2025-08-07"
+max_tokens = 16000
+max_turns = 6
+tools = ["get_ticket", "search_kb"]
+system = "Triage helpdesk tickets and draft replies for staff to review."

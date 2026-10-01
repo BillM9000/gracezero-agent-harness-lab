@@ -1,0 +1,12 @@
+# expect: fail
+# reasons: model
+# A model its provider shut down: gpt-5.2-chat-latest, gone since 2026-08-10 (OpenAI's deprecations
+# page, read 2026-10-01). Requests to it fail, so the policy says so, with the replacement the page
+# names, besides saying it isn't approved.
+name = "triage"
+owner = "support-tools"
+model = "gpt-5.2-chat-latest"
+max_tokens = 16000
+max_turns = 6
+tools = ["get_ticket", "search_kb"]
+system = "Triage helpdesk tickets and draft replies for staff to review."

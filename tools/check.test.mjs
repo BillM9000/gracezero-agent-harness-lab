@@ -77,9 +77,21 @@ test("a day that isn't YYYY-MM-DD, or a models file with no read day, stops the 
   assert.doesNotMatch(undated.output, /^(PASS|FAIL) /m);
 });
 
-test("the lab's checks run as of the day python/agents/models.toml was read", () => {
-  const read = /^read = (\d{4}-\d{2}-\d{2})$/m.exec(readFileSync(join(ROOT, DATE_FILE), "utf8"))?.[1];
-  assert.ok(read, `${DATE_FILE} has no read line`);
-  assert.equal(pinnedDay(ROOT), read);
+// The models file has a section a provider, each read on its own day (chapter 18's second provider).
+// The pinned day is the latest: by then every provider's dates had been copied.
+test("with a read day in each provider's section, the checks run as of the latest", () => {
+  const root = plant('[one]\nsource = "a page"\nread = 2031-01-02\n\n[another]\nsource = "another page"\nread = 2030-05-06\n');
+  const pinned = check(root, ["--fast"]);
+  assert.match(pinned.output, new RegExp(`${VARIABLE}=2031-01-02`));
+  assert.doesNotMatch(pinned.output, /2030-05-06/);
+  const reversed = plant('[one]\nread = 2030-05-06\n\n[another]\nread = 2031-01-02\n');
+  assert.match(check(reversed, ["--fast"]).output, new RegExp(`${VARIABLE}=2031-01-02`));
+});
+
+test("the lab's checks run as of the latest day a provider's section of python/agents/models.toml was read", () => {
+  const text = readFileSync(join(ROOT, DATE_FILE), "utf8");
+  const read = [...text.matchAll(/^read = (\d{4}-\d{2}-\d{2})$/gm)].map((m) => m[1]).sort();
+  assert.ok(read.length >= 2, `${DATE_FILE} has fewer than two read lines, one a provider`);
+  assert.equal(pinnedDay(ROOT), read.at(-1));
 });
 

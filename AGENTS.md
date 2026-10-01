@@ -43,7 +43,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 Everything, from the repository root:
 
 - Set up: `node setup.mjs` (`python/.venv`, the pinned packages, `npm ci`)
-- Check: `node check.mjs` (all <!-- claim: checks -->20 checks; CI runs the same command). Model retirement dates are checked as of `read` in `python/agents/models.toml`; `AGENT_POLICY_TODAY=YYYY-MM-DD` sets another day.
+- Check: `node check.mjs` (all <!-- claim: checks -->20 checks; CI runs the same command). Model retirement dates are checked as of the latest `read` in `python/agents/models.toml`; `AGENT_POLICY_TODAY=YYYY-MM-DD` sets another.
 - Check quickly: `node check.mjs --fast` skips the three test suites; the full run is what counts
 - After changing a pin: `node tools/lockfiles.mjs hashes`, `node setup.mjs`, then `node tools/install-paths.mjs`.
 - After changing a request or response model: `node tools/regenerate.mjs`, then fix what `node check.mjs` reports.

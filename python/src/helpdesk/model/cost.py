@@ -19,7 +19,43 @@ PRICES = {
     "claude-opus-5-5": (4.0, 20.0),
     "claude-sonnet-5": (2.0, 10.0),
     "claude-haiku-4-5-20251001": (1.0, 5.0),
+    "gpt-6.1-sol": (2.0, 10.0),
 }
+
+# Where each model's prices came from, and when. A model's provider is the one whose pages list it;
+# a test keeps every model in PRICES under exactly one provider, and another keeps each approved
+# model's provider here equal to its section in agents/models.toml.
+PROVIDERS = {
+    "Anthropic": {
+        "pricing": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "caching": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "read": "2026-09-25",
+        "models": ("claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5", "claude-haiku-4-5-20251001"),
+    },
+    "OpenAI": {
+        "pricing": "https://developers.openai.com/api/docs/pricing",
+        "caching": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "read": "2026-10-01",
+        "models": ("gpt-6.1-sol",),
+    },
+}
+# The day Anthropic's prices were read: gate.py records it with a promotion, and every model its
+# definitions name is Anthropic's today. read_on gives the day for any model.
+PRICES_SOURCE = PROVIDERS["Anthropic"]["pricing"]
+PRICES_READ = PROVIDERS["Anthropic"]["read"]
+
+
+def provider_of(model: str) -> str:
+    """The provider whose pages the model's prices came from."""
+    for name, provider in PROVIDERS.items():
+        if model in provider["models"]:
+            return name
+    raise ValueError(f"No provider lists {model!r} in PROVIDERS. Known models: {', '.join(sorted(PRICES))}.")
+
+
+def read_on(model: str) -> str:
+    """The day the model's prices were read from its provider's page."""
+    return PROVIDERS[provider_of(model)]["read"]
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,11 @@
+# expect: pass
+# gpt-6.1-sol, OpenAI's, is approved in agents/policy.toml and active in its section of
+# agents/models.toml: a provider is a section of the registry, not a special case in the rules.
+# 32,000 tokens at $10 a million is $0.32 a call, the cap exactly.
+name = "triage"
+owner = "support-tools"
+model = "gpt-6.1-sol"
+max_tokens = 32000
+max_turns = 6
+tools = ["get_ticket", "search_kb"]
+system = "Triage helpdesk tickets and draft replies for staff to review."

@@ -13,8 +13,9 @@
 // node check.mjs --fast skips the three test suites and runs the rest, the tier cheap enough to
 // run after every edit (chapter 24). The full run is still what counts: CI runs it.
 //
-// The checks judge the models' retirement dates as of one day, the "read" date in
-// python/agents/models.toml, so they pass or fail the same way on any date (tools/policy-date.mjs).
+// The checks judge the models' retirement dates as of one day, the latest "read" date in
+// python/agents/models.toml (one a provider's section), so they pass or fail the same way on any
+// date (tools/policy-date.mjs).
 // Set AGENT_POLICY_TODAY=YYYY-MM-DD to check as of another day. python -m agent_policy on its own,
 // and the nightly workflow's retirement job, check as of today.
 import { spawnSync } from "node:child_process";

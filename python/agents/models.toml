@@ -1,114 +1,217 @@
-# The models the platform knows, as components with a lifecycle (chapter 20). Every row is copied
-# from the "Model status" table of Anthropic's "Model deprecations" page, with the replacements
-# from the same page's deprecation history, as read on the date below. Copy what the page says;
-# never estimate a date. Re-read the page before relying on this file: dates move, and new
-# deprecations are announced there.
+# The models the platform knows, as components with a lifecycle (chapter 20), one section a
+# provider. A section names the provider, the page its rows were copied from and the day they were
+# read; python -m agent_policy reads every section (tracked, in src/agent_policy/rules.py) and names
+# the provider and its page in what it reports. Copy what a page says; never estimate a date. Re-read
+# a page before relying on its section: dates move, and new deprecations are announced there. The
+# checks judge every date as of the latest read day below (tools/policy-date.mjs; AGENT_POLICY_TODAY
+# sets another), the most recent day a provider's page was copied here.
 #
-# state: "active", "legacy", "deprecated" or "retired", as the page defines them.
-# retires: for a deprecated or retired model, its retirement date. For an active one, the page's
-#   "not sooner than" date: the earliest it may retire, not a date it will. Left out where the page
-#   says "to be announced".
-# deprecated: the date the page gives for a deprecation.
+# state: "active", "legacy", "deprecated" or "retired", as Anthropic's page defines them. For a page
+#   that lists announcements instead of states, a model whose shutdown date is past the read day is
+#   retired, one still to come is deprecated, and one in the catalog with no announcement is active.
+# retires: for a deprecated or retired model, its retirement (shutdown) date. For an active one, the
+#   earliest it may retire, where the page gives one (Anthropic's "not sooner than" dates): the
+#   earliest it may retire, not a date it will. Left out where the page gives no date, or says "to
+#   be announced".
+# deprecated: the date the page gives for a deprecation; on a page of announcements, the announcement's.
 # replacement: the model the page recommends instead, where it names one.
 #
 # python -m agent_policy reads this with agents/policy.toml (src/agent_policy/rules.py): a definition
 # naming a model that has retired, is deprecated, or may retire within the policy's notice fails,
 # with the date and what to move to. A test keeps every approved model here and active.
+
+# Every row is copied from the "Model status" table of Anthropic's "Model deprecations" page, with
+# the replacements from the same page's deprecation history, as read on the date below.
+[anthropic]
+name = "Anthropic"
+page = "model deprecations page"
 source = "https://platform.claude.com/docs/en/about-claude/model-deprecations"
 read = 2026-09-24
 
-[models.claude-fable-5-1]
+[anthropic.models.claude-fable-5-1]
 state = "active"
 retires = 2027-09-01
 
-[models.claude-mythos-5-1]
+[anthropic.models.claude-mythos-5-1]
 state = "active"
 retires = 2027-09-01
 
-[models.claude-fable-5]
+[anthropic.models.claude-fable-5]
 state = "active"
 retires = 2027-06-09
 
-[models.claude-mythos-5]
+[anthropic.models.claude-mythos-5]
 state = "active"
 retires = 2027-06-09
 
-[models.claude-mythos-preview]
+[anthropic.models.claude-mythos-preview]
 state = "deprecated"
 deprecated = 2026-06-09
 
-[models.claude-opus-5-5]
+[anthropic.models.claude-opus-5-5]
 state = "active"
 retires = 2027-09-22
 
-[models.claude-opus-5]
+[anthropic.models.claude-opus-5]
 state = "active"
 retires = 2027-07-24
 
-[models.claude-opus-4-8]
+[anthropic.models.claude-opus-4-8]
 state = "active"
 retires = 2027-05-28
 
-[models.claude-opus-4-7]
+[anthropic.models.claude-opus-4-7]
 state = "active"
 retires = 2027-04-16
 
-[models.claude-opus-4-6]
+[anthropic.models.claude-opus-4-6]
 state = "active"
 retires = 2027-02-05
 
-[models.claude-opus-4-5-20251101]
+[anthropic.models.claude-opus-4-5-20251101]
 state = "active"
 retires = 2026-11-24
 
-[models.claude-opus-4-1-20250805]
+[anthropic.models.claude-opus-4-1-20250805]
 state = "retired"
 deprecated = 2026-06-05
 retires = 2026-08-05
 replacement = "claude-opus-4-8"
 
-[models.claude-opus-4-20250514]
+[anthropic.models.claude-opus-4-20250514]
 state = "retired"
 deprecated = 2026-04-14
 retires = 2026-06-15
 replacement = "claude-opus-4-8"
 
-[models.claude-sonnet-5]
+[anthropic.models.claude-sonnet-5]
 state = "active"
 retires = 2027-06-30
 
-[models.claude-sonnet-4-6]
+[anthropic.models.claude-sonnet-4-6]
 state = "active"
 retires = 2027-02-17
 
-[models.claude-sonnet-4-5-20250929]
+[anthropic.models.claude-sonnet-4-5-20250929]
 state = "active"
 retires = 2026-09-29
 
-[models.claude-sonnet-4-20250514]
+[anthropic.models.claude-sonnet-4-20250514]
 state = "retired"
 deprecated = 2026-04-14
 retires = 2026-06-15
 replacement = "claude-sonnet-4-6"
 
-[models.claude-3-7-sonnet-20250219]
+[anthropic.models.claude-3-7-sonnet-20250219]
 state = "retired"
 deprecated = 2025-10-28
 retires = 2026-02-19
 replacement = "claude-sonnet-4-6"
 
-[models.claude-haiku-4-5-20251001]
+[anthropic.models.claude-haiku-4-5-20251001]
 state = "active"
 retires = 2026-10-15
 
-[models.claude-3-5-haiku-20241022]
+[anthropic.models.claude-3-5-haiku-20241022]
 state = "retired"
 deprecated = 2025-12-19
 retires = 2026-02-19
 replacement = "claude-haiku-4-5-20251001"
 
-[models.claude-3-haiku-20240307]
+[anthropic.models.claude-3-haiku-20240307]
 state = "retired"
 deprecated = 2026-02-19
 retires = 2026-04-20
 replacement = "claude-haiku-4-5-20251001"
+
+# OpenAI's "Deprecations" page lists announcements, newest first, each with a shutdown date and a
+# recommended replacement, and promises at least 6 months' notice for generally available models, 3
+# for specialized variants and much less, such as 2 weeks, for preview models. Here, as read on the
+# date below: the three models its models page features (GPT-6 Astra, "our flagship model for complex
+# reasoning and coding"; GPT-6.1 Sol, "to balance intelligence and cost"; GPT-6 Luna, for
+# cost-sensitive, high-volume work), the models the entries below name as replacements, each active
+# with no retirement announced, and every chat or reasoning model the page deprecated from 2026-05-08
+# on. Audio, image, video and endpoint deprecations, and older entries, are left out. The models page
+# gives gpt-6.1-sol as its own default snapshot, so the id is pinned (chapter 20). A key with a dot
+# is quoted, as TOML requires.
+[openai]
+name = "OpenAI"
+page = "deprecations page"
+source = "https://developers.openai.com/api/docs/deprecations"
+read = 2026-10-01
+
+[openai.models.gpt-6-astra]
+state = "active"
+
+[openai.models."gpt-6.1-sol"]
+state = "active"
+
+[openai.models.gpt-6-luna]
+state = "active"
+
+[openai.models."gpt-5.6-sol"]
+state = "active"
+
+[openai.models."gpt-5.6-terra"]
+state = "active"
+
+[openai.models."gpt-5.6-luna"]
+state = "active"
+
+# 2026-09-11: "will be removed from the API on October 1, 2026". The page names no model in its place,
+# only "the most capable cyber model available to you", so no replacement is recorded.
+[openai.models."gpt-5.4-cyber"]
+state = "deprecated"
+deprecated = 2026-09-11
+retires = 2026-10-01
+
+# 2026-06-11: "GPT-5 and o3 model deprecations", shut down December 11, 2026.
+[openai.models.gpt-5-2025-08-07]
+state = "deprecated"
+deprecated = 2026-06-11
+retires = 2026-12-11
+replacement = "gpt-5.6-sol"
+
+[openai.models.gpt-5-mini-2025-08-07]
+state = "deprecated"
+deprecated = 2026-06-11
+retires = 2026-12-11
+replacement = "gpt-5.6-terra"
+
+[openai.models.gpt-5-nano-2025-08-07]
+state = "deprecated"
+deprecated = 2026-06-11
+retires = 2026-12-11
+replacement = "gpt-5.6-luna"
+
+# The page adds "reasoning.mode: pro" to this replacement and the one for o3-pro.
+[openai.models.gpt-5-pro-2025-10-06]
+state = "deprecated"
+deprecated = 2026-06-11
+retires = 2026-12-11
+replacement = "gpt-5.6-sol"
+
+[openai.models.o3-2025-04-16]
+state = "deprecated"
+deprecated = 2026-06-11
+retires = 2026-12-11
+replacement = "gpt-5.6-sol"
+
+[openai.models.o3-pro-2025-06-10]
+state = "deprecated"
+deprecated = 2026-06-11
+retires = 2026-12-11
+replacement = "gpt-5.6-sol"
+
+# 2026-05-08: two chat snapshots, shut down August 10, 2026, before the read day, so retired.
+[openai.models."gpt-5.2-chat-latest"]
+state = "retired"
+deprecated = 2026-05-08
+retires = 2026-08-10
+replacement = "gpt-5.6-sol"
+
+[openai.models."gpt-5.3-chat-latest"]
+state = "retired"
+deprecated = 2026-05-08
+retires = 2026-08-10
+replacement = "gpt-5.6-sol"

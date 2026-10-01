@@ -20,12 +20,12 @@ import pytest
 
 from agent_policy import AGENTS, MODELS, POLICY, TODAY_VARIABLE, load
 from agent_policy.__main__ import main
-from agent_policy.rules import RULES, check
+from agent_policy.rules import RULES, check, tracked
 from helpdesk.assistant.proposing import WRITERS, assistant_tools, proposing_tools
 from helpdesk.assistant.team import DELEGATE
 from helpdesk.assistant.tools import triage_tools
 from helpdesk.data.db import connect, init_schema
-from helpdesk.model.cost import PRICES
+from helpdesk.model.cost import PRICES, provider_of
 from helpdesk.services.access import APPROVERS, Person
 
 FIXTURES_DIR = Path(__file__).parent / "policy_fixtures"
@@ -93,6 +93,15 @@ def test_a_run_that_finds_no_definitions_fails(tmp_path, capsys):
 def test_the_policy_prices_match_the_code():
     for model, entry in POLICY_DATA["models"].items():
         assert entry["output_usd_per_million"] == PRICES[model][1], model
+
+
+def test_the_cost_tables_name_each_approved_models_provider_as_the_registry_does():
+    # src/helpdesk/model/cost.py says whose pricing page each price came from, and agents/models.toml
+    # whose deprecations page each date came from: the same provider, or one of them is wrong.
+    registry = tracked(MODELS_DATA)
+    for model in POLICY_DATA["models"]:
+        assert provider_of(model) == registry[model]["provider_name"], model
+    assert {provider_of(m) for m in POLICY_DATA["models"]} == {"Anthropic", "OpenAI"}
 
 
 def test_the_policy_tools_are_the_tools_the_code_provides():
@@ -183,11 +192,14 @@ def test_the_real_definitions_live_in_the_agents_folder():
 READ = "(agents/models.toml, from Anthropic's model deprecations page, read 2026-09-24)"
 
 
+APPROVED = '"claude-opus-5-5", "claude-sonnet-5", "gpt-6.1-sol"'
+
+
 def test_an_unapproved_model_is_named_as_unapproved():
     [violation] = check(load(FIXTURES_DIR / "fail-model-not-approved.toml"), POLICY_DATA, MODELS_DATA, TODAY)
     assert (violation.rule, violation.reason) == (
         "model",
-        '"claude-opus-4-1" isn\'t an approved model. Use one of "claude-opus-5-5", "claude-sonnet-5", or ask '
+        f'"claude-opus-4-1" isn\'t an approved model. Use one of {APPROVED}, or ask '
         "the platform team to approve it in agents/policy.toml.",
     )
 
@@ -198,20 +210,22 @@ def test_a_retired_model_fails_with_its_date_and_what_to_move_to():
     assert [v.rule for v in violations] == ["model", "retired"]
     assert retired[0].reason == (
         f"claude-opus-4-1-20250805 retired on 2026-08-05, and requests to it fail {READ}. Anthropic "
-        'recommends claude-opus-4-8 in its place, which isn\'t approved here: use one of "claude-opus-5-5", '
-        '"claude-sonnet-5", or ask the platform team to approve it in agents/policy.toml.'
+        f"recommends claude-opus-4-8 in its place, which isn't approved here: use one of {APPROVED}, or ask "
+        "the platform team to approve it in agents/policy.toml."
     )
 
 
 def test_an_approved_model_fails_the_day_its_earliest_retirement_is_within_the_notice():
     # claude-opus-5-5 may retire as soon as 2027-09-22, and the policy moves agents 90 days before.
+    # No approved model has a later date; gpt-6.1-sol has none announced, so it's named, not suggested.
     triage_definition = load(AGENTS / "triage.toml")
     assert check(triage_definition, POLICY_DATA, MODELS_DATA, date(2027, 6, 23)) == []
     [violation] = check(triage_definition, POLICY_DATA, MODELS_DATA, date(2027, 6, 24))
     assert (violation.path, violation.rule) == ("model", "retiring")
     assert violation.reason == (
         "claude-opus-5-5 may retire as soon as 2027-09-22, in 90 days, and the policy moves agents 90 days "
-        f"before {READ}. No approved model retires later: ask the platform team to approve a newer one."
+        f'before {READ}. No approved model has a later retirement date announced, and "gpt-6.1-sol" has '
+        "none announced: ask the platform team which to move to, or to approve a newer one."
     )
 
 
@@ -230,18 +244,62 @@ def test_the_policy_command_checks_as_of_the_day_it_is_given(capsys):
 
 
 def test_every_approved_model_is_in_the_registry_active_and_every_replacement_is_known():
-    registry = MODELS_DATA["models"]
+    registry = tracked(MODELS_DATA)
     for model in POLICY_DATA["models"]:
         assert registry[model]["state"] == "active", model
     states = {"active", "legacy", "deprecated", "retired"}
-    for model, entry in registry.items():
-        assert entry["state"] in states, model
-        assert set(entry) <= {"state", "retires", "deprecated", "replacement"}, model
-        if entry["state"] in ("retired", "active"):
-            assert isinstance(entry["retires"], date), model
-        if "replacement" in entry:
-            assert entry["replacement"] in registry, model
-    assert isinstance(MODELS_DATA["read"], date)
+    assert len(MODELS_DATA) >= 2, "the registry has a section for each provider the policy approves"
+    for provider, section in MODELS_DATA.items():
+        assert set(section) == {"name", "page", "source", "read", "models"}, provider
+        assert isinstance(section["read"], date), provider
+        for model, entry in section["models"].items():
+            assert entry["state"] in states, model
+            assert set(entry) <= {"state", "retires", "deprecated", "replacement"}, model
+            # A retired model has the date it retired on. An active one has the earliest it may retire
+            # only where its provider's page gives one; a deprecated one, where the date is announced.
+            if entry["state"] == "retired":
+                assert isinstance(entry["retires"], date), model
+            if "retires" in entry:
+                assert isinstance(entry["retires"], date), model
+            if "replacement" in entry:
+                assert entry["replacement"] in registry, model
+
+
+def test_a_second_providers_dates_are_read_from_its_own_section():
+    # gpt-5-2025-08-07: deprecated 2026-06-11, shut down 2026-12-11, replaced by gpt-5.6-sol (OpenAI's
+    # deprecations page, read 2026-10-01). The report names that page and that day, not another's.
+    violations = check(
+        load(FIXTURES_DIR / "fail-second-provider-model-deprecated.toml"), POLICY_DATA, MODELS_DATA, TODAY
+    )
+    assert [v.rule for v in violations] == ["model", "retiring"]
+    assert violations[1].reason == (
+        "gpt-5-2025-08-07 is deprecated and retires on 2026-12-11, in 78 days (agents/models.toml, from "
+        "OpenAI's deprecations page, read 2026-10-01). OpenAI recommends gpt-5.6-sol in its place, which "
+        f"isn't approved here: use one of {APPROVED}, or ask the platform team to approve it in "
+        "agents/policy.toml."
+    )
+    violations = check(
+        load(FIXTURES_DIR / "fail-second-provider-model-retired.toml"), POLICY_DATA, MODELS_DATA, TODAY
+    )
+    assert [v.rule for v in violations] == ["model", "retired"]
+    assert violations[1].reason.startswith(
+        "gpt-5.2-chat-latest retired on 2026-08-10, and requests to it fail (agents/models.toml, from "
+        "OpenAI's deprecations page, read 2026-10-01). OpenAI recommends gpt-5.6-sol in its place"
+    )
+    passing = load(FIXTURES_DIR / "pass-model-from-a-second-provider.toml")
+    assert check(passing, POLICY_DATA, MODELS_DATA, TODAY) == []
+
+
+def test_a_model_listed_under_two_providers_is_refused():
+    twice = {
+        **MODELS_DATA,
+        "openai": {
+            **MODELS_DATA["openai"],
+            "models": {**MODELS_DATA["openai"]["models"], "claude-sonnet-5": {"state": "active"}},
+        },
+    }
+    with pytest.raises(ValueError, match="lists claude-sonnet-5 under anthropic and openai"):
+        tracked(twice)
 
 
 def test_a_deprecated_model_fails_even_before_its_retirement_date_is_announced():
@@ -253,15 +311,14 @@ def test_a_deprecated_model_fails_even_before_its_retirement_date_is_announced()
 
 
 def test_an_approved_model_nobody_tracks_fails_closed():
-    untracked = {
-        **MODELS_DATA,
-        "models": {k: v for k, v in MODELS_DATA["models"].items() if k != "claude-opus-5-5"},
-    }
+    section = MODELS_DATA["anthropic"]
+    kept = {k: v for k, v in section["models"].items() if k != "claude-opus-5-5"}
+    untracked = {**MODELS_DATA, "anthropic": {**section, "models": kept}}
     [violation] = check(load(AGENTS / "triage.toml"), POLICY_DATA, untracked, TODAY)
     assert (violation.rule, violation.reason) == (
         "model",
         '"claude-opus-5-5" is approved but isn\'t in agents/models.toml, so nothing tracks when it retires. '
-        "Add it from Anthropic's model deprecations page.",
+        "Add it under its provider's section, from that provider's deprecations page.",
     )
 
 

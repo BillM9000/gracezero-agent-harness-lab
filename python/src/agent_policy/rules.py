@@ -78,11 +78,36 @@ def is_a(value: Any, kind: type) -> bool:
     return isinstance(value, kind) and not isinstance(value, bool)
 
 
+def tracked(models: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Every model agents/models.toml tracks, from every provider's section, each entry with its
+    provider (the section's key, and its name as the page writes it), the page it was copied from and
+    the day it was read, so a report can say whose page and when. A model listed under two providers
+    is an error, not a choice."""
+    entries: dict[str, dict[str, Any]] = {}
+    for provider, section in models.items():
+        for model, entry in section["models"].items():
+            if model in entries:
+                first = entries[model]["provider"]
+                raise ValueError(
+                    f"agents/models.toml lists {model} under {first} and {provider}: a model has one "
+                    "provider, so keep it under that provider's section alone."
+                )
+            entries[model] = {
+                **entry,
+                "provider": provider,
+                "provider_name": section["name"],
+                "page": section["page"],
+                "read": section["read"],
+            }
+    return entries
+
+
 def lifecycle(model: str, policy: dict[str, Any], models: dict[str, Any], today: date) -> Violation | None:
     """Chapter 20: a model that has retired, is deprecated, or may retire within the policy's notice,
     with the date and what to move to. None for a model that's fine, or that the registry doesn't
     know (check reports that separately for an approved model)."""
-    entry = models["models"].get(model)
+    registry = tracked(models)
+    entry = registry.get(model)
     if entry is None:
         return None
     state, retires = entry["state"], entry.get("retires")
@@ -90,7 +115,7 @@ def lifecycle(model: str, policy: dict[str, Any], models: dict[str, Any], today:
     notice: int = policy["retirement_notice_days"]
     replacement = entry.get("replacement")
     if replacement is not None:
-        move = f"Anthropic recommends {replacement} in its place"
+        move = f"{entry['provider_name']} recommends {replacement} in its place"
         move += (
             ", which is approved: change model to it."
             if replacement in approved
@@ -100,7 +125,7 @@ def lifecycle(model: str, policy: dict[str, Any], models: dict[str, Any], today:
     else:
         # The approved models that may retire later than this one, and aren't retiring themselves.
         def later(other: str) -> bool:
-            theirs = models["models"].get(other, {})
+            theirs = registry.get(other, {})
             when = theirs.get("retires")
             return (
                 theirs.get("state") == "active"
@@ -109,13 +134,26 @@ def lifecycle(model: str, policy: dict[str, Any], models: dict[str, Any], today:
                 and (when - today).days > notice
             )
 
+        # And the approved, active models whose provider has announced no retirement at all: later
+        # than this one is unknown, not known, so they're named rather than suggested.
+        def undated(other: str) -> bool:
+            theirs = registry.get(other, {})
+            return theirs.get("state") == "active" and theirs.get("retires") is None
+
         better = [m for m in approved if m != model and later(m)]
-        move = (
-            f"Move to an approved model that retires later: {', '.join(map(shown, better))}."
-            if better
-            else "No approved model retires later: ask the platform team to approve a newer one."
-        )
-    read = f"(agents/models.toml, from Anthropic's model deprecations page, read {models['read']})"
+        unannounced = [m for m in approved if m != model and undated(m)]
+        if better:
+            move = f"Move to an approved model that retires later: {', '.join(map(shown, better))}."
+        elif unannounced:
+            named = ", ".join(map(shown, unannounced))
+            has = "has" if len(unannounced) == 1 else "have"
+            move = (
+                f"No approved model has a later retirement date announced, and {named} {has} none "
+                "announced: ask the platform team which to move to, or to approve a newer one."
+            )
+        else:
+            move = "No approved model retires later: ask the platform team to approve a newer one."
+    read = f"(agents/models.toml, from {entry['provider_name']}'s {entry['page']}, read {entry['read']})"
     if state == "retired" or (state == "deprecated" and retires is not None and retires <= today):
         when = f" on {retires.isoformat()}" if retires is not None else ""
         return Violation("model", "retired", f"{model} retired{when}, and requests to it fail {read}. {move}")
@@ -175,14 +213,14 @@ def check(
                 "ask the platform team to approve it in agents/policy.toml.",
             )
         )
-    elif model is not None and model not in models["models"]:
+    elif model is not None and model not in tracked(models):
         # Approved, but nobody tracks when it retires. Fail closed.
         found.append(
             Violation(
                 "model",
                 "model",
                 f"{shown(model)} is approved but isn't in agents/models.toml, so nothing tracks when it "
-                "retires. Add it from Anthropic's model deprecations page.",
+                "retires. Add it under its provider's section, from that provider's deprecations page.",
             )
         )
     if model is not None:

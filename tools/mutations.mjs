@@ -72,6 +72,8 @@ const FAKE_FITNESS = "python/tests/fitness/test_tests_fake_the_model_client.py";
 const FAKE_FITNESS_TEST = "tests/fitness/test_tests_fake_the_model_client.py";
 const PROGRESS = "tools/progress.mjs";
 const progressTest = (name) => nodeTest("tools/progress.test.mjs", name);
+const COST = "python/src/helpdesk/model/cost.py";
+const costTest = (name) => pytest(`tests/test_cost.py::${name}`);
 // The real lock check, on this repository as setup left it.
 const LOCK_CHECK = { node: [LOCKFILES] };
 const approvals = (name) => pytest(`${APPROVALS}::${name}`);
@@ -617,7 +619,7 @@ export const MUTATIONS = [
   {
     guard: "check: a models file with no read day stops the run, saying why",
     file: POLICY_DATE,
-    find: "  if (!found) {\n",
+    find: "  if (!days.length) {\n",
     replace: "  if (false) {\n",
     run: checkTest("a day that isn't YYYY-MM-DD"),
   },
@@ -2081,9 +2083,74 @@ export const MUTATIONS = [
   {
     guard: "agent policy: an approved model nobody tracks fails",
     file: AGENT_RULES,
-    find: '    elif model is not None and model not in models["models"]:',
+    find: "    elif model is not None and model not in tracked(models):",
     replace: "    elif False:",
     run: pytest(`${POLICY}::test_an_approved_model_nobody_tracks_fails_closed`),
+  },
+  // A second provider in the policy (chapter 18): its models, prices and dates come from its own
+  // section of agents/models.toml and its own pages, and a report names them.
+  {
+    guard: "agent policy: every provider's section of models.toml is read",
+    file: AGENT_RULES,
+    find: "    for provider, section in models.items():",
+    replace: "    for provider, section in list(models.items())[:1]:",
+    run: pytest(`${POLICY}::test_a_second_providers_dates_are_read_from_its_own_section`),
+  },
+  {
+    guard: "agent policy: a model listed under two providers is refused",
+    file: AGENT_RULES,
+    find: "            if model in entries:\n",
+    replace: "            if False:\n",
+    run: pytest(`${POLICY}::test_a_model_listed_under_two_providers_is_refused`),
+  },
+  {
+    guard: "agent policy: a problem names the model's own provider and page",
+    file: AGENT_RULES,
+    find: `    read = f"(agents/models.toml, from {entry['provider_name']}'s {entry['page']}, read {entry['read']})"`,
+    replace: `    read = f"(agents/models.toml, from Anthropic's model deprecations page, read {entry['read']})"`,
+    run: pytest(`${POLICY}::test_a_second_providers_dates_are_read_from_its_own_section`),
+  },
+  {
+    guard: "agent policy: an approved model with no retirement announced is named, not passed over",
+    file: AGENT_RULES,
+    find: "        elif unannounced:",
+    replace: "        elif False:",
+    run: pytest(`${POLICY}::test_an_approved_model_fails_the_day_its_earliest_retirement_is_within_the_notice`),
+  },
+  {
+    guard: "agent policy: a second provider's price matches the code",
+    file: "python/agents/policy.toml",
+    find: '"gpt-6.1-sol" = { output_usd_per_million = 10.0 }',
+    replace: '"gpt-6.1-sol" = { output_usd_per_million = 12.0 }',
+    run: pytest(`${POLICY}::test_the_policy_prices_match_the_code`),
+  },
+  {
+    guard: "agent policy: the cost tables' provider for a model is the registry's",
+    file: COST,
+    find: '        "models": ("gpt-6.1-sol",),',
+    replace: '        "models": (),',
+    run: pytest(`${POLICY}::test_the_cost_tables_name_each_approved_models_provider_as_the_registry_does`),
+  },
+  {
+    guard: "cost: a second provider's model is priced from its own page",
+    file: COST,
+    find: '    "gpt-6.1-sol": (2.0, 10.0),',
+    replace: '    "gpt-6.1-sol": (2.0, 12.0),',
+    run: costTest("test_a_second_providers_model_is_priced_from_its_own_page"),
+  },
+  {
+    guard: "fitness: a second provider's model ids are pinned and tracked too",
+    file: "python/tests/fitness/test_model_ids_are_pinned.py",
+    find: 'MODEL_ID = re.compile(r"\\b(?:claude|gpt)-[a-z0-9]+(?:[.-][a-z0-9]+)*")',
+    replace: 'MODEL_ID = re.compile(r"\\bclaude-[a-z0-9]+(?:-[a-z0-9]+)*")',
+    run: pytest("tests/fitness/test_model_ids_are_pinned.py::test_the_check_finds_an_alias"),
+  },
+  {
+    guard: "check: the checks run as of the latest read day, when every provider's page had been copied",
+    file: POLICY_DATE,
+    find: "  return days.sort().at(-1);",
+    replace: "  return days[0];",
+    run: checkTest("with a read day in each provider's section"),
   },
   // Chapter 20: MCP servers are dependencies, and their definitions are text the model reads.
   {

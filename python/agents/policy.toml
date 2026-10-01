@@ -5,7 +5,7 @@
 
 # The most one model call may spend on output, in US dollars: max_tokens times the model's output
 # price. At the prices below, that's 16,000 tokens from claude-opus-5-5 or 32,000 from
-# claude-sonnet-5.
+# claude-sonnet-5 or gpt-6.1-sol.
 max_call_output_usd = 0.32
 
 # The most turns an agent may allow one run. The loop stops at the agent's own limit (chapter 3);
@@ -22,8 +22,10 @@ tools = ["get_ticket", "find_tickets", "search_kb", "delegate_customer", "draft_
 approvers = ["staff", "lead"]
 
 # Chapter 20: how many days before a model may retire an agent must move off it. The dates are in
-# agents/models.toml, from Anthropic's model deprecations page, which promises at least 60 days'
-# notice of a retirement; the lab adds 30 more, to test the replacement first.
+# agents/models.toml, one section a provider, from each provider's deprecations page: Anthropic's
+# promises at least 60 days' notice of a retirement (read 2026-09-24), and OpenAI's at least 6 months
+# for generally available models (read 2026-10-01); the lab adds 30 days to the shorter, to test the
+# replacement first.
 retirement_notice_days = 90
 
 # Chapter 19: the tools that change something, each with the least approval it needs. A definition
@@ -33,9 +35,11 @@ retirement_notice_days = 90
 draft_reply = "staff"
 close_ticket = "lead"
 
-# The models an agent may use, with each one's output price per million tokens. A test checks the
-# prices against src/helpdesk/model/cost.py, and another that each is in agents/models.toml and
-# active.
+# The models an agent may use, from any provider agents/models.toml has a section for, with each
+# one's output price per million tokens (Anthropic's pricing page, read 2026-09-25; OpenAI's, read
+# 2026-10-01). A test checks the prices against src/helpdesk/model/cost.py, and another that each is
+# in agents/models.toml and active. A key with a dot is quoted, as TOML requires.
 [models]
 claude-opus-5-5 = { output_usd_per_million = 20.0 }
 claude-sonnet-5 = { output_usd_per_million = 10.0 }
+"gpt-6.1-sol" = { output_usd_per_million = 10.0 }

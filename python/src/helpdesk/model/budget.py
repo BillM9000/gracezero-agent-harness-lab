@@ -13,9 +13,11 @@ error on one call.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
 from helpdesk.model.anthropic_client import to_api, tool_to_api
 from helpdesk.model.cost import PRICES
@@ -34,6 +36,23 @@ class Spend:
     usd: float = 0.0
 
 
+def plain(value: Any) -> Any:
+    """A provider's own object as data json can write. A real client keeps the model's turn as the
+    SDK's response objects (raw), pydantic models, and sends them back on the next call, so the
+    request a tool run's second call measures holds them: a pydantic model gives its JSON dump, a
+    dataclass its fields, and anything else its text."""
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json")
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return dataclasses.asdict(value)
+    return str(value)
+
+
+def as_json(value: Any) -> str:
+    """Plain data as json.dumps writes it, and a provider's objects as their plain data."""
+    return json.dumps(value, ensure_ascii=False, default=plain)
+
+
 def request_chars(system: str, messages: Sequence[Message], tools: Sequence[ToolSpec]) -> int:
     """Characters of one request as the Anthropic adapter would send it (the same measure as
     helpdesk.patterns.request_size, which a test keeps equal)."""
@@ -42,13 +61,13 @@ def request_chars(system: str, messages: Sequence[Message], tools: Sequence[Tool
         "tools": [tool_to_api(t) for t in tools],
         "messages": [to_api(m) for m in messages],
     }
-    return len(json.dumps(request, ensure_ascii=False))
+    return len(as_json(request))
 
 
 def response_chars(response: ModelResponse) -> int:
     """Characters of what the model wrote: its text and its tool calls."""
     calls = [{"name": c.name, "input": c.arguments} for c in response.tool_calls]
-    return len(response.text) + (len(json.dumps(calls, ensure_ascii=False)) if calls else 0)
+    return len(response.text) + (len(as_json(calls)) if calls else 0)
 
 
 def price(model: str, input_tokens: float, output_tokens: float) -> float:

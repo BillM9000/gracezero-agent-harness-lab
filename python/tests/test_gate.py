@@ -9,6 +9,7 @@ fixture makes any other attempt to build the real client fail the test instead o
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass, replace
 from math import comb, factorial, prod
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,9 +28,10 @@ from helpdesk.assistant.gating import (
     judge_suite,
 )
 from helpdesk.model.anthropic_client import AnthropicModel
-from helpdesk.model.budget import Budget, BudgetReached, request_chars
+from helpdesk.model.anthropic_client import to_api as anthropic_to_api
+from helpdesk.model.budget import Budget, BudgetReached, as_json, request_chars
 from helpdesk.model.mock import MockCall, MockModel
-from helpdesk.model.types import Message, ModelResponse, ToolSpec, Usage
+from helpdesk.model.types import Message, ModelResponse, ToolCall, ToolResult, ToolSpec, Usage
 
 RULE = Rule(
     trials=5, expected=0.95, false_alarm=0.01, every_trial=frozenset({"injections"}), suite_min_cases=10
@@ -261,6 +263,59 @@ def test_an_unknown_model_is_refused_before_any_call():
 def test_the_budget_measures_a_request_as_the_patterns_do():
     call = MockCall("You help.", (Message("user", "Hello"),), (ToolSpec("get_ticket", "Reads one.", {}),))
     assert request_chars(call.system, call.messages, call.tools) == patterns.request_size(call)
+
+
+class SdkObject:
+    """Stands in for a provider SDK's response object, a pydantic model, which json can't write."""
+
+    def __init__(self, **fields: Any) -> None:
+        self.fields = fields
+
+    def model_dump(self, mode: str = "python") -> dict[str, Any]:
+        return dict(self.fields)
+
+
+@dataclass
+class SdkItem:
+    type: str
+    text: str
+
+
+# A model's turn as a real client keeps it (raw: the SDK's own objects) and as plain data.
+TOOL_USE = {"type": "tool_use", "id": "c1", "name": "get_ticket", "input": {"ticket_id": 4}}
+OBJECTS = [SdkObject(**TOOL_USE), SdkItem("text", "Hm.")]
+PLAIN = [TOOL_USE, {"type": "text", "text": "Hm."}]
+
+
+def tool_run(raw: Any) -> list[Message]:
+    """A tool run as it stands before its second call: the question, the model's turn, the result."""
+    turn = Message("assistant", "Hm.", tool_calls=(ToolCall("c1", "get_ticket", {"ticket_id": 4}),), raw=raw)
+    return [Message("user", "Hello"), turn, Message("user", tool_results=(ToolResult("c1", "Ticket 4."),))]
+
+
+def test_a_tool_runs_second_request_is_measured_with_the_providers_own_turn_as_plain_data():
+    # A real client sends the model's turn back as the SDK's objects it came as, which json can't
+    # write: the estimate before a tool run's second call, the one the cap uses, raised TypeError.
+    result = {"type": "tool_result", "tool_use_id": "c1", "content": "Ticket 4."}
+    request = {
+        "system": "You help.",
+        "tools": [],
+        "messages": [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": PLAIN},
+            {"role": "user", "content": [result]},
+        ],
+    }
+    measured = len(json.dumps(request, ensure_ascii=False))
+    assert request_chars("You help.", tool_run(PLAIN), ()) == measured  # plain data measures as it did
+    assert request_chars("You help.", tool_run(OBJECTS), ()) == measured
+
+
+@pytest.mark.parametrize("to_api", [anthropic_to_api], ids=["anthropic"])
+def test_each_adapters_form_of_the_turn_measures_the_providers_objects_as_plain_data(to_api):
+    # Anthropic's adapter sends raw as the turn's content list, OpenAI's as the turn's items.
+    turn = tool_run(OBJECTS)[1]
+    assert as_json(to_api(turn)) == json.dumps(to_api(replace(turn, raw=PLAIN)), ensure_ascii=False)
 
 
 def test_the_adapter_passes_on_the_usage_the_provider_reports():

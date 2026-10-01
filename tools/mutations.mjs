@@ -2920,6 +2920,13 @@ export const MUTATIONS = [
     run: gateTest("test_a_budget_counts_what_the_provider_says_was_used"),
   },
   {
+    guard: "budget: a provider's own turn objects are measured as plain data, not refused by json",
+    file: BUDGET,
+    find: "    return json.dumps(value, ensure_ascii=False, default=plain)",
+    replace: "    return json.dumps(value, ensure_ascii=False)",
+    run: gateTest("test_a_tool_runs_second_request_is_measured_with_the_providers_own_turn_as_plain_data"),
+  },
+  {
     guard: "adapter: it passes on the usage the provider reports",
     file: ADAPTER,
     find: "            usage=Usage(used.input_tokens, used.output_tokens) if used is not None else None,",

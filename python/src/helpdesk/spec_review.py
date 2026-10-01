@@ -20,10 +20,12 @@ in; node tools/kit.mjs decisions FILE --decided fails until every one is. Run ag
 file, it keeps every gap there, decisions included, and adds only the questions it doesn't have,
 with new ids.
 
---real calls each reviewer's model through the gateway (chapter 27), and needs a credential and a
-cap, --max-usd. Without it, the mock plays spec-review/scripted.json: an answer for each brief it
-knows, by title, and for any other brief a question for each section still a placeholder, empty or
-not known yet. The mock's answers were chosen for the lab, so they test the machinery, never a model.
+--real calls each reviewer's model on its provider's API through the gateway (chapter 27), and needs
+each provider's credential in the environment (ANTHROPIC_API_KEY for spec-reviewer-a's model,
+OPENAI_API_KEY for spec-reviewer-b's; a missing one is refused in words before any call) and a cap,
+--max-usd. Without it, the mock plays spec-review/scripted.json: an answer for each brief it knows,
+by title, and for any other brief a question for each section still a placeholder, empty or not
+known yet. The mock's answers were chosen for the lab, so they test the machinery, never a model.
 """
 
 from __future__ import annotations
@@ -265,7 +267,12 @@ def review(
 
 
 def run(brief_path: Path, out: Path, names: Sequence[str], real: bool, budget: Budget | None) -> int:
-    where = "on Anthropic's API, through the gateway" if real else "on the mock (spec-review/scripted.json)"
+    if real:
+        from helpdesk import gateway
+
+        where = f"on {gateway.api_of(reviewers(names))}, through the gateway"
+    else:
+        where = "on the mock (spec-review/scripted.json)"
     print(f"Gap check: {brief_path.as_posix()}, {where}.")
     try:
         found, chosen = review(brief_path, names, real, budget)
@@ -375,14 +382,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("brief", type=Path, help="the intake brief, a Markdown file")
     parser.add_argument("--out", type=Path, required=True, help="the gap list to write, or to add to")
     parser.add_argument("--reviewer", action="append", default=[], help="only this reviewer (repeatable)")
-    parser.add_argument("--real", action="store_true", help="call Anthropic's API; every call is billed")
+    parser.add_argument(
+        "--real",
+        action="store_true",
+        help="call each reviewer's model on its provider's API; every call is billed",
+    )
     evals.add_cap(parser)
     args = parser.parse_args(args_in)
     budget = evals.cap_from(parser, args)
     if not args.brief.exists():
         parser.error(f"{args.brief} doesn't exist")
     if args.real:
-        print(f"Calling Anthropic's API: every call below is billed, capped at ${args.max_usd:.2f}.\n")
+        from helpdesk import gateway
+
+        # Every reviewer's provider must have its credential, or the run is refused before any call.
+        chosen = reviewers(args.reviewer)
+        gateway.require_credentials(chosen)
+        print(
+            f"Calling {gateway.api_of(chosen)}: every call below is billed, capped at ${args.max_usd:.2f}.\n"
+        )
     try:
         return run(args.brief, args.out, args.reviewer, args.real, budget)
     except BudgetReached as stop:

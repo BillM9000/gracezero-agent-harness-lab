@@ -4547,6 +4547,27 @@ export const MUTATIONS = [
     run: specTest("test_a_reviewer_with_tools_or_more_than_one_turn_or_against_the_policy_is_refused"),
   },
   {
+    guard: "spec review: the second reviewer is another provider's model",
+    file: "python/agents/spec-reviewer-b.toml",
+    find: 'model = "gpt-6.1-sol"',
+    replace: 'model = "claude-sonnet-5"',
+    run: specTest("test_the_two_reviewers_are_two_providers_models"),
+  },
+  {
+    guard: "spec review: a billed run is refused in words when a reviewer's provider has no credential",
+    file: SPEC_REVIEW,
+    find: "        gateway.require_credentials(chosen)\n",
+    replace: "",
+    run: specTest("test_a_billed_run_is_refused_in_words_when_a_reviewers_provider_has_no_credential"),
+  },
+  {
+    guard: "spec review: a real run names each reviewer's provider's API",
+    file: SPEC_REVIEW,
+    find: '        where = f"on {gateway.api_of(reviewers(names))}, through the gateway"',
+    replace: '        where = "on the provider\'s API, through the gateway"',
+    run: specTest("test_a_real_run_goes_through_the_gateway_with_each_reviewers_model"),
+  },
+  {
     guard: "spec review: a reviewer must pass the platform's policy",
     file: SPEC_REVIEW,
     find: "    violations = check_policy(definition, load(POLICY), load(MODELS), today())",

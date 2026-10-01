@@ -1,9 +1,12 @@
-# The gap check's second reviewer (Appendix B's Ask stage), on another approved model than
-# spec-reviewer-a.toml, with the same instructions. python -m helpdesk.spec_review merges what the
-# two find and says which found each question.
+# The gap check's second reviewer (Appendix B's Ask stage, chapter 30), on a model from another
+# provider than spec-reviewer-a.toml's, gpt-6.1-sol, OpenAI's, with the same instructions, so what
+# one model family misses the other may find. python -m helpdesk.spec_review merges what the two find
+# and says which found each question; on the mock, this reviewer plays its scripted answers in
+# spec-review/scripted.json, and --real calls its model through the gateway (chapter 27), which needs
+# OPENAI_API_KEY in the environment.
 name = "spec-reviewer-b"
 owner = "support-tools"
-model = "claude-sonnet-5"
+model = "gpt-6.1-sol"
 max_tokens = 4000
 max_turns = 1
 tools = []

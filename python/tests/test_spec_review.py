@@ -1,6 +1,7 @@
 """The gap check (Appendix B's Ask stage): an intake brief sent to every reviewer, their questions
 merged into a gap list in the kit's format for a person to decide. Nothing here calls a model: the
-mock plays spec-review/scripted.json, or a fake client stands in for Anthropic's through the gateway.
+mock plays spec-review/scripted.json, or a fake client stands in for both providers' SDKs through
+the gateway.
 """
 
 from __future__ import annotations
@@ -12,10 +13,12 @@ from typing import Any
 
 import pytest
 
+from agent_policy import MODELS, load
+from agent_policy.rules import tracked
 from helpdesk import evals
 from helpdesk import spec_review as command
-from helpdesk.model.mock import MockModel
-from helpdesk.model.types import ModelResponse
+from helpdesk.model.mock import MockModel, as_anthropic, as_openai
+from helpdesk.model.types import ModelResponse, Usage
 
 EXAMPLE = command.EXAMPLE_BRIEF
 TEMPLATE = command.ROOT / "templates" / "ask" / "intake-brief.md"
@@ -47,6 +50,7 @@ def test_the_example_brief_becomes_the_kits_example_gap_list_with_every_decision
     assert all(g["decides"] is g["decision"] is g["by"] is g["on"] is None for g in written)
     out_text = capsys.readouterr().out
     assert "spec-reviewer-a (claude-opus-5-5): 4 question(s)" in out_text
+    assert "spec-reviewer-b (gpt-6.1-sol): 3 question(s)" in out_text
     assert (
         "G1   open     found by spec-reviewer-a, spec-reviewer-b: Who may approve closing a ticket"
         in out_text
@@ -174,30 +178,72 @@ def test_real_needs_a_cap_and_a_cap_needs_real(tmp_path, capsys):
     assert "--max-usd caps a billed run" in capsys.readouterr().err
 
 
+def test_the_two_reviewers_are_two_providers_models():
+    # What one model family misses the other may find: the reviewers are on two providers' models.
+    registry = tracked(load(MODELS))
+    a, b = command.reviewers(["spec-reviewer-a", "spec-reviewer-b"])
+    assert registry[a["model"]]["provider"] == "anthropic"
+    assert registry[b["model"]]["provider"] == "openai"
+
+
 def test_a_real_run_goes_through_the_gateway_with_each_reviewers_model(tmp_path, monkeypatch, capsys):
-    sent: list[dict[str, Any]] = []
+    # One fake stands behind both providers: spec-reviewer-a's model is called on the Messages API's
+    # shape and spec-reviewer-b's on the Responses API's, each through the gateway.
+    sent: list[tuple[str, dict[str, Any]]] = []
 
-    class Messages:
-        def create(self, **request: Any) -> Any:
-            sent.append(request)
-            answer = json.dumps({"gaps": [{"question": f"What does {request['model']} ask?"}]})
-            usage = SimpleNamespace(input_tokens=100, output_tokens=20)
-            return SimpleNamespace(
-                stop_reason="end_turn", content=[SimpleNamespace(type="text", text=answer)], usage=usage
-            )
+    def answer(api: str, request: dict[str, Any]) -> ModelResponse:
+        sent.append((api, request))
+        question = json.dumps({"gaps": [{"question": f"What does {request['model']} ask?"}]})
+        return ModelResponse("end_turn", text=question, usage=Usage(100, 20))
 
-    fake = SimpleNamespace(messages=Messages())
+    fake = SimpleNamespace(
+        messages=SimpleNamespace(create=lambda **r: as_anthropic(answer("messages.create", r))),
+        responses=SimpleNamespace(create=lambda **r: as_openai(answer("responses.create", r))),
+    )
+    for variable in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
+        monkeypatch.setenv(variable, "present-for-this-test-only")
     real = evals.real_model
     monkeypatch.setattr(evals, "real_model", lambda d, client=None, budget=None: real(d, fake, budget))
     out = tmp_path / "gaps.json"
     assert command.main([str(EXAMPLE), "--out", str(out), "--real", "--max-usd", "1"]) == 0
-    assert [r["model"] for r in sent] == ["claude-opus-5-5", "claude-sonnet-5"]
+    assert [(api, r["model"]) for api, r in sent] == [
+        ("messages.create", "claude-opus-5-5"),
+        ("responses.create", "gpt-6.1-sol"),
+    ]
     # The brief went to each model as a JSON string, whole.
-    content = sent[0]["messages"][0]["content"]
-    text = content if isinstance(content, str) else content[0]["text"]
-    assert json.loads(text.split("\n\n")[1]) == EXAMPLE.read_text(encoding="utf-8")
+    brief = EXAMPLE.read_text(encoding="utf-8")
+    first = sent[0][1]["messages"][0]["content"]
+    assert json.loads(first.split("\n\n")[1]) == brief
+    assert json.loads(sent[1][1]["input"][0]["content"].split("\n\n")[1]) == brief
+    assert sent[1][1]["instructions"] == command.reviewers(["spec-reviewer-b"])[0]["system"]
     assert [g["question"] for g in gaps_of(out)] == [
         "What does claude-opus-5-5 ask?",
-        "What does claude-sonnet-5 ask?",
+        "What does gpt-6.1-sol ask?",
     ]
-    assert "capped at $1.00" in capsys.readouterr().out
+    printed = capsys.readouterr().out
+    assert "Calling Anthropic's and OpenAI's APIs: every call below is billed, capped at $1.00." in printed
+    assert "on Anthropic's and OpenAI's APIs, through the gateway" in printed
+
+
+def test_a_billed_run_is_refused_in_words_when_a_reviewers_provider_has_no_credential(
+    tmp_path, monkeypatch, capsys
+):
+    for variable in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY", "OPENAI_ADMIN_KEY"):
+        monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "present-for-this-test-only")
+    out = tmp_path / "gaps.json"
+    with pytest.raises(SystemExit) as refused:
+        command.main([str(EXAMPLE), "--out", str(out), "--real", "--max-usd", "1"])
+    message = str(refused.value)
+    assert (
+        "spec-reviewer-b calls gpt-6.1-sol, OpenAI's model, and none of OPENAI_API_KEY, OPENAI_ADMIN_KEY"
+        in message
+    )
+    assert message.endswith("or run without --real.\nNothing ran.")
+    assert not out.exists()
+    assert "Calling" not in capsys.readouterr().out
+    # The reviewer whose provider has its credential can run alone (as far as the fixture's guard).
+    with pytest.raises(AssertionError, match="without a fake"):
+        command.main(
+            [str(EXAMPLE), "--out", str(out), "--reviewer", "spec-reviewer-a", "--real", "--max-usd", "1"]
+        )

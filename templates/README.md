@@ -11,7 +11,7 @@ Copy what you need. The kit is MIT-licensed, like the rest of this repository (`
 | Intake brief: the questions a request must answer, and the three the gap check adds | `templates/ask/intake-brief.md` | `templates/ask/intake-brief.example.md` | `node tools/kit.mjs doc TEMPLATE FILE` |
 | Gap list and decisions record: each gap, who decides it (template, build or owner), the decision and the day | `templates/ask/gaps.json` | `templates/ask/gaps.example.json` | `node tools/kit.mjs decisions FILE`; `--decided` fails while any gap is open |
 
-The gap check writes the gap list from a brief: `python -m helpdesk.spec_review BRIEF --out GAPS.json`, from `python/`. It sends the brief to two reviewer models (on the mock unless given `--real` and `--max-usd`), and a person turns what they find into decisions.
+The gap check writes the gap list from a brief: `python -m helpdesk.spec_review BRIEF --out GAPS.json`, from `python/`. It sends the brief to two reviewers on two providers' models (`python/agents/spec-reviewer-a.toml`, on Anthropic's; `spec-reviewer-b.toml`, on OpenAI's), on the mock unless given `--real` and `--max-usd` with each provider's credential in the environment, and a person turns what they find into decisions.
 
 ## Agree
 

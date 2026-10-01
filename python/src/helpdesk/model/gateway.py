@@ -9,7 +9,13 @@ or unreachable cools down, and the call goes to the model's next deployment, the
 A refusal goes to the next model on the route, never back to the one that refused; the refused call
 was billed, so the month and the minute are checked again first, and a fallback the month can't
 cover is refused. A route may also answer an identical request from the same team from its cache,
-for a set time, with no call made.
+for a set time, with no call made; the cache is keyed by the provider and the model that answered
+as well, so one provider's answer is never handed out as another's.
+
+A deployment names its provider, and connect builds that provider's client (the lab's adapters,
+chapter 22), so a route that names two providers' models falls back from one provider to the other
+when a deployment is down or a model refuses, and a route that names one provider's models never
+leaves it: a model that isn't on the route is never tried, whatever provider it's at.
 
 The budgets and the rate windows are held in this process: the month's spend in memory, read back
 from the record when the gateway starts, and each team's minute in memory alone. Two gateways, in
@@ -64,10 +70,12 @@ class Route:
 
 @dataclass(frozen=True)
 class Deployment:
-    """One place a model can be reached: a provider, a region, an account."""
+    """One place a model can be reached: a name for the place (a region, an account, the provider's
+    own API) and the provider whose API it is, which decides the client connect builds for it."""
 
     name: str
     model: str
+    provider: str
 
 
 class Refused(RuntimeError):
@@ -235,11 +243,20 @@ class Gateway:
                 return max(0.0, when + WINDOW - now)
         return WINDOW
 
-    def cache_key(self, team: Team, route: Route, max_tokens: int, request: str) -> str:
-        """The whole request and the team: one team's answer is never another's, and a request that
-        differs in any character, a tool result included, is a different request."""
-        text = "\n".join((team.name, route.name, str(max_tokens), request))
+    def cache_key(
+        self, team: Team, route: Route, provider: str, model: str, max_tokens: int, request: str
+    ) -> str:
+        """The whole request, the team, and the provider and model that answered: one team's answer
+        is never another's, one provider's never another's, and a request that differs in any
+        character, a tool result included, is a different request."""
+        text = "\n".join((team.name, route.name, provider, model, str(max_tokens), request))
         return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    def cache_keys(self, team: Team, route: Route, model: str, max_tokens: int, request: str) -> list[str]:
+        """The keys an answer to this request from this model could be cached under: one for each
+        provider the model is deployed through, in the deployments' order."""
+        providers = dict.fromkeys(d.provider for d in self.deployments[model])
+        return [self.cache_key(team, route, provider, model, max_tokens, request) for provider in providers]
 
     def connected(self, deployment: Deployment, max_tokens: int) -> ModelClient:
         key = (deployment, max_tokens)
@@ -298,14 +315,17 @@ class _Door:
         sent = request_chars(system, messages, tools) / g.chars_per_token
         models = g.order(route, sent, self.max_tokens)
 
-        # A cached answer costs nothing and takes nothing from the team's minute.
-        key = None
-        if route.cache_seconds:
-            key = g.cache_key(team, route, self.max_tokens, request_json(system, messages, tools))
-            hit = g.cache.get(key)
-            if hit is not None and hit[0] > g.clock.time():
-                self.write("cached", hit[1])
-                return hit[2]
+        # A cached answer costs nothing and takes nothing from the team's minute. The route's models
+        # are looked up in order, each under the providers it's deployed through, so an answer is
+        # served again only as the model's, at the provider, that gave it.
+        request = request_json(system, messages, tools) if route.cache_seconds else None
+        if request is not None:
+            for model in models:
+                for key in g.cache_keys(team, route, model, self.max_tokens, request):
+                    hit = g.cache.get(key)
+                    if hit is not None and hit[0] > g.clock.time():
+                        self.write("cached", hit[1])
+                        return hit[2]
 
         try:
             # The month first, at the dearest model the route could try; then the team's minute.
@@ -369,7 +389,8 @@ class _Door:
                     refused_by = model
                     tried.append(f"{model} at {deployment.name}, refused")
                     break
-                if key is not None and outcome == "ok":
+                if request is not None and outcome == "ok":
+                    key = g.cache_key(team, route, deployment.provider, model, self.max_tokens, request)
                     g.cache[key] = (g.clock.time() + route.cache_seconds, model, response)
                 return response
         if refusal is not None:

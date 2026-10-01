@@ -4,7 +4,8 @@ python -m helpdesk.gateway check        the lab's gateway and the demo's, with n
                                         has a budget and limits, and every route's models are
                                         approved, tracked, not retiring and deployed somewhere
 python -m helpdesk.gateway demo         a made-up organization (gateway/demo.toml) through the lab's
-                                        gateway, with a stand-in provider and a clock moved by hand
+                                        gateway, with stand-ins for two providers and a clock moved
+                                        by hand
 python -m helpdesk.gateway report FILE  a gateway record's cost and outcomes, by team and route
 
 Every command in the lab that calls a real model (--real) gets its client here, from the lab's
@@ -96,13 +97,12 @@ def adapter(provider: str, client: Any, model: str, max_tokens: int) -> ModelCli
 
 
 def providers(client: Any = None) -> Connect:
-    """Every provider the lab has an adapter for, each chosen by the deployment's provider: in the
-    lab's gateway each approved model has one deployment, named for its provider. Tests pass a fake
-    client, which answers in either SDK's shape (helpdesk.model.mock.FakeProviderClient); without one,
-    each SDK looks for its own credential, and every call is billed."""
+    """Every provider the lab has an adapter for, each chosen by the deployment's provider. Tests pass
+    a fake client, which answers in either SDK's shape (helpdesk.model.mock.FakeProviderClient);
+    without one, each SDK looks for its own credential, and every call is billed."""
 
     def connect(deployment: Deployment, max_tokens: int) -> ModelClient:
-        return adapter(deployment.name, client, deployment.model, max_tokens)
+        return adapter(deployment.provider, client, deployment.model, max_tokens)
 
     return connect
 
@@ -138,9 +138,11 @@ def api_of(definitions: Iterable[Mapping[str, Any]]) -> str:
 
 
 def lab_deployments(policy: Mapping[str, Any]) -> list[Deployment]:
-    """One deployment an approved model, at its provider (its section in agents/models.toml)."""
+    """One deployment an approved model, at its provider's own API: the provider is the section of
+    agents/models.toml that tracks the model, and the deployment is named for it."""
     registry = tracked(load(MODELS))
-    return [Deployment(registry[model]["provider"], model) for model in policy["models"]]
+    providers_of = {model: registry[model]["provider"] for model in policy["models"]}
+    return [Deployment(provider, model, provider) for model, provider in providers_of.items()]
 
 
 def lab_gateway(connect: Connect | None = None, record: Path | None = None) -> Gateway:
@@ -198,6 +200,21 @@ def config_problems(
     for team in teams:
         if team.monthly_usd <= 0 or team.requests_per_minute < 1 or team.input_tokens_per_minute < 1:
             problems.append(f"{where}: team {team.name}: a budget and both limits must be more than 0.")
+    # A deployment goes through its provider's adapter, so the provider must be one the lab has an
+    # adapter for, and the one agents/models.toml tracks the model under.
+    registry = tracked(models)
+    for d in deployments:
+        at = f"{where}: {d.model} at {d.name}"
+        if d.provider not in PROVIDERS:
+            known = ", ".join(PROVIDERS)
+            problems.append(
+                f"{at}: provider {d.provider!r} has no adapter in the lab; the gateway has {known}."
+            )
+        elif d.model in registry and registry[d.model]["provider"] != d.provider:
+            problems.append(
+                f"{at} is deployed through {d.provider}, and agents/models.toml tracks it under "
+                f"{registry[d.model]['provider']}: a deployment's provider is its model's."
+            )
     deployed = {d.model for d in deployments}
     for route in routes:
         if not route.models:
@@ -227,7 +244,7 @@ def load_demo(path: Path = DEMO) -> Demo:
     routes = [
         Route(name, tuple(r["models"]), int(r.get("cache_seconds", 0))) for name, r in data["routes"].items()
     ]
-    deployments = [Deployment(d["name"], d["model"]) for d in data["deployments"]]
+    deployments = [Deployment(d["name"], d["model"], d["provider"]) for d in data["deployments"]]
     return Demo(teams_of(data), routes, deployments)
 
 
@@ -241,9 +258,15 @@ def describe(teams: Sequence[Team], routes: Sequence[Route], deployments: Sequen
         cached = f", cached for {r.cache_seconds}s" if r.cache_seconds else ""
         lines.append(f"  route {r.name}: {', '.join(r.models)}{cached}")
     places: dict[str, list[str]] = {}
+    through: dict[str, list[str]] = {}
     for d in deployments:
         places.setdefault(d.model, []).append(d.name)
-    lines += [f"  {model} at {', '.join(names)}" for model, names in places.items()]
+        if d.provider not in through.setdefault(d.model, []):
+            through[d.model].append(d.provider)
+    lines += [
+        f"  {model} at {', '.join(names)}, through {' and '.join(through[model])}"
+        for model, names in places.items()
+    ]
     return lines
 
 
@@ -267,7 +290,7 @@ def check(on: date | None = None) -> int:
         return 1
     print(
         "\nEvery team has a budget and limits, and every model on a route is approved, tracked, not "
-        "retiring within the policy's notice, and deployed somewhere."
+        "retiring within the policy's notice, and deployed somewhere, through its own provider."
     )
     return 0
 
@@ -361,8 +384,9 @@ def demo(record: Path) -> int:
         chars_per_token=CHARS_PER_TOKEN,
         clock=clock,
     )
-    print("A made-up organization through the lab's gateway: two teams, two routes, a stand-in")
-    print("provider and a clock the demo moves. Every line below is a line of the gateway's record.\n")
+    print("A made-up organization through the lab's gateway: two teams, two routes, deployments at two")
+    print("providers (a stand-in for each) and a clock the demo moves. Every line below is a line of the")
+    print("gateway's record.\n")
     for team, route, text, failures, wait in STEPS:
         clock.sleep(wait)
         for key, queue in failures.items():

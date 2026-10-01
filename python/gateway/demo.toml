@@ -1,8 +1,9 @@
-# A made-up organization for python -m helpdesk.gateway demo (chapter 27): two teams, two jobs and
-# three deployments. The teams, their budgets and the provider's failures are invented; the gateway
-# that handles them is the lab's own code. python -m helpdesk.gateway check checks this file with
-# the lab's: every model on a route must be approved in agents/policy.toml, tracked in
-# agents/models.toml and not retiring, and every model needs a deployment.
+# A made-up organization for python -m helpdesk.gateway demo (chapter 27): two teams, two jobs, two
+# providers and four deployments. The teams, their budgets and the providers' failures are invented;
+# the gateway that handles them is the lab's own code. python -m helpdesk.gateway check checks this
+# file with the lab's: every model on a route must be approved in agents/policy.toml, tracked in
+# agents/models.toml and not retiring, and every model needs a deployment, through the provider that
+# tracks it, one the gateway has an adapter for.
 
 # Who pays, and each team's share of the organization's rate limits.
 [teams.support-tools]
@@ -17,25 +18,36 @@ input_tokens_per_minute = 20000
 
 # Routes: a job, and the models measured as good enough for it, each on the job's own golden set
 # (chapters 21 and 23). The gateway tries the cheapest first. Triage was measured on one model, so it
-# has one; summaries were measured on two. cache_seconds lets an identical request from the same team
-# be answered from the gateway's cache for that long.
+# has one, and never leaves that model's provider; summaries were measured on three, from two
+# providers, so a summary falls back from one provider to the other when a deployment is down or a
+# model refuses. cache_seconds lets an identical request from the same team be answered from the
+# gateway's cache for that long, as the model's, at the provider, that answered it.
 [routes.triage]
 models = ["claude-opus-5-5"]
 
 [routes.summarize]
-models = ["claude-opus-5-5", "claude-sonnet-5"]
+models = ["claude-opus-5-5", "claude-sonnet-5", "gpt-6.1-sol"]
 cache_seconds = 300
 
-# Where each model can be reached. A second deployment of the same model is a fallback that keeps the
-# model the golden set measured.
+# Where each model can be reached, and through which provider's API, which decides the adapter
+# (chapter 22). A second deployment of the same model is a fallback that keeps the model the golden
+# set measured.
 [[deployments]]
 name = "primary"
 model = "claude-opus-5-5"
+provider = "anthropic"
 
 [[deployments]]
 name = "second-region"
 model = "claude-opus-5-5"
+provider = "anthropic"
 
 [[deployments]]
 name = "primary"
 model = "claude-sonnet-5"
+provider = "anthropic"
+
+[[deployments]]
+name = "openai"
+model = "gpt-6.1-sol"
+provider = "openai"

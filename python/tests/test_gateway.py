@@ -20,7 +20,7 @@ from agent_policy import AGENTS, load
 from helpdesk import evals
 from helpdesk import gateway as command
 from helpdesk.model.anthropic_client import AnthropicModel
-from helpdesk.model.budget import price, request_chars
+from helpdesk.model.budget import price, request_chars, request_json
 from helpdesk.model.calls import CallLog, read, summary
 from helpdesk.model.gateway import (
     Deployment,
@@ -34,7 +34,7 @@ from helpdesk.model.gateway import (
 from helpdesk.model.mock import FakeProviderClient
 from helpdesk.model.types import Message, ModelResponse, ToolResult, Unavailable, Usage
 
-OPUS, SONNET = "claude-opus-5-5", "claude-sonnet-5"
+OPUS, SONNET, GPT = "claude-opus-5-5", "claude-sonnet-5", "gpt-6.1-sol"
 SEPT = datetime(2026, 9, 1, 9, 0, tzinfo=UTC).timestamp()
 TEAM = Team("support-tools", 40.0, 60, 200_000)
 
@@ -94,9 +94,10 @@ def build(
     teams: tuple[Team, ...] = (TEAM,),
     clock: Clock | None = None,
     deployments: tuple[Deployment, ...] = (
-        Deployment("primary", OPUS),
-        Deployment("second-region", OPUS),
-        Deployment("primary", SONNET),
+        Deployment("primary", OPUS, "anthropic"),
+        Deployment("second-region", OPUS, "anthropic"),
+        Deployment("primary", SONNET, "anthropic"),
+        Deployment("openai", GPT, "openai"),
     ),
 ) -> tuple[Gateway, Path, Clock]:
     clock = clock or Clock()
@@ -135,9 +136,9 @@ def test_the_cheapest_model_on_the_route_answers_and_the_line_names_who_pays(tmp
 def test_a_model_that_isnt_on_the_route_is_never_tried_however_cheap(tmp_path):
     provider = Provider(**{f"{OPUS}@primary": ["overloaded"], f"{OPUS}@second-region": ["overloaded"]})
     deployments = (
-        Deployment("primary", OPUS),
-        Deployment("second-region", OPUS),
-        Deployment("primary", SONNET),
+        Deployment("primary", OPUS, "anthropic"),
+        Deployment("second-region", OPUS, "anthropic"),
+        Deployment("primary", SONNET, "anthropic"),
     )
     gateway, _, _ = build(tmp_path, provider, routes=(Route("triage", (OPUS,)),), deployments=deployments)
     with pytest.raises(
@@ -378,6 +379,46 @@ def test_a_route_without_a_cache_time_never_caches(tmp_path):
     assert len(provider.received) == 2
 
 
+# --- Two providers on one gateway (chapter 22's second model): a fallback crosses providers only
+# where the route names both, and the cache never hands one provider's answer out as another's.
+
+
+def test_when_one_providers_model_is_down_the_route_falls_to_the_other_providers(tmp_path):
+    provider = Provider(**{f"{SONNET}@primary": ["overloaded"]})
+    gateway, path, _ = build(tmp_path, provider, routes=(Route("summarize", (SONNET, GPT)),))
+    assert ask(gateway).stop_reason == "end_turn"
+    assert outcomes(path) == [(SONNET, "primary", "unavailable"), (GPT, "openai", "ok")]
+
+
+def test_a_route_that_names_one_providers_models_never_falls_to_another_providers(tmp_path):
+    # Every Anthropic deployment is up; the route doesn't name their models, so none is asked.
+    provider = Provider(**{f"{GPT}@openai": ["overloaded"]})
+    gateway, path, _ = build(tmp_path, provider, routes=(Route("review", (GPT,)),))
+    with pytest.raises(NothingAnswered, match="gpt-6.1-sol at openai, overloaded"):
+        ask(gateway, route="review")
+    assert provider.received == [(GPT, "openai")]
+    assert outcomes(path) == [(GPT, "openai", "unavailable")]
+
+
+def test_the_cache_is_keyed_with_the_provider_and_the_model_that_answered(tmp_path):
+    # claude-sonnet-5 and gpt-6.1-sol cost the same, so the route's order decides: gpt-6.1-sol first.
+    # It's down, claude-sonnet-5 answers, and the answer is cached as sonnet's at anthropic, nothing else's.
+    provider = Provider(**{f"{GPT}@openai": ["overloaded"]})
+    gateway, path, _ = build(tmp_path, provider, routes=(Route("summarize", (GPT, SONNET), 300),))
+    first = ask(gateway)
+    request = request_json("You summarize.", [Message("user", "Summarize ticket 4.")], ())
+
+    def key(provider_name: str, model: str) -> str:
+        return gateway.cache_key(TEAM, gateway.routes["summarize"], provider_name, model, 1000, request)
+
+    assert key("anthropic", SONNET) in gateway.cache
+    assert key("openai", GPT) not in gateway.cache
+    assert key("openai", SONNET) not in gateway.cache
+    assert ask(gateway) is first  # gpt-6.1-sol is still cooling down; sonnet's answer serves, no call made
+    assert outcomes(path)[-1] == (SONNET, "", "cached")
+    assert len(provider.received) == 2
+
+
 # --- The adapter: what counts as an outage, and the provider's request id.
 
 
@@ -479,8 +520,13 @@ def test_a_definition_whose_model_isnt_on_its_route_is_refused():
 
 def test_each_approved_model_is_deployed_at_its_provider():
     lab = command.lab_gateway(connect=Provider().connect)
-    deployed = {d.model: d.name for found in lab.deployments.values() for d in found}
-    assert deployed == {OPUS: "anthropic", SONNET: "anthropic", "gpt-6.1-sol": "openai"}
+    deployed = {d.model: (d.name, d.provider) for found in lab.deployments.values() for d in found}
+    expected = {
+        OPUS: ("anthropic", "anthropic"),
+        SONNET: ("anthropic", "anthropic"),
+        GPT: ("openai", "openai"),
+    }
+    assert deployed == expected
     assert command.provider_of("gpt-6.1-sol") == "openai"
     with pytest.raises(ValueError, match="isn't in agents/models.toml"):
         command.provider_of("some-other-model")
@@ -535,15 +581,34 @@ def test_the_check_passes_on_the_lab_and_the_demo(capsys):
     assert command.main(["check"]) == 0
     out = capsys.readouterr().out
     assert "route triage: claude-opus-5-5" in out
-    assert "route summarize: claude-opus-5-5, claude-sonnet-5, cached for 300s" in out
-    assert "claude-opus-5-5 at anthropic" in out
-    assert "gpt-6.1-sol at openai" in out
+    assert "claude-opus-5-5 at anthropic, through anthropic" in out
+    assert "gpt-6.1-sol at openai, through openai" in out
+    assert "route summarize: claude-opus-5-5, claude-sonnet-5, gpt-6.1-sol, cached for 300s" in out
+    assert "claude-opus-5-5 at primary, second-region, through anthropic" in out
+
+
+def test_the_check_names_a_deployment_at_the_wrong_provider_or_at_one_with_no_adapter():
+    problems = command.config_problems(
+        [TEAM],
+        [Route("summarize", (SONNET, GPT))],
+        [Deployment("primary", SONNET, "openai"), Deployment("eu", GPT, "some-other-provider")],
+        "demo",
+    )
+    wrong = (
+        "demo: claude-sonnet-5 at primary is deployed through openai, and agents/models.toml tracks it "
+        "under anthropic: a deployment's provider is its model's."
+    )
+    unknown = (
+        "demo: gpt-6.1-sol at eu: provider 'some-other-provider' has no adapter in the lab; the gateway "
+        "has anthropic, openai."
+    )
+    assert problems == [wrong, unknown]
 
 
 def test_the_check_names_a_route_to_an_unapproved_retiring_or_undeployed_model():
     routes = [Route("summarize", ("claude-fable-5-1", "claude-haiku-4-5-20251001", SONNET))]
     problems = command.config_problems(
-        [TEAM], routes, [Deployment("primary", "claude-haiku-4-5-20251001")], "demo"
+        [TEAM], routes, [Deployment("primary", "claude-haiku-4-5-20251001", "anthropic")], "demo"
     )
     assert any("claude-fable-5-1 isn't approved" in p for p in problems)
     assert any("claude-haiku-4-5-20251001 isn't approved" in p for p in problems)
@@ -553,7 +618,7 @@ def test_the_check_names_a_route_to_an_unapproved_retiring_or_undeployed_model()
 def test_the_check_names_an_approved_model_near_retirement(monkeypatch):
     monkeypatch.setenv("AGENT_POLICY_TODAY", "2027-06-01")
     problems = command.config_problems(
-        [TEAM], [Route("summarize", (SONNET,))], [Deployment("p", SONNET)], "demo"
+        [TEAM], [Route("summarize", (SONNET,))], [Deployment("p", SONNET, "anthropic")], "demo"
     )
     assert problems and "claude-sonnet-5 may retire as soon as 2027-06-30" in problems[0]
 
@@ -568,6 +633,7 @@ def test_the_check_as_of_a_later_day_names_every_route_to_a_model_near_retiremen
     assert "the lab: route triage: claude-opus-5-5: claude-opus-5-5 may retire" in out
     assert "the lab: route judge-second:" not in out
     assert "gateway/demo.toml: route summarize: claude-sonnet-5: claude-sonnet-5 may retire" in out
+    assert "gateway/demo.toml: route summarize: gpt-6.1-sol" not in out
 
 
 def test_the_check_names_a_team_without_a_budget():
@@ -583,12 +649,15 @@ def test_the_demo_shows_each_thing_the_gateway_does(tmp_path, capsys):
         "claude-sonnet-5 at primary: ok",
         "claude-sonnet-5: cached",
         "claude-sonnet-5 at primary: unavailable (overloaded)",
+        "gpt-6.1-sol at openai: ok",  # the summary falls back to the other provider's model
         "claude-opus-5-5 at second-region: ok",
         "Got a refusal",
         "rate limited",
         "over the budget",
     ):
         assert seen in out
+    # Triage names one model, so its refusal was the answer: no other provider's model was tried for it.
+    assert "Triage ticket 21. Got a refusal." in out
     lines = [json.loads(line) for line in record.read_text(encoding="utf-8").splitlines()]
     assert all(line["team"] and line["route"] for line in lines)
     # A second run starts from an empty record, so it prints the same.

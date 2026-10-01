@@ -5137,6 +5137,13 @@ export const MUTATIONS = [
     run: templatesTest("kit: each document's filled example passes"),
   },
   {
+    guard: "templates: the user-level example is held to the instruction-file budget",
+    file: "templates/ship/user-CLAUDE.example.md",
+    find: "## Keeping this file small\n",
+    replace: `## Keeping this file small\n\n${"- A rule that belongs in one project's file.\n".repeat(150)}`,
+    run: templatesTest("kit: the user-level example is within the instruction-file budget"),
+  },
+  {
     guard: "templates: the proof page is what the claims script writes",
     file: "templates/prove/proof.example.md",
     find: "4 pass, 0 fail, 1 unknown.",

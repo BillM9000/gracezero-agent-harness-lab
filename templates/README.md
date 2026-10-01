@@ -24,6 +24,7 @@ Copy what you need. The kit is MIT-licensed, like the rest of this repository (`
 | File | Skeleton | Filled example | The check |
 |---|---|---|---|
 | Instructions for coding agents | `templates/AGENTS.md.template`, `templates/CLAUDE.md.template` | `AGENTS.md`, `CLAUDE.md` | `node tools/instruction-files.mjs PATH --max-tokens 4000` |
+| The same at the user level, for every project on one machine (for Claude Code, `~/.claude/CLAUDE.md`; for Codex CLI, a global `AGENTS.md`): invariants, destructive operations, secrets, reporting, hooks, session start, its budget | `templates/ship/user-CLAUDE.md` | `templates/ship/user-CLAUDE.example.md`, an invented engineer's | `node tools/kit.mjs doc TEMPLATE FILE`, and `node tools/instruction-files.mjs FOLDER --max-tokens 4000` on a folder holding only a copy named `CLAUDE.md` |
 | A skill: a folder with its `SKILL.md` (name, description, when it applies, steps, references) | `templates/ship/skills/your-skill-name/SKILL.md` | `.claude/skills/add-a-guard/` | `node tools/kit.mjs skill FOLDER` |
 | The destructive-command guard: its settings wiring, with deny rules, and its rules file | `templates/ship/hooks/guard.json`, `templates/ship/hooks/guard-rules.mjs` | `.claude/settings.json`, `tools/hooks/destructive-guard.mjs`, `tools/hooks/guard-rules.mjs` | the templates' tests run the lab's guard with the skeleton's rules |
 | The Stop hook's wiring | `templates/ship/hooks/stop.json` | `.claude/settings.json`, `tools/hooks/stop-check.mjs` | the templates' tests run the hook through the wiring |

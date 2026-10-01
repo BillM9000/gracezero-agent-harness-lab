@@ -281,6 +281,7 @@ function onlyPlaceholders({ status, output }) {
 const DOCS = [
   ["ask", "intake-brief"],
   ["agree", "project-spec"],
+  ["ship", "user-CLAUDE"],
   ["ship", "handoff"],
   ["ship", "change-record"],
   ["ship", "release-card"],
@@ -311,6 +312,38 @@ test("kit: a filled document with a section missing, emptied or left a placehold
     assert.equal(run.status, 1, run.output);
     assert.match(run.output, message);
   }
+});
+
+// The user-level instruction file loads in every session of every project on one person's
+// machine, so its example is held to the lab's own budget for instruction files (chapter 6): the
+// instruction-file check, run on a folder that holds it as CLAUDE.md, as a user's folder holds it
+// for Claude Code.
+const USER_EXAMPLE = read(join(TEMPLATES, "ship", "user-CLAUDE.example.md"));
+const userBudget = (text) => node("tools/instruction-files.mjs", folder({ "CLAUDE.md": text }), "--max-tokens", "4000");
+
+test("kit: the user-level example is within the instruction-file budget, and fails it with lines or tokens added", () => {
+  const within = userBudget(USER_EXAMPLE);
+  assert.equal(within.status, 0, within.output);
+  assert.match(within.output, /^CLAUDE\.md +session start /m);
+  assert.match(within.output, /No problems found\./);
+  const lines = userBudget(`${USER_EXAMPLE}${"- One more rule, for one project.\n".repeat(200)}`);
+  assert.equal(lines.status, 1, lines.output);
+  assert.match(lines.output, /CLAUDE\.md loads [\d,]+ lines, over the budget of 200\./);
+  const tokens = userBudget(USER_EXAMPLE.replace("## Secrets\n", `## Secrets\n\n${"One long line can hide an essay. ".repeat(300)}\n`));
+  assert.equal(tokens.status, 1, tokens.output);
+  assert.match(tokens.output, /CLAUDE\.md loads about [\d,]+ tokens, over the budget of 4,000\./);
+  assert.doesNotMatch(tokens.output, /over the budget of 200\./);
+});
+
+test("kit: a user-level example with a section missing fails against its skeleton", () => {
+  const without = USER_EXAMPLE.replace(/## Secrets\n[\s\S]*?\n(?=## How to report\n)/, "");
+  assert.notEqual(without, USER_EXAMPLE);
+  const root = folder({ "user.md": without });
+  const run = KIT("doc", "templates/ship/user-CLAUDE.md", join(root, "user.md"));
+  assert.equal(run.status, 1, run.output);
+  assert.deepEqual(problemsIn(run.output), [
+    `- ${join(root, "user.md")}: the section "## Secrets" is missing or out of order. Add it after "### What counts", as the template has it.`,
+  ]);
 });
 
 test("kit: the intake brief asks chapter 28's intake questions, and has room for three from the gap check", () => {

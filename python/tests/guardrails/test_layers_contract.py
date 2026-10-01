@@ -135,6 +135,17 @@ def test_a_service_importing_the_sdk_is_caught_with_the_fix(tmp_path):
     assert "Take a ModelClient as an argument instead, so tests can pass the mock" in output
 
 
+def test_a_service_importing_the_second_providers_sdk_is_caught_with_the_fix(tmp_path):
+    # The contract protects every provider's SDK the lab has an adapter for (chapter 22 puts the second
+    # judge on OpenAI's model), so a second SDK is one more name on its list, not a second rule.
+    workdir = copy_package(tmp_path)
+    plant(workdir, "helpdesk.services.tickets", "import openai")
+    code, output = run_guardrail(workdir)
+    assert code != 0, output
+    assert "helpdesk.services.tickets -> openai" in output
+    assert "Code outside helpdesk.model must not call a model provider directly" in output
+
+
 def test_a_module_written_after_the_contract_is_covered_too(tmp_path):
     # The protected contract lists who may import the SDK, not who may not, so a new module is
     # covered without anyone adding it, even when its import is inside a function.

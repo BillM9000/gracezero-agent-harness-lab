@@ -7,7 +7,7 @@ name = "helpdesk"
 version = "0.1.0"
 description = "A small helpdesk service, the companion lab for a book on AI platform engineering."
 requires-python = ">=3.12"
-dependencies = ["fastapi>=0.141", "uvicorn>=0.53", "anthropic>=1.8", "mcp>=2.2"]
+dependencies = ["fastapi>=0.141", "uvicorn>=0.53", "anthropic>=1.8", "openai>=3.22", "mcp>=2.2"]
 
 # Exact versions this was last run against are in requirements-lock.txt.
 [project.optional-dependencies]
@@ -41,7 +41,8 @@ select = ["E", "F", "I", "B", "UP"]
 # import-linter prints below the failure, so the output says how to fix what broke.
 [tool.importlinter]
 root_package = "helpdesk"
-# The last contract names an installed package, anthropic, so the import graph must include them.
+# Some contracts name installed packages (the model providers' SDKs, the MCP SDK), so the import
+# graph must include them.
 include_external_packages = true
 
 # A layers contract only stops a lower layer importing a higher one. It does not stop a route
@@ -67,14 +68,15 @@ source_modules = ["helpdesk.model"]
 forbidden_modules = ["helpdesk.api", "helpdesk.assistant", "helpdesk.services", "helpdesk.data"]
 broken_contract_guidance = "helpdesk.model must not import helpdesk.api, helpdesk.assistant, helpdesk.services or helpdesk.data. Pass what the model needs in as arguments instead."
 
-# An allow-list: it names who may import the SDK, so a module written later is covered without
-# anyone adding it here.
+# An allow-list: it names who may import a provider's SDK, so a module written later is covered
+# without anyone adding it here, and a second provider's SDK is one more name on the list (chapter 22
+# puts its second judge on one).
 [[tool.importlinter.contracts]]
-name = "Only helpdesk.model imports the anthropic SDK"
+name = "Only helpdesk.model imports a model provider's SDK"
 type = "protected"
-protected_modules = ["anthropic"]
+protected_modules = ["anthropic", "openai"]
 allowed_importers = ["helpdesk.model"]
-broken_contract_guidance = "Code outside helpdesk.model must not call the vendor directly. Take a ModelClient as an argument instead, so tests can pass the mock and refusals go through helpdesk.model.stops; if the model needs something new, add it to helpdesk.model."
+broken_contract_guidance = "Code outside helpdesk.model must not call a model provider directly. Take a ModelClient as an argument instead, so tests can pass the mock and refusals go through helpdesk.model.stops; if the model needs something new, add it to helpdesk.model."
 
 # The MCP server (chapter 12) is a way in to the same tools, not a new home for rules: the protocol
 # stays in one composition root, and everything it offers comes from the services and the toolbox.
@@ -96,8 +98,8 @@ type = "forbidden"
 source_modules = ["helpdesk.assistant", "helpdesk.services", "helpdesk.data"]
 forbidden_modules = [
     "aiohttp", "anthropic", "asyncio", "ctypes", "ftplib", "http", "httpcore", "httpcore2", "httpx",
-    "httpx2", "imaplib", "mcp", "multiprocessing", "poplib", "requests", "smtplib", "socket", "ssl",
-    "subprocess", "telnetlib", "urllib", "urllib3", "webbrowser", "websockets", "xmlrpc",
+    "httpx2", "imaplib", "mcp", "multiprocessing", "openai", "poplib", "requests", "smtplib", "socket",
+    "ssl", "subprocess", "telnetlib", "urllib", "urllib3", "webbrowser", "websockets", "xmlrpc",
 ]
 broken_contract_guidance = "The assistant's tools and the code they call must not reach another machine or start a program, directly or through another module: an injected ticket could make the model use it (chapter 20). Put the call behind a composition root, such as helpdesk.mcp_server or the gateway, and give the assistant a tool that files a proposal for a person instead."
 

@@ -16,7 +16,8 @@ from typing import Any
 
 import pytest
 
-from agent_policy import AGENTS
+from agent_policy import AGENTS, MODELS, load
+from agent_policy.rules import tracked
 from helpdesk import evals, judge
 from helpdesk.assistant.judging import (
     SCHEMA,
@@ -35,7 +36,7 @@ from helpdesk.assistant.judging import (
     settled,
 )
 from helpdesk.assistant.tools import triage_tools
-from helpdesk.model.mock import MockModel
+from helpdesk.model.mock import MockModel, as_openai
 from helpdesk.model.types import ModelResponse
 from helpdesk.services import access
 
@@ -236,19 +237,21 @@ def test_compare_pairs_the_judges_label_by_label(capsys):
 
 
 def test_the_real_path_sends_the_definitions_model_and_counts_verdicts():
+    # The second judge's model is OpenAI's (agents/judge-second.toml): its calls go out through the
+    # gateway as Responses API requests, one criterion a conversation, and read back the same way.
     sent: list[dict[str, Any]] = []
 
-    class Messages:
+    class Responses:
         def create(self, **request: Any) -> Any:
             sent.append(request)
-            criterion = request["messages"][0]["content"].split('Criterion "')[1].split('"')[0]
-            text = says(criterion)
-            return SimpleNamespace(stop_reason="end_turn", content=[SimpleNamespace(type="text", text=text)])
+            criterion = request["input"][0]["content"].split('Criterion "')[1].split('"')[0]
+            return as_openai(ModelResponse("end_turn", text=says(criterion)))
 
-    result = judge.calibrate("second", 1, real=True, client=SimpleNamespace(messages=Messages()))
+    result = judge.calibrate("second", 1, real=True, client=SimpleNamespace(responses=Responses()))
     assert len(sent) == 40
-    assert {r["model"] for r in sent} == {"claude-sonnet-5"}
-    assert all(len(r["messages"]) == 1 and "tools" not in r for r in sent)
+    assert {r["model"] for r in sent} == {"gpt-6.1-sol"}
+    assert all(len(r["input"]) == 1 and "tools" not in r for r in sent)
+    assert all(r["instructions"].startswith("You grade one piece of writing") for r in sent)
     assert result.agreement().agree == 32
 
 
@@ -271,6 +274,38 @@ def test_the_two_judges_differ_only_in_name_and_model():
         k: v for k, v in second.items() if k not in drop
     }
     assert same["tools"] == []
+
+
+def test_the_two_judges_are_two_providers_models():
+    # A second model from the same family is the weaker test; the second judge is another provider's.
+    registry = tracked(load(MODELS))
+    same, second = definition("judge.toml"), definition("judge-second.toml")
+    assert registry[same["model"]]["provider"] == "anthropic"
+    assert registry[second["model"]]["provider"] == "openai"
+
+
+def test_a_billed_run_is_refused_in_words_when_the_second_judges_provider_has_no_credential(
+    monkeypatch, capsys
+):
+    for variable in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY", "OPENAI_ADMIN_KEY"):
+        monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "present-for-this-test-only")
+    with pytest.raises(SystemExit) as refused:
+        judge.main(["calibrate", "--judge", "second", "--real", "--max-usd", "1"])
+    message = str(refused.value)
+    assert (
+        "judge-second calls gpt-6.1-sol, OpenAI's model, and none of OPENAI_API_KEY, OPENAI_ADMIN_KEY"
+        in message
+    )
+    assert message.endswith("or run without --real.\nNothing ran.")
+    assert "Calling" not in capsys.readouterr().out  # refused before the run's first line
+    # compare needs both judges' providers, and names the one that's missing.
+    with pytest.raises(SystemExit, match="judge-second calls gpt-6.1-sol"):
+        judge.main(["compare", "--real", "--max-usd", "1"])
+    # With the same judge alone, Anthropic's credential is there and the run goes on to the fixture's
+    # guard, which refuses a client built without a fake: nothing was refused for a credential.
+    with pytest.raises(AssertionError, match="without a fake"):
+        judge.main(["calibrate", "--judge", "same", "--real", "--max-usd", "1"])
 
 
 # --- Rubrics.

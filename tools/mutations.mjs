@@ -34,6 +34,9 @@ const ACCESS = "python/src/helpdesk/services/access.py";
 const TICKETS = "python/src/helpdesk/services/tickets.py";
 const TOOLS = "python/src/helpdesk/assistant/tools.py";
 const ADAPTER = "python/src/helpdesk/model/anthropic_client.py";
+// The adapter for the second provider's API (chapter 22), proved by tests/test_openai_client.py.
+const OPENAI_ADAPTER = "python/src/helpdesk/model/openai_client.py";
+const openaiTest = (name) => pytest(`tests/test_openai_client.py::${name}`);
 const TOOL_ACCESS = "tests/test_tool_access.py";
 const TOOL_ARGS = "tests/test_tool_arguments.py";
 const TOOL_RESULTS = "tests/test_tool_results.py";
@@ -157,9 +160,24 @@ export const MUTATIONS = [
   {
     guard: "import-linter: the SDK contract says how to fix it",
     file: "python/pyproject.toml",
-    find: 'broken_contract_guidance = "Code outside helpdesk.model must not call the vendor directly. Take a ModelClient as an argument instead, so tests can pass the mock and refusals go through helpdesk.model.stops; if the model needs something new, add it to helpdesk.model."\n',
+    find: 'broken_contract_guidance = "Code outside helpdesk.model must not call a model provider directly. Take a ModelClient as an argument instead, so tests can pass the mock and refusals go through helpdesk.model.stops; if the model needs something new, add it to helpdesk.model."\n',
     replace: "",
     run: pytest(`${LAYERS}::test_a_service_importing_the_sdk_is_caught_with_the_fix`),
+  },
+  // Chapter 22's second judge is on a second provider's model: its SDK is on the same list.
+  {
+    guard: "import-linter: only helpdesk.model imports the openai SDK",
+    file: "python/pyproject.toml",
+    find: 'protected_modules = ["anthropic", "openai"]',
+    replace: 'protected_modules = ["anthropic"]',
+    run: pytest(`${LAYERS}::test_a_service_importing_the_second_providers_sdk_is_caught_with_the_fix`),
+  },
+  {
+    guard: "import-linter: the ways-out contract forbids the second SDK too",
+    file: "python/pyproject.toml",
+    find: '"multiprocessing", "openai", "poplib",',
+    replace: '"multiprocessing", "poplib",',
+    run: pytest("tests/fitness/test_nothing_sends_outside.py::test_the_import_contract_forbids_these_packages_the_same_modules"),
   },
   {
     guard: "import-linter: the data-layer contract says how to fix it",
@@ -2290,8 +2308,8 @@ export const MUTATIONS = [
   {
     guard: "import-linter: the ways-out contract forbids every module the fitness test lists",
     file: "python/pyproject.toml",
-    find: '    "subprocess", "telnetlib",',
-    replace: '    "telnetlib",',
+    find: '"ssl", "subprocess", "telnetlib",',
+    replace: '"ssl", "telnetlib",',
     run: pytest("tests/fitness/test_nothing_sends_outside.py::test_the_import_contract_forbids_these_packages_the_same_modules"),
   },
   {
@@ -3755,34 +3773,71 @@ export const MUTATIONS = [
     guard: "lab gateway: a real run goes through the gateway",
     file: EVALS,
     find: "    model = gateway.for_agent(definition, client)",
-    replace: '    model = gateway.anthropic(client)(gateway.Deployment("anthropic", definition["model"]), definition["max_tokens"])',
+    replace: '    model = gateway.providers(client)(gateway.Deployment("anthropic", definition["model"]), definition["max_tokens"])',
     run: gatewayTest("test_a_real_run_goes_through_the_gateway_and_is_recorded_for_the_owners_team"),
   },
+  // Chapter 22's second judge runs on a second provider: the gateway deploys each model at its own
+  // provider, picks that provider's adapter, and refuses a run whose credential isn't there.
   {
-    guard: "fitness: the one-door check takes the client classes from the installed SDK",
+    guard: "lab gateway: each approved model is deployed at its provider",
+    file: LAB_GATEWAY,
+    find: '    return [Deployment(registry[model]["provider"], model) for model in policy["models"]]',
+    replace: '    return [Deployment("anthropic", model) for model in policy["models"]]',
+    run: gatewayTest("test_each_approved_model_is_deployed_at_its_provider"),
+  },
+  {
+    guard: "lab gateway: a model's calls go to its own provider's adapter",
+    file: LAB_GATEWAY,
+    find: "        return OpenAIModel(client, model=model, max_tokens=max_tokens)",
+    replace: "        return AnthropicModel(client, model=model, max_tokens=max_tokens)",
+    run: gatewayTest("test_a_second_providers_model_gets_that_providers_adapter_through_the_gateway"),
+  },
+  {
+    guard: "lab gateway: a run without the provider's credential is refused in words before any call",
+    file: LAB_GATEWAY,
+    find: "    if client is None:\n        require_credentials([definition])\n",
+    replace: "",
+    run: gatewayTest("test_a_real_run_with_no_credential_for_the_models_provider_is_refused_in_words"),
+  },
+  {
+    guard: "lab gateway: the refusal names every variable the SDK would read",
+    file: LAB_GATEWAY,
+    find: "        if not any(os.environ.get(variable) for variable in variables):",
+    replace: "        if not os.environ.get(variables[0]):",
+    run: gatewayTest("test_a_real_run_with_no_credential_for_the_models_provider_is_refused_in_words"),
+  },
+  {
+    guard: "fitness: the one-door check takes the client classes from the installed SDKs",
     file: "python/tests/fitness/test_one_door_to_the_provider.py",
-    find: 'BUILDERS = {"AnthropicModel"} | sdk_client_classes()',
-    replace: 'BUILDERS = {"AnthropicModel", "Anthropic", "AsyncAnthropic"}',
-    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_every_client_the_sdk_exports_is_found_and_aliases_are_followed"),
+    find: '    {"AnthropicModel", "OpenAIModel"}\n    | anthropic_client.sdk_client_classes()\n    | openai_client.sdk_client_classes()',
+    replace: '    {"AnthropicModel", "OpenAIModel", "Anthropic", "AsyncAnthropic", "OpenAI", "AsyncOpenAI"}',
+    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_every_client_the_sdks_export_is_found_and_aliases_are_followed"),
+  },
+  {
+    guard: "fitness: the one-door check takes the second SDK's client classes too",
+    file: "python/tests/fitness/test_one_door_to_the_provider.py",
+    find: '    {"AnthropicModel", "OpenAIModel"}\n    | anthropic_client.sdk_client_classes()\n    | openai_client.sdk_client_classes()',
+    replace: '    {"AnthropicModel", "OpenAIModel"} | anthropic_client.sdk_client_classes()',
+    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_every_client_the_sdks_export_is_found_and_aliases_are_followed"),
   },
   {
     guard: "fitness: the one-door check follows a client class bound to another name",
     file: "python/tests/fitness/test_one_door_to_the_provider.py",
     find: "            if isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value is not None:",
     replace: "            if False:",
-    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_every_client_the_sdk_exports_is_found_and_aliases_are_followed"),
+    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_every_client_the_sdks_export_is_found_and_aliases_are_followed"),
   },
   {
     guard: "fitness: the one-door check follows a subclass of a client class",
     file: "python/tests/fitness/test_one_door_to_the_provider.py",
     find: "            elif isinstance(node, ast.ClassDef):",
     replace: "            elif False:",
-    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_every_client_the_sdk_exports_is_found_and_aliases_are_followed"),
+    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_every_client_the_sdks_export_is_found_and_aliases_are_followed"),
   },
   {
     guard: "fitness: the one-door check doesn't take the lab's own Client class for the SDK's",
     file: "python/tests/fitness/test_one_door_to_the_provider.py",
-    find: 'BARE = {name for name in BUILDERS if "Anthropic" in name}',
+    find: 'BARE = {name for name in BUILDERS if "Anthropic" in name or "OpenAI" in name}',
     replace: "BARE = set(BUILDERS)",
     run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_the_check_finds_a_client_built_under_any_name"),
   },
@@ -3791,7 +3846,14 @@ export const MUTATIONS = [
     file: ADAPTER,
     find: "if isinstance(value, type) and issubclass(value, BaseClient)",
     replace: "if isinstance(value, type)",
-    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_the_sdks_client_classes_come_from_the_sdk"),
+    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_the_sdks_client_classes_come_from_the_sdks"),
+  },
+  {
+    guard: "fitness: only the second SDK's client classes count as clients",
+    file: OPENAI_ADAPTER,
+    find: "if isinstance(value, type) and issubclass(value, BaseClient)",
+    replace: "if isinstance(value, type)",
+    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_the_sdks_client_classes_come_from_the_sdks"),
   },
   {
     guard: "fitness: a provider client built outside the gateway is found",
@@ -3799,6 +3861,112 @@ export const MUTATIONS = [
     find: "        model = gateway.for_agent(agent)",
     replace: '        model = AnthropicModel(model=agent["model"], max_tokens=agent["max_tokens"])',
     run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_only_the_gateway_builds_a_provider_client"),
+  },
+  {
+    guard: "fitness: a second provider's client built outside the gateway is found",
+    file: EVALS,
+    find: "    model = gateway.for_agent(definition, client)",
+    replace: '    model = OpenAIModel(client, model=definition["model"], max_tokens=definition["max_tokens"])',
+    run: pytest("tests/fitness/test_one_door_to_the_provider.py::test_only_the_gateway_builds_a_provider_client"),
+  },
+  // The adapter for the second provider's API (chapter 22), proved by tests/test_openai_client.py.
+  {
+    guard: "openai adapter: an answer cut off at the cap is max_tokens, not an answer",
+    file: OPENAI_ADAPTER,
+    find: '    "max_output_tokens": "max_tokens",',
+    replace: '    "max_output_tokens": "end_turn",',
+    run: openaiTest("test_a_refusal_part_is_a_refusal_and_a_cut_off_answer_is_max_tokens"),
+  },
+  {
+    guard: "openai adapter: an answer the provider's filter stopped is a refusal",
+    file: OPENAI_ADAPTER,
+    find: '    "content_filter": "refusal",',
+    replace: '    "content_filter": "end_turn",',
+    run: openaiTest("test_a_refusal_part_is_a_refusal_and_a_cut_off_answer_is_max_tokens"),
+  },
+  {
+    guard: "openai adapter: a refusal part is a refusal",
+    file: OPENAI_ADAPTER,
+    find: "    elif refused:",
+    replace: "    elif False:",
+    run: openaiTest("test_a_refusal_part_is_a_refusal_and_a_cut_off_answer_is_max_tokens"),
+  },
+  {
+    guard: "openai adapter: function calls are tool calls",
+    file: OPENAI_ADAPTER,
+    find: '    elif tool_calls:\n        stop = "tool_use"',
+    replace: '    elif False:\n        stop = "tool_use"',
+    run: openaiTest("test_a_response_becomes_text_tool_calls_and_the_raw_items"),
+  },
+  {
+    guard: "openai adapter: a response that isn't an answer is an error",
+    file: OPENAI_ADAPTER,
+    find: '    if status not in ("completed", "incomplete"):',
+    replace: "    if False:",
+    run: openaiTest("test_a_response_that_isnt_an_answer_is_an_error_not_a_blank_answer"),
+  },
+  {
+    guard: "openai adapter: 429 is a rate limit, which another deployment may not share",
+    file: OPENAI_ADAPTER,
+    find: '    if status == 429:\n        return "rate limited"\n',
+    replace: "",
+    run: openaiTest("test_an_outage_from_the_provider_becomes_unavailable_with_its_wait"),
+  },
+  {
+    guard: "openai adapter: no connection is an outage",
+    file: OPENAI_ADAPTER,
+    find: '        return "no connection"',
+    replace: "        return None",
+    run: openaiTest("test_an_outage_from_the_provider_becomes_unavailable_with_its_wait"),
+  },
+  {
+    guard: "openai adapter: the provider's request id is passed on",
+    file: OPENAI_ADAPTER,
+    find: '        request_id=getattr(response, "_request_id", None),',
+    replace: "        request_id=None,",
+    run: openaiTest("test_usage_and_the_request_id_are_passed_on"),
+  },
+  {
+    guard: "openai adapter: strict goes out only for a schema strict mode accepts",
+    file: OPENAI_ADAPTER,
+    find: '        "strict": bool(tool.strict and qualifies(tool.input_schema)),',
+    replace: '        "strict": bool(tool.strict),',
+    run: openaiTest("test_strict_goes_out_only_for_a_schema_the_apis_strict_mode_accepts"),
+  },
+  {
+    guard: "openai adapter: every property must be required for strict mode",
+    file: OPENAI_ADAPTER,
+    find: '        if set(properties) != set(schema.get("required", [])):\n            return False\n',
+    replace: "",
+    run: openaiTest("test_strict_goes_out_only_for_a_schema_the_apis_strict_mode_accepts"),
+  },
+  {
+    guard: "openai adapter: an error result says so in its text",
+    file: OPENAI_ADAPTER,
+    find: '                "output": f"Error: {r.content}" if r.is_error else r.content,',
+    replace: '                "output": r.content,',
+    run: openaiTest("test_tool_results_go_back_as_function_call_outputs_and_an_error_says_so_in_words"),
+  },
+  {
+    guard: "openai adapter: the model's own turn goes back as the items it came as",
+    file: OPENAI_ADAPTER,
+    find: "            return list(message.raw)",
+    replace: "            return []",
+    run: openaiTest("test_the_models_own_turn_is_sent_back_as_the_items_it_came_as"),
+  },
+  {
+    guard: "judge: the second judge's model is another provider's",
+    file: "python/agents/judge-second.toml",
+    find: 'model = "gpt-6.1-sol"',
+    replace: 'model = "claude-sonnet-5"',
+    run: judgeTest("test_the_two_judges_are_two_providers_models"),
+  },
+  {
+    guard: "judge: a billed run is refused in words when a judge's provider has no credential",
+    file: JUDGE,
+    find: "        gateway.require_credentials(chosen)\n",
+    replace: "",
+    run: judgeTest("test_a_billed_run_is_refused_in_words_when_the_second_judges_provider_has_no_credential"),
   },
   {
     guard: "cost: with caching, each turn reads the last request from the cache",
@@ -3991,14 +4159,14 @@ export const MUTATIONS = [
   {
     guard: "fitness: import anthropic in a test is caught",
     file: FAKE_FITNESS,
-    find: "            found = any(_is_anthropic(alias.name) for alias in node.names)",
+    find: "            found = any(_is_sdk(alias.name) for alias in node.names)",
     replace: "            found = False",
     run: pytest(`${FAKE_FITNESS_TEST}::test_every_way_to_reach_the_sdk_starts_with_an_import_that_is_caught`),
   },
   {
     guard: "fitness: from anthropic import in a test is caught",
     file: FAKE_FITNESS,
-    find: "            found = node.level == 0 and _is_anthropic(node.module)",
+    find: "            found = node.level == 0 and _is_sdk(node.module)",
     replace: "            found = False",
     run: pytest(`${FAKE_FITNESS_TEST}::test_every_way_to_reach_the_sdk_starts_with_an_import_that_is_caught`),
   },
@@ -4012,9 +4180,24 @@ export const MUTATIONS = [
   {
     guard: "fitness: a module whose name only starts with anthropic isn't the SDK",
     file: FAKE_FITNESS,
-    find: 'return bool(name) and name.split(".")[0] == "anthropic"',
-    replace: 'return bool(name) and name.startswith("anthropic")',
+    find: 'return bool(name) and name.split(".")[0] in SDKS',
+    replace: "return bool(name) and any(name.startswith(sdk) for sdk in SDKS)",
     run: pytest(`${FAKE_FITNESS_TEST}::test_a_string_that_mentions_the_sdk_is_not_an_import`),
+  },
+  // Chapter 22's second provider: its SDK and the lab's client for it are caught the same way.
+  {
+    guard: "fitness: import openai in a test is caught",
+    file: FAKE_FITNESS,
+    find: 'SDKS = {"anthropic", "openai"}',
+    replace: 'SDKS = {"anthropic"}',
+    run: pytest(`${FAKE_FITNESS_TEST}::test_every_way_to_reach_the_sdk_starts_with_an_import_that_is_caught`),
+  },
+  {
+    guard: "fitness: OpenAIModel built without a fake in a test is caught",
+    file: FAKE_FITNESS,
+    find: 'MODEL_CLIENTS = {"AnthropicModel", "OpenAIModel"}',
+    replace: 'MODEL_CLIENTS = {"AnthropicModel"}',
+    run: pytest(`${FAKE_FITNESS_TEST}::test_a_client_built_without_a_fake_is_caught`),
   },
 
   // Chapter 10's done check, fixed after a review (2026-09-26): a proof must be a test the runners

@@ -104,10 +104,10 @@ class Recorded:
 def real_model(
     definition: Mapping[str, Any], client: Any = None, budget: Budget | None = None
 ) -> ModelClient:
-    """The definition's model on Anthropic's API, through the lab's gateway (chapter 27), which
-    charges its owner's team. Tests pass a fake client; without one, the SDK looks for a credential,
-    and every call is billed. A budget counts every call and refuses one that could take the command
-    past its cap (chapter 23)."""
+    """The definition's model on its provider's API, through the lab's gateway (chapter 27), which
+    picks the provider's adapter and charges its owner's team. Tests pass a fake client; without one,
+    the provider's credential must be in the environment, and every call is billed. A budget counts
+    every call and refuses one that could take the command past its cap (chapter 23)."""
     from helpdesk import gateway
 
     model = gateway.for_agent(definition, client)

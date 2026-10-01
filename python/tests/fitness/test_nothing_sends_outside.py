@@ -45,6 +45,7 @@ OUTSIDE = {
     "imaplib",
     "mcp",
     "multiprocessing",
+    "openai",
     "poplib",
     "requests",
     "smtplib",

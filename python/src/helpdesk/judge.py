@@ -11,10 +11,12 @@ python -m helpdesk.judge revise                    evaluator and optimizer with 
 python -m helpdesk.judge doc ../AGENTS.md          an instruction file against rubrics/instructions.json
 
 --judge same uses agents/judge.toml, the triage assistant's own model in a fresh context; --judge
-second uses agents/judge-second.toml, another model. --real calls Anthropic's API with the model in
-the definition, and needs a credential the SDK can find and a cap, --max-usd (chapter 23): every
-call is billed. Without --real, nothing here calls a model: the mock plays evals/judge-mock.json,
-whose verdicts the lab chose, so its numbers test the machinery and never measure a model.
+second uses agents/judge-second.toml, a model from another provider. --real calls each judge's model
+on its provider's API through the gateway (chapter 27), and needs that provider's credential in the
+environment (ANTHROPIC_API_KEY for judge.toml's model, OPENAI_API_KEY for judge-second.toml's; a
+missing one is refused in words before any call) and a cap, --max-usd (chapter 23): every call is
+billed. Without --real, nothing here calls a model: the mock plays evals/judge-mock.json, whose
+verdicts the lab chose, so its numbers test the machinery and never measure a model.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -200,9 +202,11 @@ def calibrate(
     return Calibration(rubric, replies, results, counted)
 
 
-def model_line(real: bool, what: str) -> str:
+def model_line(real: bool, what: str, judges: Sequence[Mapping[str, Any]]) -> str:
     if real:
-        return "Model: on Anthropic's API; every call was billed."
+        from helpdesk import gateway
+
+        return f"Model: on {gateway.api_of(judges)}; every call was billed."
     return f"Model: the mock, {what}. The lab chose those, so these numbers test the machinery, not a model."
 
 
@@ -260,7 +264,7 @@ def run_calibrate(which: str, trials: int, real: bool, budget: Budget | None = N
         f"{len(result.rubric.criteria)} criteria (evals/rubrics/{result.rubric.id}.json). Trials: {trials}."
     )
     print(f"Judge: agents/{JUDGES[which].name}, {found['model']}, {describe(which)}, one criterion a call.")
-    print(model_line(real, MOCK))
+    print(model_line(real, MOCK, [found]))
     print()
     print("\n".join(evals.table(rows_for(result), (False, True, True, True, True, True, True))))
     a = result.agreement()
@@ -290,7 +294,7 @@ def run_compare(trials: int, real: bool, budget: Budget | None = None) -> int:
         f"Labeled replies: evals/{LABELED.name}, {len(first.replies)} replies, "
         f"{len(first.replies) * len(first.rubric.criteria)} labels. Trials: {trials} a judge."
     )
-    print(model_line(real, MOCK))
+    print(model_line(real, MOCK, [definition(which) for which in JUDGES]))
     print()
     rows = [("judge", "model", "agree", "false pass", "false fail", "unknown", "errors", "tokens (est.)")]
     for which, result in results.items():
@@ -349,13 +353,15 @@ def run_revise(which: str, max_rounds: int, real: bool, budget: Budget | None = 
     play = scripts()["revise"]
     drafter_count, judge_count = Counted(), Counted()
     if real:
+        from helpdesk import gateway
+
         drafter = drafter_count.wrap(evals.real_model(triage, budget=budget))
         shared = judge_count.wrap(evals.real_model(found, budget=budget))
 
         def judge_for(round_number: int, criterion: Criterion) -> ModelClient:
             return shared
 
-        line = "Drafter and judge: on Anthropic's API; every call below is billed."
+        line = f"Drafter and judge: on {gateway.api_of([triage, found])}; every call below is billed."
     else:
         drafter = drafter_count.wrap(MockModel(revise_script(play)))
 
@@ -425,7 +431,12 @@ def run_doc(path: Path, which: str, real: bool, budget: Budget | None = None) ->
         return counted.wrap(MockModel([scripted(criterion, play)]))
 
     print(f"Document: {path.as_posix()} ({len(text):,} characters). Rubric: evals/rubrics/{rubric.id}.json.")
-    what = "on Anthropic's API; every call is billed" if real else "the mock, which plays unknown for it"
+    if real:
+        from helpdesk import gateway
+
+        what = f"on {gateway.api_of([found])}; every call is billed"
+    else:
+        what = "the mock, which plays unknown for it"
     print(f"Judge: agents/{JUDGES[which].name}, {found['model']}. Model: {what}.\n")
     assessment = judge(model_for, found, rubric, text, ())
     width = max(len(c.id) for c in rubric.criteria)
@@ -602,7 +613,11 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("check", help="the judge's inputs are sound, and its verdicts can fail")
     for name in ("calibrate", "compare", "revise", "doc"):
         command = commands.add_parser(name)
-        command.add_argument("--real", action="store_true", help="call Anthropic's API; every call is billed")
+        command.add_argument(
+            "--real",
+            action="store_true",
+            help="call each judge's model on its provider's API; every call is billed",
+        )
         evals.add_cap(command)
         if name != "compare":
             command.add_argument("--judge", choices=list(JUDGES), default="same", help="which judge")
@@ -623,7 +638,16 @@ def main(argv: list[str] | None = None) -> int:
     if getattr(args, "max_rounds", 1) < 1:
         parser.error("--max-rounds must be 1 or more")
     if args.real:
-        print(f"Calling Anthropic's API: every call below is billed, capped at ${args.max_usd:.2f}.\n")
+        from helpdesk import gateway
+
+        # Every model the command would call, checked for its provider's credential before any call.
+        chosen = [definition(which) for which in (JUDGES if args.command == "compare" else [args.judge])]
+        if args.command == "revise":
+            chosen.append(evals.triage_definition())
+        gateway.require_credentials(chosen)
+        print(
+            f"Calling {gateway.api_of(chosen)}: every call below is billed, capped at ${args.max_usd:.2f}.\n"
+        )
     try:
         if args.command == "calibrate":
             return run_calibrate(args.judge, args.trials, args.real, budget)

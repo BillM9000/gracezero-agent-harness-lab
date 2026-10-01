@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 
+from agent_policy import AGENTS, load
 from helpdesk import evals
 from helpdesk import gateway as command
 from helpdesk.model.anthropic_client import AnthropicModel
@@ -30,6 +31,7 @@ from helpdesk.model.gateway import (
     Route,
     Team,
 )
+from helpdesk.model.mock import FakeProviderClient
 from helpdesk.model.types import Message, ModelResponse, ToolResult, Unavailable, Usage
 
 OPUS, SONNET = "claude-opus-5-5", "claude-sonnet-5"
@@ -472,6 +474,59 @@ def test_a_definition_whose_model_isnt_on_its_route_is_refused():
         command.for_agent(definition, SimpleNamespace(messages=None))
 
 
+# --- Two providers (chapter 22): each approved model is deployed at its own, with its own adapter.
+
+
+def test_each_approved_model_is_deployed_at_its_provider():
+    lab = command.lab_gateway(connect=Provider().connect)
+    deployed = {d.model: d.name for found in lab.deployments.values() for d in found}
+    assert deployed == {OPUS: "anthropic", SONNET: "anthropic", "gpt-6.1-sol": "openai"}
+    assert command.provider_of("gpt-6.1-sol") == "openai"
+    with pytest.raises(ValueError, match="isn't in agents/models.toml"):
+        command.provider_of("some-other-model")
+
+
+def test_a_second_providers_model_gets_that_providers_adapter_through_the_gateway(gateway_record):
+    # judge-second's model is OpenAI's: its calls go out as Responses API requests, through the same
+    # door, and the record names the deployment.
+    fake = FakeProviderClient([ModelResponse("end_turn", "ok", usage=Usage(12, 3), request_id="resp_abc")])
+    definition = load(AGENTS / "judge-second.toml")
+    evals.real_model(definition, fake).complete(system="s", messages=[Message("user", "hi")])
+    [(api, request)] = fake.requests
+    assert (api, request["model"], request["instructions"]) == ("responses.create", "gpt-6.1-sol", "s")
+    [line] = read(gateway_record)
+    assert (line.team, line.route, line.model, line.deployment) == (
+        "support-tools",
+        "judge-second",
+        "gpt-6.1-sol",
+        "openai",
+    )
+    assert (line.input_tokens, line.tokens_from, line.request_id) == (12, "provider", "resp_abc")
+
+
+def test_a_real_run_with_no_credential_for_the_models_provider_is_refused_in_words(monkeypatch):
+    for variable in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY", "OPENAI_ADMIN_KEY"):
+        monkeypatch.delenv(variable, raising=False)
+    second = load(AGENTS / "judge-second.toml")
+    with pytest.raises(SystemExit) as refused:
+        command.for_agent(second)
+    assert str(refused.value) == (
+        "judge-second calls gpt-6.1-sol, OpenAI's model, and none of OPENAI_API_KEY, OPENAI_ADMIN_KEY is "
+        "set, so its first call would fail. Set one in your environment, never in a file here, or run "
+        "without --real.\nNothing ran."
+    )
+    triage = evals.triage_definition()
+    with pytest.raises(
+        SystemExit, match="triage calls claude-opus-5-5, Anthropic's model, and none of ANTHROPIC"
+    ):
+        command.for_agent(triage)
+    assert command._GATEWAYS == {}  # nothing was built
+    monkeypatch.setenv("OPENAI_API_KEY", "set-for-this-test-only")
+    assert command.missing_credentials([second]) == []
+    assert command.api_of([triage, second]) == "Anthropic's and OpenAI's APIs"
+    assert command.api_of([second]) == "OpenAI's API"
+
+
 # --- The command: check, demo and report.
 
 
@@ -480,6 +535,8 @@ def test_the_check_passes_on_the_lab_and_the_demo(capsys):
     out = capsys.readouterr().out
     assert "route triage: claude-opus-5-5" in out
     assert "route summarize: claude-opus-5-5, claude-sonnet-5, cached for 300s" in out
+    assert "claude-opus-5-5 at anthropic" in out
+    assert "gpt-6.1-sol at openai" in out
 
 
 def test_the_check_names_a_route_to_an_unapproved_retiring_or_undeployed_model():
@@ -501,11 +558,14 @@ def test_the_check_names_an_approved_model_near_retirement(monkeypatch):
 
 
 def test_the_check_as_of_a_later_day_names_every_route_to_a_model_near_retirement(capsys):
-    # claude-sonnet-5 may retire from 2027-06-30; the policy moves agents 90 days before.
-    assert command.main(["check", "--today", "2027-04-15"]) == 1
+    # claude-opus-5-5 may retire from 2027-09-22 and claude-sonnet-5 from 2027-06-30; the policy moves
+    # agents 90 days before, so on 2027-07-01 every route on either is named. gpt-6.1-sol, the second
+    # judge's model, has no retirement announced, so its route isn't.
+    assert command.main(["check", "--today", "2027-07-01"]) == 1
     out = capsys.readouterr().out
-    assert "As of 2027-04-15." in out
-    assert "the lab: route judge-second: claude-sonnet-5: claude-sonnet-5 may retire" in out
+    assert "As of 2027-07-01." in out
+    assert "the lab: route triage: claude-opus-5-5: claude-opus-5-5 may retire" in out
+    assert "the lab: route judge-second:" not in out
     assert "gateway/demo.toml: route summarize: claude-sonnet-5: claude-sonnet-5 may retire" in out
 
 

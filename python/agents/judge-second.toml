@@ -1,9 +1,13 @@
-# The second judge (chapter 22): the same definition as judge.toml with a different model, the
-# other one agents/policy.toml approves. A stronger model would need the platform team's approval
-# first (chapter 18). A test keeps this file equal to judge.toml in everything but name and model.
+# The second judge (chapter 22): the same definition as judge.toml with a model from another
+# provider, gpt-6.1-sol, OpenAI's, the model agents/policy.toml approves from outside the drafter's
+# family, so comparing the two judges measures another family's habits, not another size of the same.
+# A stronger model would need the platform team's approval first (chapter 18). The gateway (chapter
+# 27) sends its calls to OpenAI's adapter, and --real needs OPENAI_API_KEY in the environment. A test
+# keeps this file equal to judge.toml in everything but name and model, and another keeps the two
+# models two providers'.
 name = "judge-second"
 owner = "support-tools"
-model = "claude-sonnet-5"
+model = "gpt-6.1-sol"
 max_tokens = 1000
 max_turns = 1
 tools = []

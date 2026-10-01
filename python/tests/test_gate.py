@@ -32,6 +32,7 @@ from helpdesk.model.anthropic_client import AnthropicModel
 from helpdesk.model.anthropic_client import to_api as anthropic_to_api
 from helpdesk.model.budget import Budget, BudgetReached, as_json, request_chars
 from helpdesk.model.mock import MockCall, MockModel
+from helpdesk.model.openai_client import to_api as openai_to_api
 from helpdesk.model.types import Message, ModelResponse, ToolCall, ToolResult, ToolSpec, Usage
 
 RULE = Rule(
@@ -325,7 +326,7 @@ def test_a_tool_runs_second_request_is_measured_with_the_providers_own_turn_as_p
     assert request_chars("You help.", tool_run(OBJECTS), ()) == measured
 
 
-@pytest.mark.parametrize("to_api", [anthropic_to_api], ids=["anthropic"])
+@pytest.mark.parametrize("to_api", [anthropic_to_api, openai_to_api], ids=["anthropic", "openai"])
 def test_each_adapters_form_of_the_turn_measures_the_providers_objects_as_plain_data(to_api):
     # Anthropic's adapter sends raw as the turn's content list, OpenAI's as the turn's items.
     turn = tool_run(OBJECTS)[1]

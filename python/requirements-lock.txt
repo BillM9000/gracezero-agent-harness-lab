@@ -1,6 +1,7 @@
 # Exact versions the lab was last run against (pip freeze, Python 3.14.3, 2026-09-22; anthropic 1.8.0
-# for chapter 3; mcp 2.2.0 and the 14 packages it brings for chapter 12, 2026-09-23), each with the
-# sha256 of every file PyPI publishes for that version, so any platform finds its own (chapter 20).
+# for chapter 3; mcp 2.2.0 and the 14 packages it brings for chapter 12, 2026-09-23; openai 3.22.1 for
+# chapter 22, 2026-10-01, which brings nothing the lock didn't have), each with the sha256 of every
+# file PyPI publishes for that version, so any platform finds its own (chapter 20).
 # setuptools builds the helpdesk package; it's pinned here so the build doesn't fetch one unchecked.
 # pywin32 is for the MCP SDK on Windows only.
 # Install with: pip install --require-hashes --only-binary :all: -r requirements-lock.txt, then
@@ -456,6 +457,9 @@ mcp-types==2.2.0 \
 mdurl==0.1.2 \
     --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
     --hash=sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba
+openai==3.22.1 \
+    --hash=sha256:2575f961e4c1df8761f8eeb4d78e967de3f9b9f91b22f7120d60e393e970094d \
+    --hash=sha256:43ff3de5457a8beb4afa177d4e0ba6841cfadd5219ebc62297fde6c8a9d401a6
 opentelemetry-api==1.44.0 \
     --hash=sha256:67647e5e9566edcf421166fdf022b3537f818635daa852b289e34604dc6fb33a \
     --hash=sha256:94b98c893a91b88657eaac1e3ba89618cdb85be6918196705354f34728b2cdef

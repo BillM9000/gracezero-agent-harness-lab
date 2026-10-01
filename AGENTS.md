@@ -14,7 +14,7 @@ The companion lab for a book on AI platform engineering: a Python helpdesk, a Ty
 | `python/src/helpdesk/services/` | Business rules: who may see and change what (`access.py`), retrieval and citations, the approval queue, customers' text as data. |
 | `python/src/helpdesk/data/` | SQL and the SQLite connection. |
 | `python/src/helpdesk/assistant/` | The triage assistant: its loop (`agent.py`), tools (`tools.py`; `proposing.py` for those that only file a proposal), patterns and judges. A tool acts for the person it was built for, never one in its arguments. |
-| `python/src/helpdesk/model/` | The model interface, a deterministic mock, the Anthropic client, stop reasons (`stops.py`), costs (`cost.py`) and the gateway (`gateway.py`, chapter 27). Imports nothing else from the helpdesk. |
+| `python/src/helpdesk/model/` | The model interface, a mock, the provider clients (Anthropic's, OpenAI's), stop reasons (`stops.py`), costs (`cost.py`) and the gateway (`gateway.py`, chapter 27). Imports nothing else from the helpdesk. |
 | `python/src/toymodel/` | Chapter 2's toy tokenizer and next-word model. |
 | `python/src/helpdesk_lint/` | The lab's own lint rule (chapter 17), run by `python -m helpdesk_lint`. |
 | `python/agents/` | Agent definitions, the platform's policy for them and the models' retirement dates (`models.toml`), checked by `python/src/agent_policy/` (chapters 18, 20). |
@@ -87,7 +87,7 @@ Scripts, from the repository root. Each has a test file beside it: run `node --t
 ## Rules
 
 1. Layers run api and assistant (siblings that never import each other), then services, then data. Neither routes nor the assistant import `helpdesk.data`: move the query into a service and call that. `lint-imports` enforces this. In `ts/`, the CLI uses the client and the client uses the types; only `src/cli.ts` uses Node's built-in modules, and only `src/types.ts` imports `src/api-types.ts`. `npm run lint` and `npm run deps` enforce this.
-2. `helpdesk.model` imports nothing from the helpdesk, and nothing else imports the `anthropic` SDK: pass code that needs a model a `ModelClient`. A real one comes only from `helpdesk.gateway.for_agent`.
+2. `helpdesk.model` imports nothing from the helpdesk, and nothing else imports a provider's SDK: pass code that needs a model a `ModelClient`. A real one comes only from `helpdesk.gateway.for_agent`.
 3. Only the composition roots (see Layout) wire the layers together.
 4. Tests use the mock model and never reach another machine; a server a test starts listens on 127.0.0.1.
 5. Code that wants a model's text calls `helpdesk.model.stops.final_text`, never `response.text` directly, so a refusal or a cut-off answer can't pass as a finished one. `python -m helpdesk_lint` enforces this; a line with a real reason to read the text says so in a `# HDK101: <why>` comment.

@@ -9,9 +9,12 @@ python -m helpdesk.gateway report FILE  a gateway record's cost and outcomes, by
 
 Every command in the lab that calls a real model (--real) gets its client here, from the lab's
 gateway: the teams in agents/policy.toml, one route per agent definition with the model the
-definition names, and Anthropic's API as the one deployment of each approved model. Only this module
+definition names, and each approved model's provider's API as its one deployment, with the adapter
+for that provider (helpdesk.model has one for Anthropic's API and one for OpenAI's). Only this module
 builds a provider's client; tests/fitness/test_one_door_to_the_provider.py fails the build if
-anything else does. The record goes to records/gateway.jsonl, or where HELPDESK_GATEWAY_RECORD says.
+anything else does. A run that would need a credential the environment doesn't hold is refused in
+words before its first call. The record goes to records/gateway.jsonl, or where
+HELPDESK_GATEWAY_RECORD says.
 """
 
 from __future__ import annotations
@@ -20,14 +23,14 @@ import argparse
 import os
 import sys
 import tomllib
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
 from agent_policy import AGENTS, MODELS, NOT_DEFINITIONS, POLICY, load, today
-from agent_policy.rules import lifecycle
+from agent_policy.rules import lifecycle, tracked
 from helpdesk.kb import CHARS_PER_TOKEN
 from helpdesk.model.budget import request_chars
 from helpdesk.model.calls import Call, CallLog, read
@@ -59,16 +62,85 @@ def definitions() -> list[dict[str, Any]]:
     return [load(path) for path in sorted(AGENTS.glob("*.toml")) if path.name not in NOT_DEFINITIONS]
 
 
-def anthropic(client: Any = None) -> Connect:
-    """Anthropic's API, the lab's one provider. Tests pass a fake client; without one, the SDK
-    looks for a credential, and every call is billed."""
+# The providers the lab has an adapter for (python/src/helpdesk/model/), by their section in
+# agents/models.toml: the name as the provider writes it, and the environment variables its SDK reads
+# a credential from, as each SDK's client code gave them on 2026-10-01 (anthropic 1.8.0:
+# ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN; openai 3.22.1: OPENAI_API_KEY or OPENAI_ADMIN_KEY).
+PROVIDERS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "anthropic": ("Anthropic", ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")),
+    "openai": ("OpenAI", ("OPENAI_API_KEY", "OPENAI_ADMIN_KEY")),
+}
 
-    def connect(deployment: Deployment, max_tokens: int) -> ModelClient:
+
+def provider_of(model: str) -> str:
+    """The section of agents/models.toml that tracks the model, which is its provider."""
+    entry = tracked(load(MODELS)).get(model)
+    if entry is None:
+        raise ValueError(f"{model} isn't in agents/models.toml, so the gateway doesn't know its provider.")
+    return entry["provider"]
+
+
+def adapter(provider: str, client: Any, model: str, max_tokens: int) -> ModelClient:
+    """The provider's client from helpdesk.model, built here and nowhere else."""
+    if provider == "anthropic":
         from helpdesk.model.anthropic_client import AnthropicModel
 
-        return AnthropicModel(client, model=deployment.model, max_tokens=max_tokens)
+        return AnthropicModel(client, model=model, max_tokens=max_tokens)
+    if provider == "openai":
+        from helpdesk.model.openai_client import OpenAIModel
+
+        return OpenAIModel(client, model=model, max_tokens=max_tokens)
+    raise ValueError(
+        f"{provider!r} isn't a provider the gateway has an adapter for; it has {', '.join(PROVIDERS)}."
+    )
+
+
+def providers(client: Any = None) -> Connect:
+    """Every provider the lab has an adapter for, each chosen by the deployment's provider: in the
+    lab's gateway each approved model has one deployment, named for its provider. Tests pass a fake
+    client, which answers in either SDK's shape (helpdesk.model.mock.FakeProviderClient); without one,
+    each SDK looks for its own credential, and every call is billed."""
+
+    def connect(deployment: Deployment, max_tokens: int) -> ModelClient:
+        return adapter(deployment.name, client, deployment.model, max_tokens)
 
     return connect
+
+
+def missing_credentials(definitions: Iterable[Mapping[str, Any]]) -> list[str]:
+    """For each definition whose model's provider has no credential in the environment, what's
+    missing and what to do. Checked before any client is built, so a run that would fail at its first
+    call to that provider, or its forty-first, is refused in words instead."""
+    problems = []
+    for definition in definitions:
+        name, variables = PROVIDERS[provider_of(definition["model"])]
+        if not any(os.environ.get(variable) for variable in variables):
+            problems.append(
+                f"{definition['name']} calls {definition['model']}, {name}'s model, and none of "
+                f"{', '.join(variables)} is set, so its first call would fail. Set one in your environment, "
+                "never in a file here, or run without --real."
+            )
+    return problems
+
+
+def require_credentials(definitions: Iterable[Mapping[str, Any]]) -> None:
+    problems = missing_credentials(definitions)
+    if problems:
+        raise SystemExit("\n".join(problems) + "\nNothing ran.")
+
+
+def api_of(definitions: Iterable[Mapping[str, Any]]) -> str:
+    """The providers a run calls, for a line of output: "Anthropic's API", or two providers' APIs."""
+    names = sorted({PROVIDERS[provider_of(d["model"])][0] for d in definitions})
+    if len(names) == 1:
+        return f"{names[0]}'s API"
+    return " and ".join(f"{name}'s" for name in names) + " APIs"
+
+
+def lab_deployments(policy: Mapping[str, Any]) -> list[Deployment]:
+    """One deployment an approved model, at its provider (its section in agents/models.toml)."""
+    registry = tracked(load(MODELS))
+    return [Deployment(registry[model]["provider"], model) for model in policy["models"]]
 
 
 def lab_gateway(connect: Connect | None = None, record: Path | None = None) -> Gateway:
@@ -76,10 +148,14 @@ def lab_gateway(connect: Connect | None = None, record: Path | None = None) -> G
     gate measured (chapter 23). Changing it is a change to the definition, which the gate sees."""
     policy = load(POLICY)
     routes = [Route(d["name"], (d["model"],)) for d in definitions()]
-    deployments = [Deployment("anthropic", model) for model in policy["models"]]
     log = CallLog(record or record_path(), "gateway")
     return Gateway(
-        teams_of(policy), routes, deployments, connect or anthropic(), log, chars_per_token=CHARS_PER_TOKEN
+        teams_of(policy),
+        routes,
+        lab_deployments(policy),
+        connect or providers(),
+        log,
+        chars_per_token=CHARS_PER_TOKEN,
     )
 
 
@@ -88,10 +164,13 @@ _GATEWAYS: dict[int, Gateway] = {}  # one for the command's real calls, and one 
 
 def for_agent(definition: Mapping[str, Any], client: Any = None) -> ModelClient:
     """A client for an agent's calls through the lab's gateway: its owner pays and its name is the
-    route. One gateway serves every call a command makes, so its limits and budget see them all."""
+    route. One gateway serves every call a command makes, so its limits and budget see them all.
+    Without a fake client, the provider's credential must be in the environment, or nothing is built."""
+    if client is None:
+        require_credentials([definition])
     key = id(client) if client is not None else 0
     if key not in _GATEWAYS:
-        _GATEWAYS[key] = lab_gateway(anthropic(client))
+        _GATEWAYS[key] = lab_gateway(providers(client))
     gateway = _GATEWAYS[key]
     route = gateway.routes.get(definition["name"])
     if route is not None and definition["model"] not in route.models:
@@ -172,14 +251,14 @@ def check(on: date | None = None) -> int:
     """Both gateways' data. That each agent's owner is a team is the policy's rule (agent_policy)."""
     policy = load(POLICY)
     lab_routes = [Route(d["name"], (d["model"],)) for d in definitions()]
-    lab_deployments = [Deployment("anthropic", m) for m in policy["models"]]
+    deployed = lab_deployments(policy)
     demo = load_demo()
-    problems = config_problems(teams_of(policy), lab_routes, lab_deployments, "the lab", on)
+    problems = config_problems(teams_of(policy), lab_routes, deployed, "the lab", on)
     problems += config_problems(demo.teams, demo.routes, demo.deployments, "gateway/demo.toml", on)
     if on is not None:
         print(f"As of {on.isoformat()}.")
     print("The lab's gateway (agents/policy.toml and the agent definitions):")
-    print("\n".join(describe(teams_of(policy), lab_routes, lab_deployments)))
+    print("\n".join(describe(teams_of(policy), lab_routes, deployed)))
     print("The demo's gateway (gateway/demo.toml):")
     print("\n".join(describe(demo.teams, demo.routes, demo.deployments)))
     if problems:

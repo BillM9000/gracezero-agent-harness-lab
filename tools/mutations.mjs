@@ -25,6 +25,8 @@ const STOP_TESTS = "tools/hooks/stop-check.test.mjs";
 const LOOP_TESTS = "tools/fix-loop.test.mjs";
 const REWORK = "tools/rework.mjs";
 const REWORK_TESTS = "tools/rework.test.mjs";
+const WEEKLY = "tools/weekly.mjs";
+const WEEKLY_TESTS = "tools/weekly.test.mjs";
 const RETRIEVAL = "python/src/helpdesk/services/retrieval.py";
 const RETRIEVAL_TESTS = "tests/test_retrieval.py";
 const KB_CLI = "python/src/helpdesk/kb.py";
@@ -990,6 +992,43 @@ export const MUTATIONS = [
     find: 'parts.slice(0, depth).join("/")',
     replace: 'parts.slice(0, 1).join("/")',
     run: nodeTest(REWORK_TESTS, "folders are grouped"),
+  },
+
+  // Chapter 31: CI's failure rate by week.
+  {
+    guard: "weekly: a cancelled run is left out, not counted as a failure",
+    file: WEEKLY,
+    find: 'const FAILED = new Set(["failure", "timed_out", "startup_failure"]);',
+    replace: 'const FAILED = new Set(["failure", "timed_out", "startup_failure", "cancelled"]);',
+    run: nodeTest(WEEKLY_TESTS, "a cancelled and a skipped run are left out"),
+  },
+  {
+    guard: "weekly: a week starts on Monday",
+    file: WEEKLY,
+    find: "((day.getUTCDay() + 6) % 7)",
+    replace: "((day.getUTCDay() + 7) % 7)",
+    run: nodeTest(WEEKLY_TESTS, "a Sunday run lands in the week of the Monday"),
+  },
+  {
+    guard: "weekly: a rate is a whole percentage",
+    file: WEEKLY,
+    find: "Math.round((100 * w.failed) / w.runs)",
+    replace: "(100 * w.failed) / w.runs",
+    run: nodeTest(WEEKLY_TESTS, "percentages round to whole numbers"),
+  },
+  {
+    guard: "weekly: weeks print oldest first",
+    file: WEEKLY,
+    find: "[...weeks].sort(([a], [b]) => a.localeCompare(b))",
+    replace: "[...weeks]",
+    run: nodeTest(WEEKLY_TESTS, "weeks print oldest first"),
+  },
+  {
+    guard: "weekly: --branch keeps only that branch's runs",
+    file: WEEKLY,
+    find: "  if (branch && run.headBranch !== branch) continue;",
+    replace: "  if (false) continue;",
+    run: nodeTest(WEEKLY_TESTS, "--branch main drops a run on another branch"),
   },
 
   // Chapter 9: retrieval over the knowledge base, its golden-set check, and citation checking.

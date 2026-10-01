@@ -100,6 +100,7 @@ const CHECKS = [
       "tools/hooks/destructive-guard.test.mjs",
       "tools/fix-loop.test.mjs",
       "tools/rework.test.mjs",
+      "tools/weekly.test.mjs",
       "tools/silenced.test.mjs",
       "tools/protected.test.mjs",
       "tools/measure.test.mjs",

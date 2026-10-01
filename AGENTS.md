@@ -87,7 +87,7 @@ Scripts, from the root; each has a test beside it, for `node --test`.
 - `node tools/mutate.mjs` breaks each guard in `tools/mutations.mjs` in turn and requires a test to catch it (`--list` lists them; `--only PREFIX` runs a group); when you add a guard, add its entry (chapter 24).
 - `node tools/fix-loop.mjs --agent "<command>"` gives failing checks to an agent command, with limits (chapter 25).
 - The kit's checks: `node tools/kit.mjs`, `tools/features-lock.mjs` and `tools/claims.mjs`.
-- For readers (see the README): `tools/harness-inventory.mjs`, `tools/rework.mjs`, `tools/measure.mjs`.
+- For readers (see the README): `tools/harness-inventory.mjs`, `tools/rework.mjs`, `tools/weekly.mjs`, `tools/measure.mjs`.
 
 ## Rules
 

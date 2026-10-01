@@ -401,10 +401,10 @@ def test_the_check_passes_on_the_repository(capsys):
     assert "fails the gate\nat 3 failed trials" in out
     # Each figure says which rules it counts: the false alarm and the drop caught both count both.
     assert (
-        "  tasks: 8 of 50 (10 cases). Cases still passing 95% of the time do that by chance 0.3%\n"
-        "  of the time. Counting both rules, a healthy tasks suite fails the gate 1.4% of the time,\n"
-        "  and cases now passing 90% of the time are caught 17% of the time (by the suite rule\n"
-        "  alone, 12%).\n"
+        "  tasks: 8 of 55 (11 cases). Cases still passing 95% of the time do that by chance 0.6%\n"
+        "  of the time. Counting both rules, a healthy tasks suite fails the gate 1.7% of the time,\n"
+        "  and cases now passing 90% of the time are caught 22% of the time (by the suite rule\n"
+        "  alone, 18%).\n"
     ) in out
     assert "  reasons: no suite rule (3 cases, under suite_min_cases, 10)" in out
     assert "measured on the mock" in out
@@ -525,7 +525,7 @@ def test_a_missing_record_fails_the_check(tmp_path):
 def test_the_gate_passes_on_the_mock_against_the_repositorys_record(capsys):
     assert gate.main(["run"]) == 0
     out = capsys.readouterr().out
-    assert "tasks              10          50 of 50" in out
+    assert "tasks              11          55 of 55" in out
     assert "The gate passes." in out
 
 
@@ -533,8 +533,8 @@ def test_a_drop_spread_over_the_tasks_fails_the_gate(capsys):
     # Chapter 23's demo: the stand-in playing a scripted mistake 3 trials in 10, seed 35.
     assert gate.main(["run", "--suite", "tasks", "--vary", "35"]) == 1
     out = capsys.readouterr().out
-    assert "tasks     10    35 of 50      50 of 50         28%  FAIL" in out
-    assert "promotion: failed 15 of 50; 8 or more is more than chance explains" in out
+    assert "tasks     11    40 of 55      55 of 55         35%  FAIL" in out
+    assert "promotion: failed 15 of 55; 8 or more is more than chance explains" in out
     assert "what-next-lead (dana): failed 2 of 5, within noise" in out
     assert "failed 3 of 5" not in out
 

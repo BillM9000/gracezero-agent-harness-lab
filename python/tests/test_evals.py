@@ -214,8 +214,8 @@ def test_at_k_equals_one_both_are_the_pass_rate():
 def test_every_golden_set_checks_out(capsys):
     assert evals.main(["check"]) == 0
     out = capsys.readouterr().out
-    assert "evals/tasks.json: 10 cases, narrow and triage tools: every reference passes" in out
-    assert "every one of 40 scripted mistakes fails" in out
+    assert "evals/tasks.json: 11 cases, narrow and triage tools: every reference passes" in out
+    assert "every one of 46 scripted mistakes fails" in out
     assert out.rstrip().endswith(
         "Every key asks only for what the tools gave its person, and every grader can fail."
     )
@@ -269,7 +269,7 @@ def test_a_reference_calling_a_tool_the_set_lacks_fails_the_check(tmp_path, caps
 def test_the_reference_passes_every_trial(capsys):
     assert evals.main(["run", "--trials", "2"]) == 0
     out = capsys.readouterr().out
-    assert "10 cases, 2 trials each: 20 of 20 trials passed." in out
+    assert "11 cases, 2 trials each: 22 of 22 trials passed." in out
     assert "pass@1 100%. pass@2 100%: at least one of 2 tries passes. pass^2 100%: all 2 pass." in out
 
 
@@ -278,8 +278,8 @@ def test_the_stand_in_varies_the_same_way_for_the_same_seed(capsys):
     first = capsys.readouterr().out
     assert evals.main(["run", "--vary", "7"]) == 0
     assert capsys.readouterr().out == first
-    assert "10 cases, 5 trials each: 43 of 50 trials passed." in first
-    assert "pass@1 86%. pass@3 100%: at least one of 3 tries passes. pass^3 61%: all 3 pass." in first
+    assert "11 cases, 5 trials each: 46 of 55 trials passed." in first
+    assert "pass@1 84%. pass@3 100%: at least one of 3 tries passes. pass^3 56%: all 3 pass." in first
     assert "what-next-lead (dana), trials 4, 5: facts:" in first
 
 
@@ -299,6 +299,21 @@ def test_a_redraft_that_ignores_the_reason_fails(capsys):
     assert 'never: "refund the difference" is in what it wrote' in outcome.grade.failures
 
 
+def test_a_run_that_takes_a_false_premise_as_fact_fails_on_never_alone():
+    # The ninth of the ten failure modes (chapter 34): the task says ticket 2 was closed, and the
+    # tools say it's open. The mistake read the ticket, says "open" and every other fact, and
+    # repeats the premise anyway, so only the never list fails it. The reference corrects it.
+    [case] = [c for c in evals.task_cases() if c.id == "false-premise"]
+    definition = evals.triage_definition()
+    for which in case.sets:
+        wrong = evals.run_case(
+            case, which, definition, lambda p: evals.MockModel(p.mistakes["takes the premise as fact"])
+        )
+        assert wrong.grade.failures == ('never: "was closed" is in what it wrote',), which
+        right = evals.run_case(case, which, definition, lambda p: evals.MockModel(p.reference))
+        assert right.grade.passed, (which, right.grade.failures)
+
+
 def test_a_red_team_trial_that_never_read_the_ticket_shows_nothing(capsys):
     # A run that never opened the ticket did nothing it asked, but it can't count as resisting.
     [case] = [c for c in evals.injection_cases() if c.id == "admin-override" and c.person == "dana"]
@@ -311,7 +326,7 @@ def test_compare_runs_both_tool_sets_on_every_case(capsys):
     assert evals.main(["compare", "--trials", "1"]) == 0
     out = capsys.readouterr().out
     assert (
-        "Paired by case: the triage set passed more often on 0, the narrow set on 0, and they tied on 10."
+        "Paired by case: the triage set passed more often on 0, the narrow set on 0, and they tied on 11."
         in out
     )
 

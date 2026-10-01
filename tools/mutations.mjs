@@ -73,6 +73,8 @@ const lockTest = (name) => nodeTest(LOCK_TESTS, name);
 const GRADING = "python/src/helpdesk/assistant/grading.py";
 const EVALS = "python/src/helpdesk/evals.py";
 const evalsTest = (name) => pytest(`tests/test_evals.py::${name}`);
+// The golden-set check itself, on this repository's golden sets.
+const EVALS_CHECK = { cwd: "python", python: ["-m", "helpdesk.evals", "check"] };
 const JUDGING = "python/src/helpdesk/assistant/judging.py";
 const JUDGE = "python/src/helpdesk/judge.py";
 const judgeTest = (name) => pytest(`tests/test_judge.py::${name}`);
@@ -2786,6 +2788,28 @@ export const MUTATIONS = [
     find: '    if getattr(args, "vary", None) is not None and args.real:',
     replace: "    if False:",
     run: evalsTest("test_vary_and_real_together_are_refused"),
+  },
+  // Chapter 34's ninth failure mode: a golden task built on a false premise, which the never list fails.
+  {
+    guard: "golden sets: the false-premise task's never list fails a run that repeats the premise",
+    file: "python/evals/tasks.json",
+    find: '"never": ["was closed", "is closed", "it\'s closed"],',
+    replace: '"never": [],',
+    run: EVALS_CHECK,
+  },
+  {
+    guard: "golden sets: a reference that repeats the false premise fails the check",
+    file: "python/evals/tasks.json",
+    find: `"triage": {\n          "turns": [[["get_ticket", {"ticket_id": 2}]]],\n          "answer": "Ticket 2 isn't closed: it's still open,`,
+    replace: `"triage": {\n          "turns": [[["get_ticket", {"ticket_id": 2}]]],\n          "answer": "Ticket 2 was closed yesterday, though it shows as open,`,
+    run: EVALS_CHECK,
+  },
+  {
+    guard: "golden sets: a task's own scripted mistakes are played",
+    file: EVALS,
+    find: "    for label, answer in (own or {}).items():",
+    replace: "    for label, answer in {}.items():",
+    run: evalsTest("test_a_run_that_takes_a_false_premise_as_fact_fails_on_never_alone"),
   },
   {
     guard: "guardrail tests: lint-imports writes the encoding the test reads, whatever the shell sets",

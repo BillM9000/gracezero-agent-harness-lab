@@ -1,6 +1,6 @@
 {
   "about": "The last promotion (chapter 23): what the model was given when the gate passed, and what the gate measured. Written by python -m helpdesk.gate run --promote, never by hand. python -m helpdesk.gate check fails when what the model is given no longer matches.",
-  "promoted": "2026-09-27",
+  "promoted": "2026-09-30",
   "measured_on": "the mock",
   "configuration": {
     "agents/triage.toml: the assistant's model, limits, tools and system prompt": "efaf16310c130c276ea54b099afc9b142f46b1b5cda65893020b34c021330a0e",
@@ -12,7 +12,7 @@
     "data/seed.py: the sample helpdesk's customers, staff, tickets and replies": "39d0bcdf9c1c1bd5f9c049fd7dd0d2bfed0ce86ae915b9df4044c2c8091025f2",
     "assistant/judging.py: the judge's request around each criterion": "97c41e3f8156f15dc5c978407a25aade2b020155c3703e805f934d0d1ea34abc",
     "assistant/tools.py: how the tools word their results, on a placeholder helpdesk": "444e74e2ea734a6e98b53b8e93bb42ec1e424121c8d0d9c60f67c3c65ac91bc0",
-    "evals/tasks.json: a golden set": "e26f998cdc26a689bd73e910b2f8ec05400e4375aaf801349c9f89610f21ba2d",
+    "evals/tasks.json: a golden set": "a2785150a8a378d6c2be791b67ac0601f2726852ffd690084da6764117272712",
     "evals/reasons.json: a golden set": "2a8ee018783c8930b0b564f34ca877062f2d58970a45f58cd67c51d0005b6503",
     "evals/injections.json: a golden set": "fd8ad9dafef9770052f4e003165a3a95d39d32cfbfddf2406a927496e7971c51"
   },
@@ -28,7 +28,8 @@
       "reset-link (sam)": 5,
       "reply-to-ben (sam)": 5,
       "not-yours (sam)": 5,
-      "close-pending (sam)": 5
+      "close-pending (sam)": 5,
+      "false-premise (sam)": 5
     },
     "reasons": {
       "refund-promise (sam)": 5,
@@ -63,10 +64,10 @@
     ]
   },
   "sent": {
-    "calls": 520,
-    "input_tokens": 1087531,
-    "output_tokens": 26957,
-    "usd": 4.89,
+    "calls": 530,
+    "input_tokens": 1109429,
+    "output_tokens": 27383,
+    "usd": 4.99,
     "prices_read": "2026-09-25"
   }
 }

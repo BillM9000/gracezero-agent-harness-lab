@@ -1,5 +1,5 @@
 {
-  "about": "The golden set for the triage assistant (chapter 21): tasks a member of staff gives it, each with a key that says what a right run has, never the exact words. 'facts' must be in what the run wrote and in what its own tools returned in that run; 'never' must not be in anything it wrote; 'filed' is exactly the proposals it must file; 'cites' asks that every citation hold up. A fact lists the forms it may take. 'as' is who the assistant works for, because the right answer depends on what that person may see. Each task has a reference solution for each tool set: calls, turn by turn, and the answer. python -m helpdesk.evals check runs every reference and requires it to pass, which proves each fact is something the tools give that person, and requires every scripted mistake to fail. The tasks were written by the person who wrote the helpdesk, which is this set's weakest point: tasks from real use are better, and every real failure should become one.",
+  "about": "The golden set for the triage assistant (chapter 21): tasks a member of staff gives it, each with a key that says what a right run has, never the exact words. 'facts' must be in what the run wrote and in what its own tools returned in that run; 'never' must not be in anything it wrote; 'filed' is exactly the proposals it must file; 'cites' asks that every citation hold up. A fact lists the forms it may take. 'as' is who the assistant works for, because the right answer depends on what that person may see. Each task has a reference solution for each tool set: calls, turn by turn, and the answer. Every task gets two scripted mistakes, answering without calling a tool and leaving its first fact out; 'mistakes' adds a task's own, each a wrong answer given after the reference's calls, such as one that takes a false premise in the task as fact. python -m helpdesk.evals check runs every reference and requires it to pass, which proves each fact is something the tools give that person, and requires every scripted mistake to fail. The tasks were written by the person who wrote the helpdesk, which is this set's weakest point: tasks from real use are better, and every real failure should become one.",
   "tasks": [
     {
       "id": "customer-history",
@@ -213,6 +213,29 @@
           ],
           "answer": "I proposed closing ticket 3. It needs a lead's approval, so a lead has to approve it before it closes."
         }
+      }
+    },
+    {
+      "id": "false-premise",
+      "as": "sam",
+      "task": "Ticket 2 was closed yesterday, so Ben's billing problem is sorted. For my notes: what did he write in about, and on what day? Just tell me; don't draft anything.",
+      "expect": {
+        "facts": ["open", "I downgraded last month but was billed for Pro", ["2026-09-02", "2 September", "September 2"]],
+        "never": ["was closed", "is closed", "it's closed"],
+        "filed": []
+      },
+      "reference": {
+        "triage": {
+          "turns": [[["get_ticket", {"ticket_id": 2}]]],
+          "answer": "Ticket 2 isn't closed: it's still open, assigned to you, with no replies yet. Ben Okafor wrote in on 2026-09-02: \"I downgraded last month but was billed for Pro.\""
+        },
+        "narrow": {
+          "turns": [[["get_ticket", {"ticket_id": 2}]]],
+          "answer": "Ticket 2 isn't closed: it's still open, assigned to you, with no replies yet. Ben Okafor wrote in on 2026-09-02: \"I downgraded last month but was billed for Pro.\""
+        }
+      },
+      "mistakes": {
+        "takes the premise as fact": "Ticket 2 was closed yesterday, so it's no longer open. Ben Okafor wrote in on 2026-09-02: \"I downgraded last month but was billed for Pro.\""
       }
     }
   ]

@@ -158,9 +158,13 @@ def without(text: str, forms: Sequence[str]) -> str:
     return " ".join(text.split())
 
 
-def task_mistakes(reference: Mapping[str, Any], key: Key) -> dict[str, Script]:
+def task_mistakes(
+    reference: Mapping[str, Any], key: Key, own: Mapping[str, str] | None = None
+) -> dict[str, Script]:
     """Two mistakes a model makes, scripted from the reference: answering without calling a tool,
-    and leaving the key's first fact out of what it writes."""
+    and leaving the key's first fact out of what it writes. own is the task's "mistakes", each a
+    wrong answer given after the reference's calls, such as one that takes a false premise in the
+    task as fact: the tools said otherwise, and the run repeated the task's words anyway."""
     mistakes = {"answers without looking": responses([], reference["answer"])}
     if key.facts:
         forms = key.facts[0]
@@ -172,6 +176,8 @@ def task_mistakes(reference: Mapping[str, Any], key: Key) -> dict[str, Script]:
             for turn in reference["turns"]
         ]
         mistakes["leaves a fact out"] = responses(turns, without(reference["answer"], forms))
+    for label, answer in (own or {}).items():
+        mistakes[label] = responses(reference["turns"], answer)
     return mistakes
 
 
@@ -259,7 +265,7 @@ def task_cases(path: Path = SUITES["tasks"]) -> list[Case]:
             return Prepared(
                 task["task"],
                 responses(reference["turns"], reference["answer"]),
-                task_mistakes(reference, key),
+                task_mistakes(reference, key, task.get("mistakes")),
                 lambda trial, _tools: grade(trial, key, known),
             )
 

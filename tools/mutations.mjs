@@ -5555,6 +5555,13 @@ export const MUTATIONS = [
     run: templatesTest("kit: the user-level example is within the instruction-file budget"),
   },
   {
+    guard: "templates: the user-level example has every section of its skeleton",
+    file: "templates/ship/user-CLAUDE.example.md",
+    find: "## Secrets\n",
+    replace: "## Keys and passwords\n",
+    run: templatesTest("kit: each document's filled example passes"),
+  },
+  {
     guard: "templates: the proof page is what the claims script writes",
     file: "templates/prove/proof.example.md",
     find: "4 pass, 0 fail, 1 unknown.",

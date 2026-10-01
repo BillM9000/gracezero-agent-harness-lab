@@ -2396,6 +2396,13 @@ export const MUTATIONS = [
     run: costTest("test_a_second_providers_model_is_priced_from_its_own_page"),
   },
   {
+    guard: "cost: a second provider's cache prices are its own",
+    file: COST,
+    find: '    "gpt-6.1-sol": 0.05,',
+    replace: '    "gpt-6.1-sol": 0.1,',
+    run: costTest("test_its_cache_reads_at_a_twentieth_and_caches_nothing_under_1024_tokens"),
+  },
+  {
     guard: "fitness: a second provider's model ids are pinned and tracked too",
     file: "python/tests/fitness/test_model_ids_are_pinned.py",
     find: 'MODEL_ID = re.compile(r"\\b(?:claude|gpt)-[a-z0-9]+(?:[.-][a-z0-9]+)*")',

@@ -75,6 +75,17 @@ def test_a_second_providers_model_is_priced_from_its_own_page():
         provider_of("gpt-unknown")
 
 
+def test_its_cache_reads_at_a_twentieth_and_caches_nothing_under_1024_tokens():
+    # OpenAI's prompt caching guide, read 2026-10-01: for GPT-5.6 and later, writes cost 1.25 times the
+    # uncached input rate and reads 0.05 times on GPT-6.1 Sol; the shortest cacheable prompt is 1,024
+    # tokens, and nothing says a shorter one wasn't cached.
+    short = conversation("gpt-6.1-sol", system=500, user=100, reply=200, turns=3, cache=True)
+    assert [(t.input_tokens, t.cache_written) for t in short] == [(600, 0), (900, 0), (1200, 1200)]
+    turns = conversation("gpt-6.1-sol", system=2000, user=300, reply=500, turns=2, cache=True)
+    # Turn 2 at $2 in: 2,300 read at 0.05x, 800 written at 1.25x, 500 out at $10.
+    assert turns[1].cost == pytest.approx((2300 * 2 * 0.05 + 800 * 2 * 1.25 + 500 * 10) / 1_000_000)
+
+
 def test_every_priced_model_has_exactly_one_provider():
     from helpdesk.model.cost import PRICES, PROVIDERS
 

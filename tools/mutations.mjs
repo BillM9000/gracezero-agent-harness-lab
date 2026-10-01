@@ -1168,6 +1168,13 @@ export const MUTATIONS = [
     run: pytest(`${MCP}::test_a_uri_that_names_nothing_is_refused`),
   },
   {
+    guard: "mcp: a missing resource gets the code of the revision the client speaks",
+    file: MCP_SERVER,
+    find: "code = RESOURCE_NOT_FOUND if ctx.protocol_version in HANDSHAKE_PROTOCOL_VERSIONS else INVALID_PARAMS",
+    replace: "code = INVALID_PARAMS",
+    run: pytest(`${MCP}::test_a_missing_resource_gets_the_code_of_the_revision_the_client_speaks`),
+  },
+  {
     guard: "mcp: standard output carries only MCP messages",
     file: MCP_SERVER,
     find: 'print(f"helpdesk MCP server: acting for {person.label}, on stdio.", file=sys.stderr)',

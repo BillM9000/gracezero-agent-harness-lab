@@ -195,6 +195,19 @@ def test_a_uri_that_names_nothing_is_refused(sam):
         assert read(sam, uri)["error"]["code"] == -32602
 
 
+def test_a_missing_resource_gets_the_code_of_the_revision_the_client_speaks(sam):
+    # 2026-07-28 answers a resource that doesn't exist with -32602 (Invalid Params); 2025-11-25 and
+    # the revisions before it answered -32002, so a host that opened with the handshake looks for that.
+    uris = ("helpdesk://tickets/999", "helpdesk://tickets/4", "helpdesk://kb/99", "helpdesk://customers/1")
+    modern = [read(sam, uri)["error"] for uri in uris]
+    with opened("sam", legacy=True) as client:
+        legacy = [read(client, uri)["error"] for uri in uris]
+    assert [e["code"] for e in modern] == [-32602] * len(uris)
+    assert [e["code"] for e in legacy] == [-32002] * len(uris)
+    # Only the code changes: the same words and the same data in either revision.
+    assert [(e["message"], e["data"]) for e in legacy] == [(e["message"], e["data"]) for e in modern]
+
+
 # Prompts.
 
 

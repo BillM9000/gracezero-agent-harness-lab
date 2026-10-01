@@ -39,6 +39,7 @@ from mcp.server import CacheHint, Server, ServerRequestContext
 from mcp.server.stdio import stdio_server
 from mcp.shared.exceptions import MCPError
 from mcp.types.jsonrpc import INVALID_PARAMS
+from mcp.types.version import HANDSHAKE_PROTOCOL_VERSIONS
 
 from helpdesk.assistant.tools import Toolbox, triage_tools
 from helpdesk.data.db import connect, init_schema
@@ -72,11 +73,17 @@ DRAFT_REPLY = types.Prompt(
     ],
 )
 
+# The code the revisions with the initialize handshake (2024-11-05 to 2025-11-25) give a resource that
+# doesn't exist. 2026-07-28 uses -32602 (Invalid Params) instead, and the SDK names only that one.
+RESOURCE_NOT_FOUND = -32002
 
-def not_found(message: str, uri: str) -> MCPError:
-    # The specification's code for a resource that doesn't exist. A ticket the person can't see
-    # gets it too, with the same words as a missing one (access.cannot_see).
-    return MCPError(INVALID_PARAMS, message, {"uri": uri})
+
+def not_found(ctx: ServerRequestContext[Any], message: str, uri: str) -> MCPError:
+    # The specification's code for a resource that doesn't exist, in the revision the client speaks,
+    # which the SDK keeps from the handshake or from the request's own metadata. A ticket the person
+    # can't see gets it too, with the same words as a missing one (access.cannot_see).
+    code = RESOURCE_NOT_FOUND if ctx.protocol_version in HANDSHAKE_PROTOCOL_VERSIONS else INVALID_PARAMS
+    return MCPError(code, message, {"uri": uri})
 
 
 def build_server(conn: sqlite3.Connection, person: Person) -> Server[Any]:
@@ -138,13 +145,13 @@ def build_server(conn: sqlite3.Connection, person: Person) -> Server[Any]:
         number = uri.removeprefix(TICKETS) if uri.startswith(TICKETS) else uri.removeprefix(ARTICLES)
         if not uri.startswith((TICKETS, ARTICLES)) or not number.isdigit():
             raise not_found(
-                f"No resource at {uri}. Tickets are {TICKETS}N and help articles {ARTICLES}N.", uri
+                ctx, f"No resource at {uri}. Tickets are {TICKETS}N and help articles {ARTICLES}N.", uri
             )
         if uri.startswith(TICKETS):
             try:
                 ticket = tickets.visible_ticket(conn, person, int(number))
             except ServiceError as e:
-                raise not_found(str(e), uri) from None
+                raise not_found(ctx, str(e), uri) from None
             record = types.TextResourceContents(
                 uri=uri, mime_type="application/json", text=json.dumps(ticket, indent=2)
             )
@@ -153,7 +160,7 @@ def build_server(conn: sqlite3.Connection, person: Person) -> Server[Any]:
             return types.ReadResourceResult(contents=[record], ttl_ms=0, cache_scope="private")
         article = next((a for a in kb.articles(conn) if a["id"] == int(number)), None)
         if article is None:
-            raise not_found(f"There is no help article {number}. resources/list names them all.", uri)
+            raise not_found(ctx, f"There is no help article {number}. resources/list names them all.", uri)
         text = f"# {article['title']}\n\n{article['body']}"
         page = types.TextResourceContents(uri=uri, mime_type="text/markdown", text=text)
         return types.ReadResourceResult(contents=[page], ttl_ms=3_600_000, cache_scope="public")

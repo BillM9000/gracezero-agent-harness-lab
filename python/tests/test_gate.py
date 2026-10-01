@@ -361,10 +361,13 @@ def test_a_billed_golden_set_run_needs_a_cap_before_any_client_is_built(argv, mo
 @pytest.mark.parametrize(
     "argv", [["calibrate", "--real"], ["compare", "--real"], ["revise", "--real"], ["doc", "x.md", "--real"]]
 )
-def test_a_billed_judge_run_needs_a_cap_before_any_client_is_built(argv, monkeypatch):
+def test_a_billed_judge_run_needs_a_cap_before_any_client_is_built(argv, monkeypatch, capsys):
     monkeypatch.setattr(evals, "real_model", lambda *a, **k: pytest.fail("built a client without a cap"))
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as stop:
         judge.main(argv)
+    # argparse's refusal, for the cap, which comes before the gateway's for a missing credential.
+    assert stop.value.code == 2
+    assert "--real is billed, so it needs a cap" in capsys.readouterr().err
 
 
 def test_a_capped_billed_run_stops_before_the_call_that_could_pass_the_cap(monkeypatch, capsys):

@@ -521,7 +521,8 @@ def test_a_real_run_with_no_credential_for_the_models_provider_is_refused_in_wor
     ):
         command.for_agent(triage)
     assert command._GATEWAYS == {}  # nothing was built
-    monkeypatch.setenv("OPENAI_API_KEY", "set-for-this-test-only")
+    # Either variable the SDK reads will do: the second one alone is enough.
+    monkeypatch.setenv("OPENAI_ADMIN_KEY", "present-for-this-test-only")
     assert command.missing_credentials([second]) == []
     assert command.api_of([triage, second]) == "Anthropic's and OpenAI's APIs"
     assert command.api_of([second]) == "OpenAI's API"

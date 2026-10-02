@@ -69,8 +69,9 @@ PROVIDERS = {
         "models": ("gpt-6.1-sol",),
     },
 }
-# The day Anthropic's prices were read: gate.py records it with a promotion, and every model its
-# definitions name is Anthropic's today. read_on gives the day for any model.
+# The day Anthropic's prices were read: gate.py records it with a promotion, and the two models a
+# promotion is measured with, the triage assistant's and the first judge's (agents/triage.toml and
+# agents/judge.toml), are Anthropic's today. read_on gives the day for any model.
 PRICES_SOURCE = PROVIDERS["Anthropic"]["pricing"]
 PRICES_READ = PROVIDERS["Anthropic"]["read"]
 

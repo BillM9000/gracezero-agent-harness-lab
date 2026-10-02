@@ -1,6 +1,8 @@
 # The second judge (chapter 22): the same definition as judge.toml with a model from another
-# provider, gpt-6.1-sol, OpenAI's, the model agents/policy.toml approves from outside the drafter's
-# family, so comparing the two judges measures another family's habits, not another size of the same.
+# provider. agents/policy.toml approves three models, two of Anthropic's and OpenAI's gpt-6.1-sol;
+# the first judge is on Anthropic's claude-opus-5-5 and this one on gpt-6.1-sol, so the two judges
+# come from two vendors, and comparing them measures another family's habits, not another size of
+# the same.
 # A stronger model would need the platform team's approval first (chapter 18). The gateway (chapter
 # 27) sends its calls to OpenAI's adapter, and --real needs OPENAI_API_KEY in the environment. A test
 # keeps this file equal to judge.toml in everything but name and model, and another keeps the two

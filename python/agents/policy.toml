@@ -39,7 +39,9 @@ close_ticket = "lead"
 # and its share of the organization's rate limits, and the gateway (python -m helpdesk.gateway)
 # checks both before every call it makes for them. An agent's owner must be one of these. Anthropic's
 # Start tier allows 1,000 requests and 2,000,000 input tokens a minute on the lab's models (rate
-# limits page, read 2026-09-25); one team gets a tenth and a fifth of that.
+# limits page, read 2026-09-25); one team gets a tenth and a fifth of that. A team's month and its
+# share apply across every provider its calls reach: the gateway counts them together, whichever
+# provider answers.
 [teams.support-tools]
 monthly_usd = 50.0
 requests_per_minute = 100

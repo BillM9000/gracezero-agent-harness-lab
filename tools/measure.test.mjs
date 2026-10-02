@@ -77,6 +77,21 @@ test("lines that silence a rule count only in agent changes", () => {
   assert.deepEqual(silencedLines, ["app/a.py: import os  # noqa: F401"]);
 });
 
+// A commit placed later in a history can keep its first, older date (a fix moved before the tag of
+// the chapter it fixes, say). git log --since stops walking at the first commit older than the date,
+// so the window's commits behind such a commit were never read.
+test("every commit in the window is read, even behind a commit with an older date", () => {
+  const { root } = repository([
+    { day: 1, subject: "feat: the start", files: { "start.js": "1" } },
+    { day: 9.5, subject: "feat: the agent's module", files: { "app/a.py": "import os  # noqa: F401\n" }, agent: true },
+    { day: 5, subject: "fix: a placed fix, with its first date", files: { "app/b.py": "x = 1\n" } },
+    { day: 10, subject: "feat: the agent's next module", files: { "app/c.py": "import sys  # noqa: F401\n" }, agent: true },
+  ]);
+  const { result, silencedLines } = measure(root, { days: 1, within: 1 });
+  assert.deepEqual([result.commits, result.agentChanges, result.silenced], [2, 2, 2]);
+  assert.deepEqual(silencedLines.sort(), ["app/a.py: import os  # noqa: F401", "app/c.py: import sys  # noqa: F401"]);
+});
+
 test("a fix to documentation alone is a drift fix; a fix to code and documentation isn't", () => {
   const { root } = repository([
     { day: 1, subject: "feat: setup", files: { "setup.js": "1", "README.md": "Run setup" }, agent: true },

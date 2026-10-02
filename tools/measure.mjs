@@ -55,9 +55,11 @@ function median(values) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
-// Lines each commit in the window adds, by hash.
+// Lines each commit in the window adds, by hash. --since-as-filter, not --since: git log --since
+// stops at the first commit older than the date, and a history whose dates aren't in order (a fix
+// placed earlier keeps its own date) has window commits behind such a commit; this visits them all.
 function addedByCommit(root, rev, since) {
-  const out = git(root, ["log", rev, "--no-merges", `--since=${since}`, "--format=%x1e%H", "-p", "--unified=0", "--no-color", "--no-ext-diff"]);
+  const out = git(root, ["log", rev, "--no-merges", `--since-as-filter=${since}`, "--format=%x1e%H", "-p", "--unified=0", "--no-color", "--no-ext-diff"]);
   const byCommit = new Map();
   for (const entry of out.split("\x1e").filter((e) => e.trim())) {
     const newline = entry.indexOf("\n");

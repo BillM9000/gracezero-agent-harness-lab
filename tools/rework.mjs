@@ -37,10 +37,11 @@ function option(args, name, fallback) {
 // Commits oldest first, each with its hash, time, subject, author, co-authors and the files it
 // counts. rev is where the history ends (chapter 26 measures a window that ends at an older commit).
 export function readHistory(root, sinceSeconds, { allFiles = false, ignore = null, rev = "HEAD" } = {}) {
-  // Committer time, the date --since filters on.
+  // Committer time, the date --since-as-filter filters on. Not --since, which stops at the first
+  // commit older than the date and so misses newer ones behind it when dates aren't in order.
   const format = "%x1e%H%x1f%ct%x1f%s%x1f%an%x1f%(trailers:key=Co-authored-by,valueonly,separator=%x1d)%x1f";
   const since = new Date(sinceSeconds * 1000).toISOString();
-  const args = ["log", rev, "--no-merges", "--reverse", `--since=${since}`, `--format=${format}`, "--name-only"];
+  const args = ["log", rev, "--no-merges", "--reverse", `--since-as-filter=${since}`, `--format=${format}`, "--name-only"];
   const log = spawnSync("git", args, {
     cwd: root,
     encoding: "utf8",

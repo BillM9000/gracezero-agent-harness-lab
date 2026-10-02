@@ -3479,6 +3479,20 @@ export const MUTATIONS = [
     run: nodeTest(MEASURE_TESTS, "lines that silence a rule count only"),
   },
   {
+    guard: "measure: silenced lines are read from every commit in the window, behind an older date too",
+    file: MEASURE,
+    find: '"--no-merges", `--since-as-filter=${since}`, "--format=%x1e%H"',
+    replace: '"--no-merges", `--since=${since}`, "--format=%x1e%H"',
+    run: nodeTest(MEASURE_TESTS, "every commit in the window is read"),
+  },
+  {
+    guard: "measure: the window's history is read behind a commit with an older date",
+    file: REWORK,
+    find: '"--reverse", `--since-as-filter=${since}`',
+    replace: '"--reverse", `--since=${since}`',
+    run: nodeTest(MEASURE_TESTS, "every commit in the window is read"),
+  },
+  {
     guard: "measure: a drift fix changes documentation and nothing else",
     file: MEASURE,
     find: "c.files.every((f) => MARKDOWN.test(f))",

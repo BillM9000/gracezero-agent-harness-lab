@@ -1,6 +1,6 @@
 # agent-harness-lab
 
-The companion lab for *Keeping AI Agents Honest: What AI Platform Engineers and Architects Actually Do, and How to Do It*, by Bill McCoy (`<book-url>`). Each guardrail the book teaches is built here, with a test that proves it catches what it claims to, and each chapter's Try it steps run here. Everything runs against a deterministic mock model unless you ask for a real one, so none of it costs anything to run.
+The companion lab for *Keeping AI Agents Honest: What AI Platform Engineers and Architects Actually Do, and How to Do It*, by Bill McCoy (https://gracezero.com/keeping-ai-agents-honest). Each guardrail the book teaches is built here, with a test that proves it catches what it claims to, and each chapter's Try it steps run here. Everything runs against a deterministic mock model unless you ask for a real one, so none of it costs anything to run.
 
 ## Quick start
 
@@ -9,7 +9,7 @@ You need git, Node 24 and Python 3.12 or newer. CI runs the lab with Python 3.14
 On Windows, clone into a short folder such as `C:\src`. One of the Python packages installs files with very long names, and Windows limits a whole path to 260 characters unless long paths are enabled. The setup script checks the length before it installs anything, and says what to do if your folder's path is too long.
 
 ```bash
-git clone <clone-url> agent-harness-lab
+git clone https://github.com/BillM9000/gracezero-agent-harness-lab agent-harness-lab
 cd agent-harness-lab
 node setup.mjs
 node check.mjs
